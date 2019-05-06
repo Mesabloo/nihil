@@ -25,7 +25,7 @@ Some unicode characters are part of the language itself, and may be used interch
 
 ```haskell
 fib: Num a ⇒ a ⊸ a
-fib n = match !n with
+fib n = match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
     0  → 1
     1  → 1
     n' → fib (n' - 2) + fib (n' - 1)
@@ -35,7 +35,7 @@ fib n = match !n with
 
 ```haskell
 fact: Num a ⇒ a ⊸ a
-fact n = match !n with
+fact n = match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
     0  → 1
     n' → n * fact (n' - 1)
 ```
@@ -44,14 +44,14 @@ fact n = match !n with
 
 ```haskell
 ack: Num a ⇒ a ⊸ a ⊸ a
-ack n m = match !m with
+ack n m = match !m with --  we clone “m”. I will choose later whether pattern matching auto-clones or not
     0  → n + 1
-    m' → match !n with
+    m' → match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
         0  → ack (m' - 1) 1
         n' → ack (m' - 1) $ ack m (n' - 1)
 ```
 
-## Planed work
+## Roadmap
 
 - [ ] Implementing a fully working λ language inside the REPL.
     The goal is basically to replicate a small Haskell.
