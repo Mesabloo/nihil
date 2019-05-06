@@ -64,6 +64,9 @@ brackets p = lexeme . try $ between (symbol "[") (symbol "]") p
 backticks :: Parser a -> Parser a
 backticks p = lexeme . try $ between (string "`") (string "`") p
 
+braces :: Parser a -> Parser a
+braces p = lexeme . try $ between (string "{") (string "}") p
+
 integer :: Parser Integer
 integer = lexeme L.decimal
 

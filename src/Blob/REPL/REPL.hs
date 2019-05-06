@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase, TupleSections #-}
 
 module Blob.REPL.REPL
 ( runREPL
@@ -26,8 +26,9 @@ import Data.Void (Void)
 import qualified Data.Text as Text (Text, pack)
 import qualified Data.Text.IO as Text (readFile)
 import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..))
-import Text.Megaparsec.Error (ParseErrorBundle, errorBundlePretty, bundleErrors, parseErrorTextPretty)
-import Text.Megaparsec (runParserT)
+import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErrors, parseErrorTextPretty)
+import Text.Megaparsec (runParserT, PosState(..))
+import Text.Megaparsec.Pos (SourcePos(..), unPos)
 import System.IO (hFlush, stdout)
 import Control.Monad (forever)
 import System.Directory (doesFileExist)
@@ -155,13 +156,27 @@ replCheck = \case
 replSetColor :: MonadIO m => ColorIntensity -> Color -> m ()
 replSetColor intensity color = liftIO $ setSGR [SetColor Foreground intensity color]
 
+-- replErrorPretty :: ParseErrorBundle Text.Text Void -> IO ()
+-- replErrorPretty bundle = do
+--     let errors = toList $ bundleErrors bundle
+--         texts  = flip List.map errors $ \e -> do (PosState _ _ pos _ _) <- bundlePosState bundle
+--                                                  (SourcePos name line col) <- pos
+--                                                  "at <“" ++ name ++ "”:" ++ show line ++ ":" ++ show col ++ ">\n" ++ parseErrorTextPretty e
+--         lines' = List.map (split "\n") texts
+--         lines''= List.map (filter (/= "")) lines'
+--         errs   = List.map (List.map (capitalize . rstrip . flip (++) ".")) lines''
+--         errs'  = List.map (List.intercalate "\n") errs
+--     mapM_ putStr errs' >> putStr "\n"
+
 replErrorPretty :: ParseErrorBundle Text.Text Void -> IO ()
 replErrorPretty bundle = do
-    let errors = toList $ bundleErrors bundle
-        texts  = List.map parseErrorTextPretty errors
-        lines' = List.map (split "\n") texts
-        lines''= List.map (filter (/= "")) lines'
-        errs   = List.map (List.map (capitalize . rstrip . flip (++) ".")) lines''
+    let (PosState _ _ state _ _) = bundlePosState bundle
+        errors = map (, state) (toList $ bundleErrors bundle)
+        texts  = flip List.map errors $ \(e, pos) -> do let (SourcePos name line col) = pos
+                                                        "at <“" ++ name ++ "”:" ++ show (unPos line) ++ ":" ++ show (unPos col) ++ ">\n" ++ parseErrorTextPretty e
+        lines_ = List.map (split "\n") texts
+        lines' = List.map (filter (/= "")) lines_
+        errs   = List.map (List.map (capitalize . rstrip . flip (++) ".")) lines'
         errs'  = List.map (List.intercalate "\n") errs
     mapM_ putStr errs' >> putStr "\n"
 
