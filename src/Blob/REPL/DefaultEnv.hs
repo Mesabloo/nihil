@@ -64,3 +64,6 @@ defaultDeclContext = Map.fromList [ ("+", Scheme ["a"] $ TFun (TRigidVar "a") (T
                                   , ("-", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a")))
                                   , ("*", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a")))
                                   , ("/", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a"))) ]
+
+defaultDefContext :: Map.Map String Scheme
+defaultDefContext = defaultDeclContext

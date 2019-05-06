@@ -136,7 +136,7 @@ tiExpr (ETuple es)  = fmap TTuple <$> tiTuple es
         (s1, t)  <- tiExpr e
         (s2, ts) <- tiTuple es'
         pure (s2 `composeSubst` s1, t:ts)
-tiExpr (EList es)   = flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a"
+tiExpr (EList es)   = fmap TList <$> (flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a")
   where
     go (subst, type') item = do
         (s1, t) <- tiExpr item
@@ -175,15 +175,16 @@ tiType (TP.TList t)        = TList (tiType t)
 sepStatements :: [Statement] -> Check ()
 sepStatements s = do
     env <- get
-    let (TypeEnv external) = declCtx env
-        (types, exprs)     = bimap MMap.fromList MMap.fromList $ separateDecls s
+    let (TypeEnv externalDecl) = declCtx env
+        (TypeEnv externalDef)  = defCtx env
+        (types, exprs)         = bimap MMap.fromList MMap.fromList $ separateDecls s
     
-        res                = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k external)
-                                                     then throwError $ makeRedeclaredError k
-                                                     else Right $ head v) (MMap.toMap types)
-        res1               = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k external)
-                                                     then throwError $ makeRedefinedError k
-                                                     else Right $ head v) (MMap.toMap exprs)
+        res                    = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k externalDecl)
+                                                         then throwError $ makeRedeclaredError k
+                                                         else Right $ head v) (MMap.toMap types)
+        res1                   = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k externalDef)
+                                                         then throwError $ makeRedefinedError k
+                                                         else Right $ head v) (MMap.toMap exprs)
 
     env <- get
 

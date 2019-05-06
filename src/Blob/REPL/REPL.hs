@@ -14,7 +14,7 @@ import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), InlineCode(
 import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..))
 import Blob.Parsing.Types(Program(..), Statement(..))
 import Blob.Parsing.Defaults (initParseState)
-import Blob.REPL.DefaultEnv (defaultEnv, defaultDeclContext)
+import Blob.REPL.DefaultEnv (defaultEnv, defaultDeclContext, defaultDefContext)
 import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
 import Blob.Parsing.Parser (program)
 import Blob.Inference.AlgorithmW (programTypeInference, tiProgram, checkTI, typeInference)
@@ -51,7 +51,7 @@ runREPL r = do
     
 initGlobalEnv :: GlobalEnv
 initGlobalEnv = GlobalEnv { declCtx = TypeEnv defaultDeclContext
-                          , defCtx = TypeEnv mempty }
+                          , defCtx = TypeEnv defaultDefContext }
 
 replLoop :: REPL ()
 replLoop = forever $ do
