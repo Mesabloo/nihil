@@ -2,7 +2,7 @@
 
 module Blob.Parsing.Lexer where
 
-import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy)
+import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Blob.Parsing.Types (Parser)
@@ -83,10 +83,11 @@ string'' :: Parser String
 string'' = lexeme $ C.char '"' *> manyTill L.charLiteral (C.char '"')
 
 keyword :: Text -> Parser ()
-keyword kw = lexeme (string kw *> notFollowedBy C.alphaNumChar) <?> show kw
+keyword kw = lexeme (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
 opSymbol :: Parser String
-opSymbol = lexeme (some (oneOf ("!#$%&*+-./<=>?@^|~:" :: String)) <?> "operator")
+opSymbol = lexeme (some C.symbolChar) <?> "operator"
+
 
 ---------------------------------------------------------------------------------------------------------
 

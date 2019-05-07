@@ -1,6 +1,6 @@
 module Blob.REPL.Types where
 
-import Blob.Parsing.Types (Expr, Statement, ParseState)
+import Blob.Parsing.Types (ParseState, Expr)
 import Blob.Inference.Types (GlobalEnv)
 import Blob.PrettyPrinter.PrettyParser (pExpression)
 import Text.PrettyPrint.Leijen (Doc)
@@ -11,16 +11,14 @@ import Control.Monad.Except (Except, ExceptT)
 import System.Console.Haskeline (InputT)
 import Data.List (intercalate)
 
-data Command = GetType Expr
+data Command = GetType String
              | Help
-             | Code InlineCode
+             | Code String
              | Load String
              | Exit
              | Reload
-             | Eval Expr
-    deriving (Eq, Ord, Show)
-
-newtype InlineCode = CStatement Statement
+             | Eval String
+             | Ast String
     deriving (Eq, Ord, Show)
 
 data Value = VInt Integer

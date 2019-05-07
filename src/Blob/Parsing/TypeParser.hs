@@ -9,7 +9,6 @@ import Blob.Parsing.Lexer (lexeme, string, brackets, parens, typeVariable, typeI
 import Blob.Parsing.ExprParser (expression)
 import Text.Megaparsec (optional, try, some, (<|>), (<?>), hidden)
 import Data.Functor (($>))
-import Data.Maybe (fromMaybe)
 
 type' :: Parser Type
 type' = lexeme $ do

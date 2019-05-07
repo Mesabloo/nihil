@@ -3,9 +3,9 @@
 module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..))
-import Blob.REPL.Types (Command(..), EvalEnv, Value(..), InlineCode(..))
+import Blob.REPL.Types (Command(..), EvalEnv, Value(..))
 import Blob.Parsing.Lexer (string', space', space1', symbol)
-import Blob.Parsing.Parser (statement)
+import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
 import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill)
@@ -21,12 +21,13 @@ import Data.Functor (($>))
 
 
 commands :: [String]
-commands = [ ":help", ":h", ":?"
-           , ":quit", ":q"
-           , ":load", ":l" 
-           , ":type", ":t"
-           , ":eval", ":ev"
-           , ":reset", ":r" ]
+commands = [  ":help", ":h", ":?"
+           ,  ":quit", ":q"
+           ,  ":load", ":l" 
+           ,  ":type", ":t"
+           ,  ":eval", ":ev"
+           , ":reset", ":r"
+           ,   ":ast", ":a" ]
 
 help :: Parser Command
 help = space' *> try (hidden (string' "?" <|> string' "help" <|> string' "h") <* eof) $> Help <?> "߷"
@@ -48,12 +49,7 @@ load = do
                 Right x -> pure $ Load (rstrip x)
 
 code :: Parser Command
-code = (eof *> fail "") <|> do
-    stt <- observing (statement <* eof)
-
-    case stt of
-        Left err -> fail $ parseErrorTextPretty err
-        Right x  -> pure $ Code (CStatement x)
+code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
 reset :: Parser Command
 reset = space' *> try (hidden (string' "reset" <|> string' "r")) $> Reload <?> "߷"
@@ -65,12 +61,7 @@ getType = do
     end <- observing . try $ space' *> eof
     case end of
         Right _ -> fail "Missing argument “[expr]”"
-        Left _  -> do
-            expr <- observing (space1' *> expression <* eof)
-
-            case expr of
-                Left err -> fail $ parseErrorTextPretty err
-                Right x  -> pure $ GetType x
+        Left _  -> GetType <$> (space1' *> anySingle `someTill` eof)
 
 eval :: Parser Command
 eval = do
@@ -79,17 +70,21 @@ eval = do
     end <- observing . try $ space' *> eof
     case end of
         Right _ -> fail "Missing argument “[expr]”"
-        Left _  -> do
-            expr <- observing (space1' *> expression <* eof)
+        Left _  -> Eval <$> (space1' *> anySingle `someTill` eof)
 
-            case expr of
-                Left err -> fail $ parseErrorTextPretty err
-                Right x  -> pure $ Eval x
+ast :: Parser Command
+ast = do
+    space' *> try (hidden (string' "ast" <|> string' "a")) <?> "߷"
+
+    end <- observing . try $ space' *> eof
+    case end of
+        Right _ -> fail "Missing argument “[code]”"
+        Left _  -> Ast <$> (space1' *> anySingle `someTill` eof)
 
 command :: Parser Command
 command = do {
         space' *> symbol ":" ;
-        cmd <- observing . try $ choice [help, exit, load, getType, eval, reset] ;
+        cmd <- observing . try $ choice [help, exit, load, getType, eval, reset, ast] ;
         case cmd of
             Left err ->
                 if "߷" `isInfixOf` parseErrorTextPretty err
@@ -124,6 +119,9 @@ helpCommand = do
 
     setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:reset” “:r”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state." >> setSGR [Reset]
+
+    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:ast” “:a”" >> setSGR [Reset]
+        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show the AST representation of some code." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Dull White] >> putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
 
