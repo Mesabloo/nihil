@@ -22,7 +22,6 @@ name: Blob
 version: 0.1.0.0
 extra-source-files:
 - README.md
-- ChangeLog.md
 author: Mesabloo
 github: mesabloo/Blob
 license: GPL-3.0
