@@ -5,7 +5,7 @@ Blob is a small FP language focused on implementing a basic linear type system.
 <details>
 
 <summary>The type system</summary>
-
+<br>
 Even though Blob's type system may seem pointless to many people, it's actually of a great strength. Thanks to it, it is possible to write GC-free VMs easily, because of the automatic memory handling.
 For example, a function whose signature is `f: a ⊸ b` would see its first argument forced to be consumed exactly once (`⊸ = →[1]`) in the function body.
 As another example, a function `g: a →[3] b ⊸ a` would force the developer to use the first argument 3 times and the second argument once.
@@ -14,7 +14,7 @@ As another example, a function `g: a →[3] b ⊸ a` would force the developer t
 <details>
 
 <summary>Unicode characters mapping</summary>
-
+<br>
 Some unicode characters are part of the language itself, and may be used interchangeably with their ASCII correspondants.
 
 | ASCII | Unicode |
@@ -63,6 +63,7 @@ ack n m = match !m with --  we clone “m”. I will choose later whether patter
 <details>
 
 <summary>Roadmap</summary>
+<br>
 
 - [ ] Implementing a fully working λ language inside the REPL.
     The goal is basically to replicate a small Haskell.
