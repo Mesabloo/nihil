@@ -5,15 +5,21 @@ module Blob.Parsing.Parser
 , statement
 ) where
 
-import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..))
-import Blob.Parsing.Lexer (lexeme, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword)
+import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), CustomType(..), Type(..))
+import Blob.Parsing.Lexer (lexeme, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, indented, typeIdentifier, string, typeVariable)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type')
 import Blob.Parsing.Defaults (addOperator)
-import Text.Megaparsec (many, hidden, some, try, (<|>), (<?>), eof)
+import Text.Megaparsec (many, hidden, some, try, (<|>), (<?>), eof, optional)
 import Text.Megaparsec.Char (eol)
+import Text.Megaparsec.Char.Lexer (indentLevel)
 import Data.Functor(fmap, (<$>), ($>), (<$))
 import Data.Text (pack)
+import Control.Monad.State (lift, modify)
+import qualified Data.Map as Map (fromList)
+import qualified Blob.Inference.AlgorithmW as I (tiType)
+import qualified Blob.Inference.Types as I (Type(..), Scheme(..))
+import Blob.PrettyPrinter.PrettyInference (pType)
 
 program :: Parser Program
 program = fmap Program $
@@ -26,7 +32,7 @@ program = fmap Program $
 
 statement :: Parser Statement
 statement = 
-    lexeme (operator <|> try declaration <|> try definition <|>
+    lexeme (operator <|> try declaration <|> try definition <|> try sumType <|>
         ((lineCmnt <|> blockCmnt) $> Empty))
 
 declaration :: Parser Statement
@@ -61,3 +67,22 @@ operator = do
                 <|> Prefix'  <$ keyword "prefix"
                 <|> Postfix' <$ keyword "postfix"
 
+sumType :: Parser Statement
+sumType = do
+    string "data"
+    name <- typeIdentifier
+    ts <- many (I.TRigidVar <$> typeVariable)
+    string "="
+    ctor1 <- constructor name ts
+    ctors <- many $ do
+        string "|"
+        constructor name ts
+
+    pure . TypeDeclaration $ TSum name (Map.fromList (ctor1:ctors))
+  where constructor name ts = flip (<?>) "type constructor" $ do
+            name' <- typeIdentifier
+            type1 <- optional $ many type'
+            
+            case type1 of
+                Nothing -> pure (name', I.Scheme (map (show . pType) ts) (foldl I.TApp (I.TId name) ts))
+                Just cs -> pure (name', I.Scheme (map (show . pType) ts) (foldr (I.TFun . I.tiType) (foldl I.TApp (I.TId name) ts) cs))

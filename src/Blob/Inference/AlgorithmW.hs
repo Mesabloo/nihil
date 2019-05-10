@@ -1,21 +1,18 @@
 module Blob.Inference.AlgorithmW 
-( Type(..)
-, TIError
-, TypeEnv(..)
-, GlobalEnv(..)
-, runTI
+( runTI
 , checkTI
 , typeInference
 , tiProgram
 , programTypeInference
-)
-where
+, tiType
+, generalize
+) where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
 import Blob.Inference.Types (Type(..), Subst, Scheme(..), TypeEnv(..), TIError, TI, TIState(..), Types(..), Check, GlobalEnv(..))
-import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..))
+import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..), Pattern(..))
 import Blob.PrettyPrinter.PrettyInference (pType)
 import qualified Blob.Parsing.Types as TP (Type(..))
 import Control.Monad (zipWithM, foldM)
@@ -85,14 +82,16 @@ mgu TInt TInt                              = pure nullSubst
 mgu TString TString                        = pure nullSubst
 mgu TFloat TFloat                          = pure nullSubst
 mgu (TRigidVar u) (TRigidVar u') | u == u' = pure nullSubst
-mgu (TRigidVar u) TInt | u == "Integer"    = pure nullSubst
-mgu (TRigidVar u) TString | u == "String"  = pure nullSubst
-mgu (TRigidVar u) TFloat | u == "Float"    = pure nullSubst
-mgu TInt (TRigidVar u) | u == "Integer"    = pure nullSubst
-mgu TString (TRigidVar u) | u == "String"  = pure nullSubst
-mgu TFloat (TRigidVar u) | u == "Float"    = pure nullSubst
+mgu (TId u) (TId u') | u == u'             = pure nullSubst
+mgu (TId u) TInt | u == "Integer"          = pure nullSubst
+mgu (TId u) TString | u == "String"        = pure nullSubst
+mgu (TId u) TFloat | u == "Float"          = pure nullSubst
+mgu TInt (TId u) | u == "Integer"          = pure nullSubst
+mgu TString (TId u) | u == "String"        = pure nullSubst
+mgu TFloat (TId u) | u == "Float"          = pure nullSubst
 mgu (TTuple ts1) (TTuple ts2)              = foldr composeSubst nullSubst <$> zipWithM mgu ts1 ts2
 mgu (TList t1) (TList t2)                  = mgu t1 t2
+mgu (TApp t1 t2) (TApp t1' t2')            = composeSubst <$> mgu t1 t1' <*> mgu t2 t2'
 mgu t1 t2                                  = throwError $ makeUnifyError t1 t2
 
 mguScheme :: Scheme -> Scheme -> TI ()
@@ -166,11 +165,12 @@ makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already defi
 
 
 tiType :: TP.Type -> Type
-tiType (TP.TId id')        = TRigidVar id'
+tiType (TP.TId id')        = TId id'
 tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts)      = TTuple (map tiType ts)
 tiType (TP.TVar id')       = TRigidVar id'
 tiType (TP.TList t)        = TList (tiType t)
+tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
 
 sepStatements :: [Statement] -> Check ()
 sepStatements s = do

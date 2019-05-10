@@ -5,8 +5,11 @@ module Blob.Parsing.Lexer where
 import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
-import Blob.Parsing.Types (Parser)
+import Text.Megaparsec.Pos (Pos)
+import Blob.Parsing.Types (Parser, ParseState(..))
 import Data.Text (Text, pack)
+import Control.Monad.State (get, lift, modify)
+import Data.Functor (($>))
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -30,10 +33,10 @@ identifier :: Parser String
 identifier = (lexeme . try $ p >>= check) <?> "identifier"
   where
     p = (:)
-            <$> (C.letterChar <|> oneOf ("'_" :: String))
+            <$> (C.lowerChar <|> oneOf ("'_" :: String))
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` kws
-              then fail $ "Keyword “" ++ show x ++ "” used as identifier."
+              then fail $ "Keyword “" ++ x ++ "” used as identifier."
               else pure x
 
 typeIdentifier :: Parser String
@@ -46,10 +49,10 @@ typeVariable :: Parser String
 typeVariable = (lexeme . try $ p >>= check) <?> "type variable"
   where
     p = (:)
-            <$> C.letterChar
+            <$> C.lowerChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` kws
-              then fail $ "Keyword “" ++ show x ++ "” used as a type variable"
+              then fail $ "Keyword “" ++ x ++ "” used as a type variable"
               else pure x
 
 symbol :: Text -> Parser Text
@@ -86,8 +89,44 @@ keyword :: Text -> Parser ()
 keyword kw = lexeme (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
 opSymbol :: Parser String
-opSymbol = lexeme (some C.symbolChar) <?> "operator"
+opSymbol = (lexeme (some C.symbolChar) >>= check) <?> "operator"
+  where check x = if x `elem` symbols
+                  then fail $ "Already existing operator “" ++ x ++ "”"
+                  else pure x
 
+indentGuard :: Ordering -> Pos -> Parser Pos
+indentGuard = L.indentGuard (skipSome (oneOf (" \t" :: String) <|> (' ' <$ C.eol)))
+
+indented :: Parser a -> Parser a
+indented p = do
+    env <- get
+    let curIndent = currentIndent env
+    newPos <- indentGuard GT curIndent
+    lift . modify $ \st -> st { currentIndent = newPos }
+
+    p
+        
+block :: Parser a -> Parser [a]
+block p = do
+    e1  <- indented p
+    curIndent <- currentIndent <$> get
+
+    es <- many $ do
+        indentGuard EQ curIndent
+        p
+
+    pure (e1:es)
+
+block1 :: Parser a -> Parser [a]
+block1 p = do
+    e1  <- indented p
+    curIndent <- currentIndent <$> get
+
+    es <- some $ do
+        indentGuard EQ curIndent
+        p
+
+    pure (e1:es)
 
 ---------------------------------------------------------------------------------------------------------
 
@@ -99,4 +138,17 @@ kws =
     , "infixl"
     , "infixr"
     , "λ"
+    , "match"
+    , "with"
+    , "data"
     ]
+
+symbols :: [String] -- list of reserved symbols
+symbols =
+        [ "->"
+        , "→"
+        , "-o"
+        , "⊸"
+        , "\\"
+        , "="
+        , ":" ]

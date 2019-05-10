@@ -1,17 +1,19 @@
 module Blob.Parsing.Types
-( Expr(..) , Literal(..)                              -- Expressions
+( Expr(..) , Literal(..), Pattern(..)                 -- Expressions
 , Associativity(..) , Fixity(..) , CustomOperator(..) -- Custom operators
 , Parser , ParseState(..)                             -- Global
 , Program(..) , Statement(..)                         -- AST
-, Type(..)                                            -- Types
+, Type(..), CustomType(..)                            -- Types
 ) where
 
 import qualified Data.MultiMap as MMap (MultiMap)
+import qualified Data.Map as Map (Map)
 import qualified Text.Megaparsec as Mega (Pos, ParsecT)
 import Data.Text (Text)
 import Data.Void (Void)
 import Control.Monad.Combinators.Expr (Operator)
 import Control.Monad.State (State)
+import qualified Blob.Inference.Types as I (Scheme(..))
 
 ---------------------------------------------------------------------------------------------
 {- Global -}
@@ -31,6 +33,16 @@ data Expr = EId String
           | EApp Expr Expr
           | ETuple [Expr]
           | EList [Expr]
+          | EMatch Expr [(Pattern, Expr)]
+    deriving (Show, Eq, Ord)
+
+data Pattern = Wildcard         -- _
+             | PId String       -- a basic value like `a`
+             | PInt Integer     -- a basic value like `0`
+             | PDec Double      -- a basic value like `0.0`
+             | PStr String      -- a basic value like `"0"`
+             | PTuple [Pattern] -- a basic value like `(a, b)`
+             | PList [Pattern]  -- a basic value like `[a, b]`
     deriving (Show, Eq, Ord)
 
 data Literal = LStr String
@@ -62,16 +74,20 @@ newtype Program = Program [Statement]
 data Statement = Declaration String Type
                | Definition String Expr
                | OpDeclaration String Fixity
+               | TypeDeclaration CustomType
                | Empty -- Just a placeholder, when a line is a comment, for example.
     deriving (Eq, Ord, Show)
 
 ---------------------------------------------------------------------------------------------
 {- Types -}
+
 data Type = TId String            -- Type
           | TTuple [Type]         -- (a, ...)
-          | TArrow Expr Type Type -- a ->[n] b ->[n'] ...
+          | TArrow Expr Type Type -- a ->[n] b -o ...
           | TVar String           -- a...
           | TApp Type Type        -- Type a...
           | TList Type            -- [a]
     deriving (Eq, Ord, Show)
 
+data CustomType = TSum String (Map.Map String I.Scheme) | TProd String (String, I.Scheme)
+    deriving (Eq, Ord, Show)

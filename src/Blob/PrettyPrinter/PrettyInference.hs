@@ -15,3 +15,5 @@ pType (TFun t1 t2)    = text "(" <> pType t1 <> text " → " <> pType t2 <> text
 pType (TRigidVar id') = text id'
 pType (TTuple ts)     = parens (mconcat . intersperse (text ", ") $ map pType ts)
 pType (TList t)       = brackets $ pType t
+pType (TApp t1 t2)    = pType t1 <> text " " <> pType t2
+pType (TId u)         = text u

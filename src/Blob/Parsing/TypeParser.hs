@@ -32,11 +32,12 @@ type' = lexeme $ do
         Just (Just counter', type'') -> TArrow counter' firstId <$> type''
 
 btype' :: Parser Type
-btype' = lexeme atype'
-    -- types <- optional (try btype')
-    -- case types of
-    --     Nothing -> pure t
-    --     Just ty -> pure $ TApp t ty 
+btype' = do
+    a <- lexeme atype'
+    b <- optional btype'
+    case b of
+        Nothing -> pure a
+        Just b' -> pure $ TApp a b'
 
 atype' :: Parser Type
 atype' = 

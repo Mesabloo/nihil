@@ -19,12 +19,14 @@ data Type = TVar String
           | TFun Type Type
           | TTuple [Type]
           | TList Type
+          | TApp Type Type
+          | TId String
     deriving (Eq, Ord, Show)
 
 type TIError = Doc
 
 data Scheme = Scheme [String] Type
-    deriving Show
+    deriving (Eq, Ord, Show)
 
 newtype TypeEnv = TypeEnv (Map.Map String Scheme)
     deriving Show
@@ -51,12 +53,15 @@ instance Types Type where
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts 
     ftv (TList t)     = ftv t
     ftv (TRigidVar _) = mempty
+    ftv (TId _)       = mempty
+    ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
     apply s (TRigidVar n) = fromMaybe (TRigidVar n) (Map.lookup n s)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
     apply s (TList t)     = TList (apply s t)
+    apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
     apply _ t             = t
 
 instance Types Scheme where
