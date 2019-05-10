@@ -43,6 +43,24 @@ data GlobalEnv = GlobalEnv { declCtx :: TypeEnv, defCtx :: TypeEnv }
 
 type Check a = StateT GlobalEnv (Except TIError) a
 
+nullSubst :: Subst
+nullSubst = mempty
+
+composeSubst :: Subst -> Subst -> Subst
+composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+
+remove :: TypeEnv -> String -> TypeEnv
+remove (TypeEnv env) var = TypeEnv (Map.delete var env)
+
+insert :: String -> Scheme -> TypeEnv -> TypeEnv
+insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
+
+lookup' :: TypeEnv -> String -> Maybe Scheme
+lookup' (TypeEnv env) n = Map.lookup n env
+
+getScheme :: String -> TypeEnv -> Maybe Scheme
+getScheme k (TypeEnv env) = env Map.!? k
+
 ----------------------------------------------------------------------------------------------
 instance Types Type where
     ftv (TVar n)      = Set.singleton n

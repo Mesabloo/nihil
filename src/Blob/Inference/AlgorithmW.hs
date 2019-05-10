@@ -11,7 +11,7 @@ module Blob.Inference.AlgorithmW
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
-import Blob.Inference.Types (Type(..), Subst, Scheme(..), TypeEnv(..), TIError, TI, TIState(..), Types(..), Check, GlobalEnv(..))
+import Blob.Inference.Types
 import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..), Pattern(..))
 import Blob.PrettyPrinter.PrettyInference (pType)
 import qualified Blob.Parsing.Types as TP (Type(..))
@@ -22,24 +22,6 @@ import Control.Monad.Except (runExceptT, throwError, runExcept)
 import Text.PrettyPrint.Leijen (text, dot, linebreak)
 import Data.Bifunctor (bimap, first, second)
 import Data.Maybe (isJust)
-
-nullSubst :: Subst
-nullSubst = mempty
-
-composeSubst :: Subst -> Subst -> Subst
-composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
-
-remove :: TypeEnv -> String -> TypeEnv
-remove (TypeEnv env) var = TypeEnv (Map.delete var env)
-
-insert :: String -> Scheme -> TypeEnv -> TypeEnv
-insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
-
-lookup' :: TypeEnv -> String -> Maybe Scheme
-lookup' (TypeEnv env) n = Map.lookup n env
-
-getScheme :: String -> TypeEnv -> Maybe Scheme
-getScheme k (TypeEnv env) = env Map.!? k
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
