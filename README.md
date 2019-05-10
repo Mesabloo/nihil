@@ -7,8 +7,8 @@ Blob is a small FP language focused on implementing a basic linear type system.
 <summary>The type system</summary>
 <br>
 Even though Blob's type system may seem pointless to many people, it's actually of a great strength. Thanks to it, it is possible to write GC-free VMs easily, because of the automatic memory handling.
-For example, a function whose signature is `f: a ⊸ b` would see its first argument forced to be consumed exactly once (`⊸ = →[1]`) in the function body.
-As another example, a function `g: a →[3] b ⊸ a` would force the developer to use the first argument 3 times and the second argument once.
+For example, a function whose signature is <code>f: a ⊸ b</code> would see its first argument forced to be consumed exactly once (<code>⊸ = →[1]</code>) in the function body.
+As another example, a function <code>g: a →[3] b ⊸ a</code> would force the developer to use the first argument 3 times and the second argument once.
 
 </details>
 <details>
