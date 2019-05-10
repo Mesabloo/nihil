@@ -4,14 +4,14 @@ module Blob.Parsing.ExprParser
 ( expression
 ) where
 
-import Blob.Parsing.Types (Parser, Expr(..), Literal(..), ParseState(..))
+import Blob.Parsing.Types (Parser, Expr(..), Literal(..), ParseState(..), Pattern(..))
 import qualified Data.MultiMap as MMap (elems)
 import Control.Monad.Combinators.Expr (Operator, makeExprParser, Operator(..))
 import Control.Monad.State (get)
-import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some)
-import Text.Megaparsec.Char (string)
-import Data.Functor ((<$))
-import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets)
+import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional)
+import Text.Megaparsec.Char (eol)
+import Data.Functor ((<$), ($>))
+import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string', string, keyword)
 
 expression :: Parser Expr
 expression = lexeme $ do
@@ -21,6 +21,7 @@ expression = lexeme $ do
 
 term :: Parser Expr
 term = try lambda'
+--   <|> match
    <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator"))
    <|> ELit . LDec <$> try float
    <|> ELit . LInt <$> try integer
@@ -67,3 +68,22 @@ list = lexeme . brackets $ do
     e1 <- expression
     e2 <- some (lexeme (string ",") *> expression)
     pure $ EList (e1 : e2)
+
+-- match :: Parser Expr
+-- match = do
+--     toMatch <- keyword "match" *> expression <* keyword "with"
+--     optional $ lexeme eol
+--     patternsAndVals <- some (do
+--         p <- lexeme pattern'
+--         lexeme (hidden (string "->") <|> string "→")
+--         v <- expression
+--         eol
+--         pure (p, v)) <?> "patterns"
+
+--     pure $ EMatch toMatch patternsAndVals 
+
+-- pattern' :: Parser Pattern
+-- pattern' = (string' "_" $> Wildcard)
+--           <|> (PDec <$> try float)
+--           <|> (PInt <$> try integer)
+--           <|> (PStr <$> try string'')

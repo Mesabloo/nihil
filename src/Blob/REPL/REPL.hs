@@ -89,7 +89,7 @@ replCheck = \case
                 st''    <- lift get
                 let res = evalState (runParserT program file content) (op st'')
                 case res of
-                    Left err                  -> liftIO $ replSetColor Vivid Red >> replErrorPretty err >> setSGR [Reset] >> hFlush stdout
+                    Left err                  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                     Right ast@(Program stmts) -> do
                         st <- lift get
                         case programTypeInference (ctx st) (tiProgram ast) of
@@ -116,7 +116,7 @@ replCheck = \case
                 res           = evalState (runParserT expression "interactive" (Text.pack expr)) (op st)
 
             case res of
-                Left err  -> liftIO $ replSetColor Vivid Red >> replErrorPretty err >> setSGR [Reset] >> hFlush stdout
+                Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                 Right e   -> do
                     let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
                     case t of
@@ -126,7 +126,7 @@ replCheck = \case
             st <- lift get
             let res = evalState (runParserT statement "interactive" (Text.pack stat)) (op st)
             case res of
-                Left err -> liftIO $ replSetColor Vivid Red >> replErrorPretty err >> setSGR [Reset] >> hFlush stdout
+                Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                 Right s -> case programTypeInference (ctx st) (tiProgram $ Program [s]) of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                     Right (_, state') -> do
@@ -151,7 +151,7 @@ replCheck = \case
                 res           = evalState (runParserT expression "interactive" (Text.pack expr)) (op st)
 
             case res of
-                Left err -> liftIO $ replSetColor Vivid Red >> replErrorPretty err >> setSGR [Reset] >> hFlush stdout
+                Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                 Right e -> do
                     let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
                     case t of
@@ -166,7 +166,7 @@ replCheck = \case
             let res = evalState (runParserT statement "interactive" (Text.pack ast)) (op st)
 
             case res of
-                Left err -> liftIO $ replSetColor Vivid Red >> replErrorPretty err >> setSGR [Reset] >> hFlush stdout
+                Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                 Right s  -> liftIO . print $ pStatement s 0
 
 
@@ -176,18 +176,6 @@ replCheck = \case
 
 replSetColor :: MonadIO m => ColorIntensity -> Color -> m ()
 replSetColor intensity color = liftIO $ setSGR [SetColor Foreground intensity color]
-
--- replErrorPretty :: ParseErrorBundle Text.Text Void -> IO ()
--- replErrorPretty bundle = do
---     let errors = toList $ bundleErrors bundle
---         texts  = flip List.map errors $ \e -> do (PosState _ _ pos _ _) <- bundlePosState bundle
---                                                  (SourcePos name line col) <- pos
---                                                  "at <“" ++ name ++ "”:" ++ show line ++ ":" ++ show col ++ ">\n" ++ parseErrorTextPretty e
---         lines' = List.map (split "\n") texts
---         lines''= List.map (filter (/= "")) lines'
---         errs   = List.map (List.map (capitalize . rstrip . flip (++) ".")) lines''
---         errs'  = List.map (List.intercalate "\n") errs
---     mapM_ putStr errs' >> putStr "\n"
 
 replErrorPretty :: ParseErrorBundle Text.Text Void -> IO ()
 replErrorPretty bundle = do

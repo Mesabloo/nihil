@@ -5,10 +5,14 @@ module Blob.Parsing.Defaults where
 import Blob.Parsing.Types (ParseState(..), Parser, Expr(..), CustomOperator(..), Fixity(..), Associativity(..))
 import Control.Monad.Combinators.Expr (Operator(..))
 import qualified Data.MultiMap as MMap
-import Control.Monad.State (lift, modify)
+import Control.Monad.State (lift, modify, get)
 import Data.Text (unpack)
-import Blob.Parsing.Lexer (string)
+import Blob.Parsing.Lexer (string, indentGuard)
 import Text.Megaparsec.Pos (mkPos)
+import Text.Megaparsec (optional, (<|>))
+import Text.Megaparsec.Char (eol)
+import qualified Data.Text as Text (Text)
+import Data.Functor (($>))
 
 defaultOps :: MMap.MultiMap Integer (Operator Parser Expr)
 defaultOps = MMap.fromList [
@@ -32,13 +36,13 @@ fixityPrec (CustomOperator _ (Postfix' n)) = n
 
 toParser :: CustomOperator -> Operator Parser Expr
 toParser (CustomOperator name' fix') = case fix' of
-    Infix' L _ -> InfixL $
-        (\exp1 exp2 -> EApp (EApp (EId $ unpack name') exp1) exp2) <$ (string name')
+    Infix' L _ -> InfixL $ 
+        string name' $> \exp1 -> EApp (EApp (EId $ unpack name') exp1)
     Infix' R _ -> InfixR $
-        (\exp1 exp2 -> EApp (EApp (EId $ unpack name') exp1) exp2) <$ (string name')
+        string name' $> \exp1 -> EApp (EApp (EId $ unpack name') exp1)
     Infix' N _ -> InfixN $
-        (\exp1 exp2 -> EApp (EApp (EId $ unpack name') exp1) exp2) <$ (string name')
+        string name' $> \exp1 -> EApp (EApp (EId $ unpack name') exp1)
     Prefix'  _ -> Prefix $
-        (EApp (EId $ unpack name')) <$ (string name')
+        EApp (EId $ unpack name') <$ string name'
     Postfix' _ -> Postfix $
-        (EApp (EId $ unpack name')) <$ (string name')
+        EApp (EId $ unpack name') <$ string name'
