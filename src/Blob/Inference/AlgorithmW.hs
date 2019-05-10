@@ -69,6 +69,9 @@ rigidify t = let subst = Map.fromList . Set.toList $ Set.map (\v -> (v, TRigidVa
 relax :: Type -> Type
 relax (TRigidVar n) = TVar n
 relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
+relax (TTuple ts)   = TTuple (map relax ts)
+relax (TList t)     = TList (relax t)
+relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
 relax t             = t
 
 mgu :: Type -> Type -> TI Subst
