@@ -3,7 +3,7 @@ module Blob.PrettyPrinter.PrettyInference
 , pKind
 ) where
 
-import Text.PrettyPrint.Leijen (text, parens, Doc, brackets)
+import Text.PrettyPrint.Leijen (text, parens, Doc, brackets, empty)
 import Blob.Inference.Types (Type(..), Kind(..))
 import Data.List (intersperse)
 
@@ -15,7 +15,7 @@ pType TFloat          = text "Float"
 pType (TFun t1 t2)    = text "(" <> pType t1 <> text " → " <> pType t2 <> text ")"
 pType (TRigidVar id') = text id'
 pType (TTuple ts)     = parens (mconcat . intersperse (text ", ") $ map pType ts)
-pType (TList t)       = brackets $ pType t
+pType TList           = brackets empty
 pType (TApp t1 t2)    = pType t1 <> text " " <> pType t2
 pType (TId u)         = text u
 

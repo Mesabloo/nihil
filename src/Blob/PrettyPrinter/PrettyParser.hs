@@ -75,5 +75,5 @@ pType t i = case t of
     TTuple ts           -> parens . mconcat $ intersperse (text ", ") (map (`pType` i) ts)
     TArrow count t' t'' -> parens $ brackets (pExpression count i) <> pType t' i <> text " → " <> pType t'' i
     TFun t1 t2          -> text "(" <> pType t1 i <> text " → " <> pType t2 i <> text ")"
-    TList t             -> brackets $ pType t i
-    TApp t1 t2          -> pType t1 i <+> pType t2 i
+    TList               -> brackets empty
+    TApp t1 t2          -> pType t1 i <+> parens (pType t2 i)
