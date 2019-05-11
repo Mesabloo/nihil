@@ -11,7 +11,7 @@ import Blob.Inference.Types (CustomTypeEnv, Kind(..), KindEnv)
 
 type KIError = Doc
 
-data KIState = KIState
+newtype KIState = KIState
     { kiSupply :: Int }
 
 type KI a = ExceptT KIError (ReaderT KindEnv (State KIState)) a

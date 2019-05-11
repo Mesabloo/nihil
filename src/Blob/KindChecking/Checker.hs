@@ -86,16 +86,6 @@ kiCustomScheme (CustomScheme tvs t) = do
             s3 <- kiConstr n ts
             pure (concatKindSubsts [s3,s2,s1])
 
--- makeFixpoint :: String -> Type -> String -> Type
--- makeFixpoint n (TId n') v
---     | n == n'   = v
---     | otherwise = TId n'
--- makeFixpoint n (TApp f t) v = TApp (makeFixpoint n f v) (makeFixpoint n t v)
--- makeFixpoint n (TFun t1 t2) = TFun (makeFixpoint n t1 v) (makeFixpoint n t2 v)
--- makeFixpoint n (TTuple ts) = TTuple (flip (makeFixpoint n) v <$> ts)
--- makeFixpoint n (TList t) v = TList (makeFixpoint n t v)
--- makeFixpoint n t v = t
-
 kiType :: Type -> KI (KindSubst, Kind)
 kiType (TId n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
@@ -115,17 +105,14 @@ kiType (TFun t1 t2) = do
     s3 <- mguKind k1 KType
     s4 <- mguKind k2 KType
     pure (concatKindSubsts [s4,s3,s2,s1], KType)
-kiType (TList t) = do
-    (s1, k) <- kiType t
-    s2 <- mguKind k KType
-    pure (s2 `composeKindSubst` s1, KType)
+kiType TList = pure (mempty, KArr KType KType)
 kiType (TApp f t) = do
     kv       <- newKindVar "k"
     (s1, k1) <- kiType f
     (s2, k2) <- local (applyKind s1 <$>) (kiType t)
     s3       <- mguKind (applyKind s2 k1) (KArr k2 kv)
     pure (concatKindSubsts [s3,s2,s1], applyKind s3 kv)
-kiType t = traceShow t $ undefined
+kiType t = traceShow t undefined
 
 kiScheme :: Scheme -> KI (KindSubst, Kind)
 kiScheme (Scheme vars t) = do
