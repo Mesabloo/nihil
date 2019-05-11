@@ -18,7 +18,7 @@ data Type = TVar String
           | TInt | TString | TFloat
           | TFun Type Type
           | TTuple [Type]
-          | TList Type
+          | TList
           | TApp Type Type
           | TId String
     deriving (Eq, Ord, Show)
@@ -49,13 +49,13 @@ data TIState = TIState
     { tiSupply :: Integer
     , tiSubst :: Subst }
 
-type TI a = ExceptT TIError (ReaderT TypeEnv (State TIState)) a
+type TI a = ExceptT TIError (ReaderT GlobalEnv (State TIState)) a
 
 data GlobalEnv = GlobalEnv
     { typeDeclCtx :: KindEnv
     , typeDefCtx  :: CustomTypeEnv
-    , declCtx     :: TypeEnv
-    , defCtx      :: TypeEnv }
+    , defCtx      :: TypeEnv
+    , ctorCtx     :: TypeEnv }
 
 type Check a = StateT GlobalEnv (Except TIError) a
 
@@ -71,6 +71,12 @@ remove (TypeEnv env) var = TypeEnv (Map.delete var env)
 insert :: String -> Scheme -> TypeEnv -> TypeEnv
 insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
 
+insertFun :: String -> Scheme -> GlobalEnv -> GlobalEnv
+insertFun k v (GlobalEnv tdc tdf def ctor) = GlobalEnv { typeDeclCtx = tdc
+                                                       , typeDefCtx  = tdf
+                                                       , defCtx      = insert k v def
+                                                       , ctorCtx     = ctor }
+
 lookup' :: TypeEnv -> String -> Maybe Scheme
 lookup' (TypeEnv env) n = Map.lookup n env
 
@@ -85,16 +91,16 @@ instance Types Type where
     ftv TFloat        = mempty
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts 
-    ftv (TList t)     = ftv t
+    ftv TList         = mempty
     ftv (TRigidVar _) = mempty
     ftv (TId _)       = mempty
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
+    ftv _             = mempty
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
     apply s (TRigidVar n) = fromMaybe (TRigidVar n) (Map.lookup n s)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
-    apply s (TList t)     = TList (apply s t)
     apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
     apply _ t             = t
 

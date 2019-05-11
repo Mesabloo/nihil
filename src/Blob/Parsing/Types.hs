@@ -85,11 +85,11 @@ data Scheme = Scheme [String] Type
 
 data Type = TId String            -- Type
           | TTuple [Type]         -- (a, ...)
-          | TArrow Expr Type Type -- a ->[n] b -o ...
+          | TArrow Expr Type Type -- a ->{n} b -o ...
           | TFun Type Type
           | TVar String           -- a...
           | TApp Type Type        -- Type a...
-          | TList Type            -- [a]
+          | TList                 -- []
     deriving (Eq, Ord, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type

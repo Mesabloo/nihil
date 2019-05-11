@@ -8,7 +8,7 @@ module Blob.Parsing.TypeParser
 import Blob.Parsing.Types (Parser, Type(..), Expr(..), Literal(..))
 import Blob.Parsing.Lexer (lexeme, string, brackets, parens, typeVariable, typeIdentifier, braces)
 import Blob.Parsing.ExprParser (expression)
-import Text.Megaparsec (optional, try, some, (<|>), (<?>), hidden)
+import Text.Megaparsec (optional, try, some, (<|>), (<?>), hidden, empty)
 import Data.Functor (($>))
 
 type' :: Parser Type
@@ -33,12 +33,7 @@ type' = lexeme $ do
         Just (Just counter', type'') -> TArrow counter' firstId <$> type''
 
 btype' :: Parser Type
-btype' = do
-    a <- lexeme atype'
-    b <- optional btype'
-    case b of
-        Nothing -> pure a
-        Just b' -> pure $ TApp a b'
+btype' = foldl1 TApp <$> some atype'
 
 atype' :: Parser Type
 atype' = 
@@ -47,7 +42,10 @@ atype' =
         tk <- some (lexeme (string ",") *> lexeme type') ;
         pure $ TTuple (t1 : tk)
     }
-        list = lexeme . brackets $ TList <$> lexeme type'
+        list = lexeme ((brackets (string "") $> TList)
+                <|> brackets (do
+                    t <- lexeme type'
+                    pure $ TApp TList t))
     in
         gtycon'
         <|> TVar <$> lexeme typeVariable
