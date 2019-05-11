@@ -11,7 +11,7 @@ import Control.Monad.State (get)
 import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional)
 import Text.Megaparsec.Char (eol)
 import Data.Functor ((<$), ($>))
-import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string', string, keyword)
+import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier)
 
 expression :: Parser Expr
 expression = lexeme $ do
@@ -22,7 +22,7 @@ expression = lexeme $ do
 term :: Parser Expr
 term = try lambda'
 --   <|> match
-   <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator"))
+   <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
    <|> ELit . LDec <$> try float
    <|> ELit . LInt <$> try integer
    <|> try tuple

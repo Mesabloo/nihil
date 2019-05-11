@@ -56,8 +56,8 @@ runREPL r = do
 initGlobalEnv :: GlobalEnv
 initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
                           , typeDefCtx = mempty
-                          , declCtx = TypeEnv defaultDeclContext
-                          , defCtx = TypeEnv defaultDefContext }
+                          , defCtx = TypeEnv defaultDefContext
+                          , ctorCtx = TypeEnv mempty }
 
 replLoop :: REPL ()
 replLoop = forever $ do
@@ -114,9 +114,7 @@ replCheck = \case
                 liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" ++ file ++ "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
         GetType expr        -> do
             st <- lift get
-            let (TypeEnv e1_) = declCtx $ ctx st
-                (TypeEnv e2_) = defCtx $ ctx st
-                env           = Map.unionWith const e1_ e2_
+            let (TypeEnv env) = defCtx $ ctx st
                 res           = evalState (runParserT expression "interactive" (Text.pack expr)) (op st)
 
             case res of
@@ -124,14 +122,12 @@ replCheck = \case
                 Right e   -> do
                     let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
                     case t of
-                        Left err    -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                        Left err    -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                         Right type' ->  liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e (0 :: Int))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
 
         GetKind typeExpr    -> do
             st <- lift get
-            let (TypeEnv e1_) = declCtx $ ctx st
-                (TypeEnv e2_) = defCtx $ ctx st
-                env           = Map.unionWith const e1_ e2_
+            let (TypeEnv env) = defCtx $ ctx st
                 res           = tiType <$> evalState (runParserT type' "interactive" (Text.pack typeExpr)) (op st)
 
             case res of
@@ -139,7 +135,7 @@ replCheck = \case
                 Right t   -> do
                     let k = runExcept (evalStateT (checkKI $ kindInference (TypeEnv env) t) (ctx st))
                     case k of
-                        Left err   -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                        Left err   -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                         Right kind -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pType t)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pKind kind) >> setSGR [Reset] >> hFlush stdout
             
         Code stat           -> do
@@ -153,14 +149,14 @@ replCheck = \case
                         lift . modify $ \st' -> st' { ctx = state' }
 
                         case s of
-                            Definition id' expr -> do
-                                st' <- lift get
-                                let eval' = runExcept $ runReaderT (evaluate expr) (values st')
+                            Definition id' expr -> liftIO $ putStr ""
+                                -- st' <- lift get
+                                -- let eval' = runExcept $ runReaderT (evaluate expr) (values st')
 
-                                case eval' of
-                                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                    Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
-                            TypeDeclaration name tvs t -> do
+                                -- case eval' of
+                                --     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                --     Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                            TypeDeclaration name tvs t ->
                                 lift . modify $ \ st' -> st' { ctx = let c = ctx st' in
                                     c { typeDefCtx = Map.insert name (CustomScheme tvs (tiCustomType t)) (typeDefCtx c) } }
                             _                   -> pure ()
@@ -168,9 +164,7 @@ replCheck = \case
                         liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
         Eval expr           -> do
             st <- lift get
-            let (TypeEnv e1_) = declCtx $ ctx st
-                (TypeEnv e2_) = defCtx $ ctx st
-                env           = Map.unionWith const e1_ e2_
+            let (TypeEnv env) = defCtx $ ctx st
                 res           = evalState (runParserT expression "interactive" (Text.pack expr)) (op st)
 
             case res of

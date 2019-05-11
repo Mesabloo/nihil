@@ -21,18 +21,21 @@ import Blob.PrettyPrinter.PrettyInference (pType)
 import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad (zipWithM, foldM)
 import Control.Monad.Trans (lift)
-import Control.Monad.State (runState, get, put, modify, runStateT)
-import Control.Monad.Reader (runReaderT, ask, local)
+import Control.Monad.State (runState, get, put, modify, runStateT,gets)
+import Control.Monad.Reader (runReaderT, ask, local, asks)
 import Control.Monad.Except (runExceptT, throwError, runExcept)
 import Text.PrettyPrint.Leijen (text, dot, linebreak)
 import Data.Bifunctor (bimap, first, second)
 import Data.Maybe (isJust)
+import Data.Align.Key (alignWithKey)
+import Data.These (These(..))
+import Control.Applicative ((<|>))
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
     where vars = Set.toList (ftv t Set.\\ ftv env)
 
-runTI :: TypeEnv -> TI a -> (Either TIError a, TIState)
+runTI :: GlobalEnv -> TI a -> (Either TIError a, TIState)
 runTI env t = runState (runReaderT (runExceptT t) env) initTIState
   where initTIState = TIState { tiSupply = 0
                               , tiSubst = mempty }
@@ -57,7 +60,6 @@ relax :: Type -> Type
 relax (TRigidVar n) = TVar n
 relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
 relax (TTuple ts)   = TTuple (map relax ts)
-relax (TList t)     = TList (relax t)
 relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
 relax t             = t
 
@@ -80,7 +82,7 @@ mgu TInt (TId u) | u == "Integer"          = pure nullSubst
 mgu TString (TId u) | u == "String"        = pure nullSubst
 mgu TFloat (TId u) | u == "Float"          = pure nullSubst
 mgu (TTuple ts1) (TTuple ts2)              = foldr composeSubst nullSubst <$> zipWithM mgu ts1 ts2
-mgu (TList t1) (TList t2)                  = mgu t1 t2
+mgu TList TList                            = pure nullSubst
 mgu (TApp t1 t2) (TApp t1' t2')            = composeSubst <$> mgu t1 t1' <*> mgu t2 t2'
 mgu t1 t2                                  = throwError $ makeUnifyError t1 t2
 
@@ -95,8 +97,9 @@ varBind u t | t == TVar u          = pure nullSubst
 
 tiExpr :: Expr -> TI (Subst, Type)
 tiExpr (EId n)      = do
-    (TypeEnv env) <- ask
-    case Map.lookup n env of
+    (TypeEnv env)  <- asks defCtx
+    (TypeEnv env1) <- asks ctorCtx
+    case Map.lookup n env <|> Map.lookup n env1 of
         Nothing    -> throwError $ makeUnboundVarError n
         Just sigma -> do
             t <- instantiate sigma
@@ -110,12 +113,12 @@ tiExpr (ELit l)     = do
     tiLit _ (LDec _) = return (nullSubst, TFloat)
 tiExpr (ELam n e)   = do
     tv       <- newTyVar "a"
-    (s1, t1) <- local (insert n (Scheme [] tv)) (tiExpr e)
+    (s1, t1) <- local (insertFun n (Scheme [] tv)) (tiExpr e)
     pure (s1, TFun (apply s1 tv) t1)
 tiExpr (EApp e1 e2) = do
     tv       <- newTyVar "a"
     (s1, t1) <- tiExpr e1
-    (s2, t2) <- local (apply s1) (tiExpr e2)
+    (s2, t2) <- local (\ e -> e { defCtx = apply s1 (defCtx e) }) (tiExpr e2)
     s3       <- mgu (apply s2 t1) (TFun t2 tv)
     pure (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
 tiExpr (ETuple es)  = fmap TTuple <$> tiTuple es
@@ -125,7 +128,7 @@ tiExpr (ETuple es)  = fmap TTuple <$> tiTuple es
         (s1, t)  <- tiExpr e
         (s2, ts) <- tiTuple es'
         pure (s2 `composeSubst` s1, t:ts)
-tiExpr (EList es)   = fmap TList <$> (flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a")
+tiExpr (EList es)   = fmap (TApp TList) <$> (flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a")
   where
     go (subst, type') item = do
         (s1, t) <- tiExpr item
@@ -150,6 +153,8 @@ makeRedeclaredError :: String -> TIError
 makeRedeclaredError id' = text "Symbol “" <> text id' <> text "” already declared" <> dot <> linebreak
 makeRedefinedError :: String -> TIError
 makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already defined" <> dot <> linebreak
+makeBindLackError :: String -> TIError
+makeBindLackError id' = text "“" <> text id' <> text "” lacks an accompanying definition" <> dot <> linebreak
 
 
 
@@ -160,7 +165,7 @@ tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
 tiType (TP.TFun t1 t2)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts)      = TTuple (map tiType ts)
 tiType (TP.TVar id')       = TRigidVar id'
-tiType (TP.TList t)        = TList (tiType t)
+tiType TP.TList            = TList
 tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
 
 tiScheme :: TP.Scheme -> Scheme
@@ -171,70 +176,41 @@ tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
 tiCustomType (TP.TProd c s) = TProd c (tiScheme s)
 tiCustomType (TP.TAlias t)  = TAlias (tiType t)
 
-sepStatements :: [Statement] -> Check ()
-sepStatements s = do
-    env <- get
-    let (TypeEnv externalDecl) = declCtx env
-        (TypeEnv externalDef)  = defCtx env
-        (types, exprs)         = bimap MMap.fromList MMap.fromList $ separateDecls s
-    
-        res                    = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k externalDecl)
-                                                         then throwError $ makeRedeclaredError k
-                                                         else Right $ head v) (MMap.toMap types)
-        res1                   = Map.mapWithKey (\k v -> if length v > 1 || isJust (Map.lookup k externalDef)
-                                                         then throwError $ makeRedefinedError k
-                                                         else Right $ head v) (MMap.toMap exprs)
-
-    env <- get
-
-    flip Map.traverseWithKey res $ \k v -> case v of
-        Left err    -> throwError err
-        Right type' -> case lookup' (declCtx env) k of
-            Nothing -> analyseDecl k type'
-            Just _  -> throwError $ makeRedeclaredError k
-
-    flip Map.traverseWithKey res1 $ \k v -> case v of
-        Left err    -> throwError err
-        Right expr  -> case lookup' (defCtx env) k of
-            Nothing -> analyseDef k expr
-            Just _  -> throwError $ makeRedefinedError k
-
-    pure ()
+sepStatements :: [Statement] -> (Map.Map String Expr, Map.Map String TP.Type)
+sepStatements = bimap Map.fromList Map.fromList . separateDecls
   where
-    analyseDecl :: String -> TP.Type -> Check ()
-    analyseDecl k v = do
-        env <- get
-
-        let type' = tiType v
-            tEnv  = defCtx env
-        case getScheme k tEnv of
-            Nothing -> modify $ \st -> st { declCtx = insert k (generalize (TypeEnv mempty) type') (declCtx st) }
-            Just s  -> do
-                checkTI $ mguScheme (generalize (TypeEnv mempty) type') s
-                modify $ \st -> st { declCtx = insert k (generalize (TypeEnv mempty) type') (defCtx st) }
-
-    analyseDef :: String -> Expr -> Check ()
-    analyseDef k v = do
-        type' <- checkTI $ do
-            var        <- newTyVar "a"
-            (subst, t) <- local (insert k (Scheme [] var)) (tiExpr v)
-            subst1     <- mgu (apply subst var) (apply subst t)
-
-            pure $ apply (subst1 `composeSubst` subst) var
-
-        env <- get
-        let tEnv = defCtx env
-        case getScheme k tEnv of
-            Nothing            -> modify $ \st -> st { defCtx = insert k (generalize (TypeEnv mempty) type') (defCtx st) }
-            Just (Scheme _ t)  -> do
-                checkTI $ mgu type' (rigidify t)
-                modify $ \st -> st { defCtx = insert k (generalize (TypeEnv mempty) type') (defCtx st) }
-
-    -- separateDecls :: [Statement] -> ([(String, TP.Type)], [(String, Expr)])
     separateDecls []                              = mempty
-    separateDecls (Declaration id' type' : stmts) = first ((id', type'):) (separateDecls stmts)
-    separateDecls (Definition id' expr : stmts)   = second ((id', expr):) (separateDecls stmts)
+    separateDecls (Declaration id' type' : stmts) = second ((id', type'):) (separateDecls stmts)
+    separateDecls (Definition id' expr : stmts)   = first ((id', expr):) (separateDecls stmts)
     separateDecls (_ : stmts)                     = separateDecls stmts
+
+handleStatement :: String -> These Expr TP.Type -> Check ()
+handleStatement name (This def)      = do
+    t   <- checkTI $ do
+        var        <- newTyVar "a"
+        (subst, t) <- local (insertFun name (Scheme [] var)) (tiExpr def)
+        subst1     <- mgu (apply subst var) (apply subst t)
+        pure $ apply (subst1 `composeSubst` subst) var
+
+    env <- gets defCtx
+    case getScheme name env of
+        Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
+        Just _  -> throwError $ makeRedeclaredError name
+handleStatement name (That _)        = throwError $ makeBindLackError name
+handleStatement name (These def typ) = do
+    t <- checkTI $ do
+        t   <- do
+            var        <- newTyVar "a"
+            (subst, t) <- local (insertFun name (Scheme [] var)) (tiExpr def)
+            subst1     <- mgu (apply subst var) (apply subst t)
+            pure $ apply (subst1 `composeSubst` subst) var
+        mgu t (rigidify $ tiType typ)
+        pure t
+    
+    env <- gets defCtx
+    case getScheme name env of
+        Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
+        Just _  -> throwError $ makeRedeclaredError name
 
 analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do
@@ -243,17 +219,22 @@ analyseTypeDecl k v = do
         (subst, t) <- local (Map.insert k var) (kiCustomScheme v)
         subst1     <- mguKind (applyKind subst var) (applyKind subst t)
         pure $ applyKind (subst1 `composeKindSubst` subst) var
+
+    let (CustomScheme _ t) = v
+    schemes <- case t of
+        TSum ctors -> pure ctors
+        _          -> pure $ Map.fromList []
+
     modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
-                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st) }
+                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st)
+                       , ctorCtx     = let (TypeEnv env) = ctorCtx st
+                                       in TypeEnv (schemes `Map.union` env) }
 
 checkTI :: TI a -> Check a
 checkTI ti = do
-    (GlobalEnv _ _ declEnv defEnv) <- get
+    gEnv <- get
 
-    let (TypeEnv e1_) = declEnv
-        (TypeEnv e2_) = defEnv
-        env           = Map.unionWith const e1_ e2_
-        res           = runTI (TypeEnv env) ti
+    let res = runTI gEnv ti
 
     case fst res of
         Left err     -> throwError err
@@ -262,7 +243,7 @@ checkTI ti = do
 tiProgram :: Program -> Check ()
 tiProgram (Program stmts) = do
     remaining <- sepTypeDecls stmts
-    sepStatements remaining
+    sequence_ $ uncurry (alignWithKey handleStatement) (sepStatements remaining)
   where sepTypeDecls [] = pure []
         sepTypeDecls (TypeDeclaration k tvs t:ss) = do
             analyseTypeDecl k (CustomScheme tvs (tiCustomType t))
