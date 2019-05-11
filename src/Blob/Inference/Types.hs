@@ -23,6 +23,15 @@ data Type = TVar String
           | TId String
     deriving (Eq, Ord, Show)
 
+data Kind = KType | KArr Kind Kind | KVar String
+    deriving (Eq)
+
+data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
+    deriving (Eq, Ord, Show)
+
+data CustomScheme = CustomScheme [String] CustomType
+    deriving (Eq, Ord, Show)
+
 type TIError = Doc
 
 data Scheme = Scheme [String] Type
@@ -30,6 +39,9 @@ data Scheme = Scheme [String] Type
 
 newtype TypeEnv = TypeEnv (Map.Map String Scheme)
     deriving Show
+
+type KindEnv = Map.Map String Kind
+type CustomTypeEnv = Map.Map String CustomScheme
 
 type Subst = Map.Map String Type
 
@@ -39,7 +51,11 @@ data TIState = TIState
 
 type TI a = ExceptT TIError (ReaderT TypeEnv (State TIState)) a
 
-data GlobalEnv = GlobalEnv { declCtx :: TypeEnv, defCtx :: TypeEnv }
+data GlobalEnv = GlobalEnv
+    { typeDeclCtx :: KindEnv
+    , typeDefCtx  :: CustomTypeEnv
+    , declCtx     :: TypeEnv
+    , defCtx      :: TypeEnv }
 
 type Check a = StateT GlobalEnv (Except TIError) a
 

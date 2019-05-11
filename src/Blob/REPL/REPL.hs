@@ -11,16 +11,18 @@ import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, Exc
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState)
 import Control.Monad.Reader (runReaderT)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..))
-import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..))
+import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..))
 import Blob.Parsing.Types(Program(..), Statement(..))
 import Blob.Parsing.Defaults (initParseState)
-import Blob.REPL.DefaultEnv (defaultEnv, defaultDeclContext, defaultDefContext)
+import Blob.REPL.DefaultEnv (defaultEnv, defaultDeclContext, defaultDefContext, defaultTypeDeclContext)
 import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
 import Blob.Parsing.Parser (program, statement)
 import Blob.Parsing.ExprParser (expression)
-import Blob.Inference.AlgorithmW (programTypeInference, tiProgram, checkTI, typeInference)
+import Blob.Parsing.TypeParser (type')
+import Blob.Inference.AlgorithmW (programTypeInference, tiProgram, tiType, tiCustomType, checkTI, typeInference)
+import Blob.KindChecking.Checker (kiType, checkKI, kindInference)
 import Blob.PrettyPrinter.PrettyParser (pExpression, pStatement)
-import Blob.PrettyPrinter.PrettyInference (pType)
+import Blob.PrettyPrinter.PrettyInference (pType, pKind)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Void (Void)
@@ -52,7 +54,9 @@ runREPL r = do
                                   , values = defaultEnv }
     
 initGlobalEnv :: GlobalEnv
-initGlobalEnv = GlobalEnv { declCtx = TypeEnv defaultDeclContext
+initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
+                          , typeDefCtx = mempty
+                          , declCtx = TypeEnv defaultDeclContext
                           , defCtx = TypeEnv defaultDefContext }
 
 replLoop :: REPL ()
@@ -120,8 +124,24 @@ replCheck = \case
                 Right e   -> do
                     let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
                     case t of
-                        Left err    -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                        Left err    -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
                         Right type' ->  liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e (0 :: Int))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
+
+        GetKind typeExpr    -> do
+            st <- lift get
+            let (TypeEnv e1_) = declCtx $ ctx st
+                (TypeEnv e2_) = defCtx $ ctx st
+                env           = Map.unionWith const e1_ e2_
+                res           = tiType <$> evalState (runParserT type' "interactive" (Text.pack typeExpr)) (op st)
+
+            case res of
+                Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+                Right t   -> do
+                    let k = runExcept (evalStateT (checkKI $ kindInference (TypeEnv env) t) (ctx st))
+                    case k of
+                        Left err   -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                        Right kind -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pType t)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pKind kind) >> setSGR [Reset] >> hFlush stdout
+            
         Code stat           -> do
             st <- lift get
             let res = evalState (runParserT statement "interactive" (Text.pack stat)) (op st)
@@ -140,6 +160,9 @@ replCheck = \case
                                 case eval' of
                                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                                     Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                            TypeDeclaration name tvs t -> do
+                                lift . modify $ \ st' -> st' { ctx = let c = ctx st' in
+                                    c { typeDefCtx = Map.insert name (CustomScheme tvs (tiCustomType t)) (typeDefCtx c) } }
                             _                   -> pure ()
 
                         liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout

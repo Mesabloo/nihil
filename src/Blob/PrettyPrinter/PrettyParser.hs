@@ -7,11 +7,10 @@ module Blob.PrettyPrinter.PrettyParser
 , pType
 ) where
 
-import Blob.Parsing.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Associativity(..), Fixity(..), Pattern(..), CustomType(..))
+import Blob.Parsing.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Associativity(..), Fixity(..), Pattern(..), Scheme(..), CustomType(..))
 import Text.PrettyPrint.Leijen (text, parens, indent, line, (<$$>), (<>), empty, brackets, Doc, (<+>), punctuate)
 import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import Data.List (intersperse)
-import qualified Blob.PrettyPrinter.PrettyInference as PI (pType)
 import qualified Data.Map as Map (toList)
 import qualified Blob.Inference.Types as I (Scheme(..))
 
@@ -31,14 +30,14 @@ pStatement (Declaration id' t) i       =
     indent i $ text "Declaration" <$$> indent indentLevel (text ("Id=" ++ id') <$$> text "Type=" <> pType t i)
 pStatement (OpDeclaration name' fix) i =
     indent i $ text "Operator" <$$> indent indentLevel (text ("Symbol=" ++ name') <$$> text "Fixity=" <> pFixity fix i)
-pStatement (TypeDeclaration ct) i      =
+pStatement (TypeDeclaration name tvs ct) i      =
     indent i $ case ct of
-        (TSum name cs) -> text "SumType" <$$> printDetails name (Map.toList cs)
-        (TProd name c) -> text "ProductType" <$$> printDetails name [c]
+        (TSum cs)   -> text "SumType" <$$> printDetails name (Map.toList cs)
+        (TProd c s) -> text "ProductType" <$$> printDetails name [(c, s)]
   where printDetails name cs         = indent indentLevel (text "Constructors ["
                                             <$$> indent indentLevel (pCtor (head cs) indentLevel <> mconcat (map (\c -> line <> pCtor c indentLevel) (tail cs)))
                                             <$$> text "]")
-        pCtor (name, I.Scheme _ t) i = text name <> text " :: " <> PI.pType t 
+        pCtor (name, Scheme _ t) i = text name <> text " :: " <> pType t i
 pStatement Empty _ =
     empty
 
@@ -75,5 +74,6 @@ pType t i = case t of
     TVar t'             -> text t'
     TTuple ts           -> parens . mconcat $ intersperse (text ", ") (map (`pType` i) ts)
     TArrow count t' t'' -> parens $ brackets (pExpression count i) <> pType t' i <> text " → " <> pType t'' i
+    TFun t1 t2          -> text "(" <> pType t1 i <> text " → " <> pType t2 i <> text ")"
     TList t             -> brackets $ pType t i
     TApp t1 t2          -> pType t1 i <+> pType t2 i

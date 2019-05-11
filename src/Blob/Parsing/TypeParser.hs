@@ -2,6 +2,7 @@
 
 module Blob.Parsing.TypeParser 
 ( type'
+, atype'
 ) where
 
 import Blob.Parsing.Types (Parser, Type(..), Expr(..), Literal(..))

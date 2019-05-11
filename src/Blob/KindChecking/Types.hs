@@ -7,17 +7,12 @@ import Control.Monad.State (State)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (ExceptT)
 import Data.Maybe (fromMaybe)
-import Blob.Inference.Types (TypeEnv)
-
-data Kind = KType | KArr Kind Kind | KVar String
+import Blob.Inference.Types (CustomTypeEnv, Kind(..), KindEnv)
 
 type KIError = Doc
 
-type KindEnv = Map.Map String Kind
-
 data KIState = KIState
-    { kiSupply :: Int
-    , kiTypeEnv :: TypeEnv }
+    { kiSupply :: Int }
 
 type KI a = ExceptT KIError (ReaderT KindEnv (State KIState)) a
 

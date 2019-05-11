@@ -25,6 +25,7 @@ commands = [  ":help", ":h", ":?"
            ,  ":quit", ":q"
            ,  ":load", ":l" 
            ,  ":type", ":t"
+           ,  ":kind", ":k"
            ,  ":eval", ":ev"
            , ":reset", ":r"
            ,   ":ast", ":a" ]
@@ -63,6 +64,15 @@ getType = do
         Right _ -> fail "Missing argument “[expr]”"
         Left _  -> GetType <$> (space1' *> anySingle `someTill` eof)
 
+getKind :: Parser Command
+getKind = do
+    space' *> try (hidden (string' "kind" <|> string' "k")) <?> "߷"
+
+    end <- observing . try $ space' *> eof
+    case end of
+        Right _ -> fail "Missing argument “[type]”"
+        Left _  -> GetKind <$> (space1' *> anySingle `someTill` eof)
+
 eval :: Parser Command
 eval = do
     space' *> try (hidden (string' "eval" <|> string' "ev")) <?> "߷"
@@ -84,7 +94,7 @@ ast = do
 command :: Parser Command
 command = do {
         space' *> symbol ":" ;
-        cmd <- observing . try $ choice [help, exit, load, getType, eval, reset, ast] ;
+        cmd <- observing . try $ choice [help, exit, load, getType, getKind, eval, reset, ast] ;
         case cmd of
             Left err ->
                 if "߷" `isInfixOf` parseErrorTextPretty err
@@ -113,6 +123,9 @@ helpCommand = do
 
     setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the type of an expression." >> setSGR [Reset]
+
+    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
+        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the kind of a type." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:eval [expr]” “:ev [expr]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": evaluate an expression." >> setSGR [Reset]
