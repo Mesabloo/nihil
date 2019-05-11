@@ -5,41 +5,28 @@ module Blob.Inference.AlgorithmW
 , tiProgram
 , programTypeInference
 , tiType
+, tiScheme
+, tiCustomType
 , generalize
 ) where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
-import Blob.Inference.Types (Type(..), Subst, Scheme(..), TypeEnv(..), TIError, TI, TIState(..), Types(..), Check, GlobalEnv(..))
+import Blob.Inference.Types
+import Blob.KindChecking.Checker
+import Blob.KindChecking.Types
 import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..), Pattern(..))
 import Blob.PrettyPrinter.PrettyInference (pType)
-import qualified Blob.Parsing.Types as TP (Type(..))
+import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad (zipWithM, foldM)
+import Control.Monad.Trans (lift)
 import Control.Monad.State (runState, get, put, modify, runStateT)
 import Control.Monad.Reader (runReaderT, ask, local)
 import Control.Monad.Except (runExceptT, throwError, runExcept)
 import Text.PrettyPrint.Leijen (text, dot, linebreak)
 import Data.Bifunctor (bimap, first, second)
 import Data.Maybe (isJust)
-
-nullSubst :: Subst
-nullSubst = mempty
-
-composeSubst :: Subst -> Subst -> Subst
-composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
-
-remove :: TypeEnv -> String -> TypeEnv
-remove (TypeEnv env) var = TypeEnv (Map.delete var env)
-
-insert :: String -> Scheme -> TypeEnv -> TypeEnv
-insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
-
-lookup' :: TypeEnv -> String -> Maybe Scheme
-lookup' (TypeEnv env) n = Map.lookup n env
-
-getScheme :: String -> TypeEnv -> Maybe Scheme
-getScheme k (TypeEnv env) = env Map.!? k
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
@@ -170,10 +157,19 @@ makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already defi
 tiType :: TP.Type -> Type
 tiType (TP.TId id')        = TId id'
 tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
+tiType (TP.TFun t1 t2)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts)      = TTuple (map tiType ts)
 tiType (TP.TVar id')       = TRigidVar id'
 tiType (TP.TList t)        = TList (tiType t)
 tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
+
+tiScheme :: TP.Scheme -> Scheme
+tiScheme (TP.Scheme tvs t) = Scheme tvs (tiType t)
+
+tiCustomType :: TP.CustomType -> CustomType
+tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
+tiCustomType (TP.TProd c s) = TProd c (tiScheme s)
+tiCustomType (TP.TAlias t)  = TAlias (tiType t)
 
 sepStatements :: [Statement] -> Check ()
 sepStatements s = do
@@ -240,10 +236,19 @@ sepStatements s = do
     separateDecls (Definition id' expr : stmts)   = second ((id', expr):) (separateDecls stmts)
     separateDecls (_ : stmts)                     = separateDecls stmts
 
+analyseTypeDecl :: String -> CustomScheme -> Check ()
+analyseTypeDecl k v = do
+    kind <- checkKI $ do
+        var        <- newKindVar "r"
+        (subst, t) <- local (Map.insert k var) (kiCustomScheme v)
+        subst1     <- mguKind (applyKind subst var) (applyKind subst t)
+        pure $ applyKind (subst1 `composeKindSubst` subst) var
+    modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
+                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st) }
 
 checkTI :: TI a -> Check a
 checkTI ti = do
-    (GlobalEnv declEnv defEnv) <- get
+    (GlobalEnv _ _ declEnv defEnv) <- get
 
     let (TypeEnv e1_) = declEnv
         (TypeEnv e2_) = defEnv
@@ -255,7 +260,14 @@ checkTI ti = do
         Right result -> pure result
 
 tiProgram :: Program -> Check ()
-tiProgram (Program stmts) = sepStatements stmts
+tiProgram (Program stmts) = do
+    remaining <- sepTypeDecls stmts
+    sepStatements remaining
+  where sepTypeDecls [] = pure []
+        sepTypeDecls (TypeDeclaration k tvs t:ss) = do
+            analyseTypeDecl k (CustomScheme tvs (tiCustomType t))
+            sepTypeDecls ss
+        sepTypeDecls (s:ss) = (s:) <$> sepTypeDecls ss
 
 programTypeInference :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
 programTypeInference g p = runExcept (runStateT p g)

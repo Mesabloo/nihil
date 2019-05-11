@@ -5,10 +5,10 @@ module Blob.Parsing.Parser
 , statement
 ) where
 
-import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), CustomType(..), Type(..))
+import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
 import Blob.Parsing.Lexer (lexeme, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, indented, typeIdentifier, string, typeVariable)
 import Blob.Parsing.ExprParser (expression)
-import Blob.Parsing.TypeParser (type')
+import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
 import Text.Megaparsec (many, hidden, some, try, (<|>), (<?>), eof, optional)
 import Text.Megaparsec.Char (eol)
@@ -17,8 +17,6 @@ import Data.Functor(fmap, (<$>), ($>), (<$))
 import Data.Text (pack)
 import Control.Monad.State (lift, modify)
 import qualified Data.Map as Map (fromList)
-import qualified Blob.Inference.AlgorithmW as I (tiType)
-import qualified Blob.Inference.Types as I (Type(..), Scheme(..))
 import Blob.PrettyPrinter.PrettyInference (pType)
 
 program :: Parser Program
@@ -71,18 +69,18 @@ sumType :: Parser Statement
 sumType = do
     string "data"
     name <- typeIdentifier
-    ts <- many (I.TRigidVar <$> typeVariable)
+    ts <- many typeVariable
     string "="
     ctor1 <- constructor name ts
     ctors <- many $ do
         string "|"
         constructor name ts
 
-    pure . TypeDeclaration $ TSum name (Map.fromList (ctor1:ctors))
+    pure . TypeDeclaration name ts $ TSum (Map.fromList (ctor1:ctors))
   where constructor name ts = flip (<?>) "type constructor" $ do
             name' <- typeIdentifier
-            type1 <- optional $ many type'
+            type1 <- optional $ many atype'
             
             case type1 of
-                Nothing -> pure (name', I.Scheme (map (show . pType) ts) (foldl I.TApp (I.TId name) ts))
-                Just cs -> pure (name', I.Scheme (map (show . pType) ts) (foldr (I.TFun . I.tiType) (foldl I.TApp (I.TId name) ts) cs))
+                Nothing -> pure (name', Scheme ts (foldl TApp (TId name) $ map TVar ts))
+                Just cs -> pure (name', Scheme ts (foldr TFun (foldl TApp (TId name) $ map TVar ts) cs))

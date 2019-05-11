@@ -23,6 +23,15 @@ data Type = TVar String
           | TId String
     deriving (Eq, Ord, Show)
 
+data Kind = KType | KArr Kind Kind | KVar String
+    deriving (Eq)
+
+data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
+    deriving (Eq, Ord, Show)
+
+data CustomScheme = CustomScheme [String] CustomType
+    deriving (Eq, Ord, Show)
+
 type TIError = Doc
 
 data Scheme = Scheme [String] Type
@@ -30,6 +39,9 @@ data Scheme = Scheme [String] Type
 
 newtype TypeEnv = TypeEnv (Map.Map String Scheme)
     deriving Show
+
+type KindEnv = Map.Map String Kind
+type CustomTypeEnv = Map.Map String CustomScheme
 
 type Subst = Map.Map String Type
 
@@ -39,9 +51,31 @@ data TIState = TIState
 
 type TI a = ExceptT TIError (ReaderT TypeEnv (State TIState)) a
 
-data GlobalEnv = GlobalEnv { declCtx :: TypeEnv, defCtx :: TypeEnv }
+data GlobalEnv = GlobalEnv
+    { typeDeclCtx :: KindEnv
+    , typeDefCtx  :: CustomTypeEnv
+    , declCtx     :: TypeEnv
+    , defCtx      :: TypeEnv }
 
 type Check a = StateT GlobalEnv (Except TIError) a
+
+nullSubst :: Subst
+nullSubst = mempty
+
+composeSubst :: Subst -> Subst -> Subst
+composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+
+remove :: TypeEnv -> String -> TypeEnv
+remove (TypeEnv env) var = TypeEnv (Map.delete var env)
+
+insert :: String -> Scheme -> TypeEnv -> TypeEnv
+insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
+
+lookup' :: TypeEnv -> String -> Maybe Scheme
+lookup' (TypeEnv env) n = Map.lookup n env
+
+getScheme :: String -> TypeEnv -> Maybe Scheme
+getScheme k (TypeEnv env) = env Map.!? k
 
 ----------------------------------------------------------------------------------------------
 instance Types Type where

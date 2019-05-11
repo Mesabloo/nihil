@@ -3,7 +3,7 @@
 module Blob.REPL.DefaultEnv where
 
 import Blob.REPL.Types (Value(..), Scope)
-import Blob.Inference.Types (Scheme(..), Type(..))
+import Blob.Inference.Types (Scheme(..), Type(..), Kind(..))
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen (text)
 import Control.Monad.Except (throwError)
@@ -67,3 +67,8 @@ defaultDeclContext = Map.fromList [ ("+", Scheme ["a"] $ TFun (TRigidVar "a") (T
 
 defaultDefContext :: Map.Map String Scheme
 defaultDefContext = defaultDeclContext
+
+defaultTypeDeclContext :: Map.Map String Kind
+defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
+                                      , ("Float",   KType)
+                                      , ("String",  KType) ]

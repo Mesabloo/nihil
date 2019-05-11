@@ -12,6 +12,7 @@ import System.Console.Haskeline (InputT)
 import Data.List (intercalate)
 
 data Command = GetType String
+             | GetKind String
              | Help
              | Code String
              | Load String

@@ -3,7 +3,7 @@ module Blob.Parsing.Types
 , Associativity(..) , Fixity(..) , CustomOperator(..) -- Custom operators
 , Parser , ParseState(..)                             -- Global
 , Program(..) , Statement(..)                         -- AST
-, Type(..), CustomType(..)                            -- Types
+, Scheme(..), Type(..), CustomType(..)                -- Types
 ) where
 
 import qualified Data.MultiMap as MMap (MultiMap)
@@ -13,7 +13,6 @@ import Data.Text (Text)
 import Data.Void (Void)
 import Control.Monad.Combinators.Expr (Operator)
 import Control.Monad.State (State)
-import qualified Blob.Inference.Types as I (Scheme(..))
 
 ---------------------------------------------------------------------------------------------
 {- Global -}
@@ -74,20 +73,24 @@ newtype Program = Program [Statement]
 data Statement = Declaration String Type
                | Definition String Expr
                | OpDeclaration String Fixity
-               | TypeDeclaration CustomType
+               | TypeDeclaration String [String] CustomType
                | Empty -- Just a placeholder, when a line is a comment, for example.
     deriving (Eq, Ord, Show)
 
 ---------------------------------------------------------------------------------------------
 {- Types -}
 
+data Scheme = Scheme [String] Type
+    deriving (Eq, Ord, Show)
+
 data Type = TId String            -- Type
           | TTuple [Type]         -- (a, ...)
           | TArrow Expr Type Type -- a ->[n] b -o ...
+          | TFun Type Type
           | TVar String           -- a...
           | TApp Type Type        -- Type a...
           | TList Type            -- [a]
     deriving (Eq, Ord, Show)
 
-data CustomType = TSum String (Map.Map String I.Scheme) | TProd String (String, I.Scheme)
+data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
     deriving (Eq, Ord, Show)
