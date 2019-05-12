@@ -16,8 +16,9 @@ import Data.List (isInfixOf, intercalate)
 import Data.Maybe (fromJust)
 import Text.PrettyPrint.Leijen (text)
 import System.Exit (exitSuccess)
-import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..))
+import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..), ConsoleIntensity(..))
 import Data.Functor (($>))
+import Data.Char (isUpper)
 
 
 commands :: [String]
@@ -73,15 +74,6 @@ getKind = do
         Right _ -> fail "Missing argument “[type]”"
         Left _  -> GetKind <$> (space1' *> anySingle `someTill` eof)
 
-eval :: Parser Command
-eval = do
-    space' *> try (hidden (string' "eval" <|> string' "ev")) <?> "߷"
-
-    end <- observing . try $ space' *> eof
-    case end of
-        Right _ -> fail "Missing argument “[expr]”"
-        Left _  -> Eval <$> (space1' *> anySingle `someTill` eof)
-
 ast :: Parser Command
 ast = do
     space' *> try (hidden (string' "ast" <|> string' "a")) <?> "߷"
@@ -94,7 +86,7 @@ ast = do
 command :: Parser Command
 command = do {
         space' *> symbol ":" ;
-        cmd <- observing . try $ choice [help, exit, load, getType, getKind, eval, reset, ast] ;
+        cmd <- observing . try $ choice [help, exit, load, getType, getKind, reset, ast] ;
         case cmd of
             Left err ->
                 if "߷" `isInfixOf` parseErrorTextPretty err
@@ -112,28 +104,25 @@ makeCommandError = do
 
 helpCommand :: IO ()
 helpCommand = do
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:help” ”:h” “:?”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:help” ”:h” “:?”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show this menu." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:quit” “:q”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:quit” “:q”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": exit the REPL." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:load [file]” “:l [file]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:load [file]” “:l [file]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the type of an expression." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the kind of a type." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:eval [expr]” “:ev [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": evaluate an expression." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:reset” “:r”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset” “:r”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta] >> putStr "“:ast” “:a”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:ast” “:a”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show the AST representation of some code." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Dull White] >> putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
@@ -147,7 +136,9 @@ evaluate :: Expr -> EvalEnv Value
 evaluate (ELit (LInt v)) = pure $ VInt v
 evaluate (ELit (LStr v)) = pure $ VStr v
 evaluate (ELit (LDec v)) = pure $ VDec v
-evaluate (EId id')       = fromJust <$> asks (Map.lookup id')
+evaluate (EId id')       = if isUpper (head id')
+                           then pure $ VId id'
+                           else fromJust <$> asks (Map.lookup id')
 evaluate (ETuple es)     = VTuple <$> mapM evaluate es
 evaluate (ELam x e)      = asks $ VLam x e
 evaluate (EApp f x)      = do
@@ -156,6 +147,7 @@ evaluate (EApp f x)      = do
     case f' of
         VLam x e c -> local (Map.insert x x' . Map.union c) (evaluate e)
         HLam f''   -> f'' x'
+        VId id'    -> pure $ VCon id' x'
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" ++ show v ++ "`.\nPlease report the issue."
 evaluate (EList es)      = VList <$> mapM evaluate es
 

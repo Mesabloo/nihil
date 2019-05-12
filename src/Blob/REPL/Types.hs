@@ -18,7 +18,6 @@ data Command = GetType String
              | Load String
              | Exit
              | Reload
-             | Eval String
              | Ast String
     deriving (Eq, Ord, Show)
 
@@ -30,10 +29,14 @@ data Value = VInt Integer
            | VTuple [Value]
            | HLam (Value -> EvalEnv Value)
            | VList [Value]
+           | VCon String Value
+           | VId String
 
 data REPLState = REPLState { ctx :: GlobalEnv
                            , op :: ParseState
-                           , values :: Map.Map String Value }
+                           , values :: Map.Map String Value
+                           
+                           , lastExecTime :: Double }
 
 type REPL a = InputT (StateT REPLState (ExceptT REPLError IO)) a
 
@@ -54,6 +57,8 @@ instance Show Value where
     show (VTuple es)  = "(" ++ intercalate ", " (map show es) ++ ")"
     show (VList es)   = "[" ++ intercalate ", " (map show es) ++ "]"
     show (HLam _)     = "HLam _"
+    show (VCon id' e) = id' ++ " " ++ show e
+    show (VId id')    = id'
 
 instance Eq Value where
     (==) (VInt i) (VInt i')          = i == i'
@@ -62,6 +67,8 @@ instance Eq Value where
     (==) (VLam i e _) (VLam i' e' _) = i == i' && e == e'
     (==) (VTuple es) (VTuple es')    = es == es'
     (==) (VList es) (VList es')      = es == es'
+    (==) (VCon id' _) (VCon id'' _)  = id' == id''
+    (==) (VId id') (VId id'')        = id' == id''
     (==) _ _                         = False
 
 instance Ord Value where
@@ -71,4 +78,6 @@ instance Ord Value where
     (<=) (VLam i e _) (VLam i' e' _) = i <= i' && e <= e'
     (<=) (VTuple es) (VTuple es')    = es <= es'
     (<=) (VList  es) (VList  es')    = es <= es'
+    (<=) (VCon id' _) (VCon id'' _)  = id' <= id''
+    (<=) (VId id') (VId id'')        = id' <= id''
     (<=) _ _                         = False

@@ -8,7 +8,7 @@ module Blob.REPL.REPL
 
 import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException(..), RunIO(..), defaultSettings)
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
-import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState)
+import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..))
 import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..))
@@ -28,30 +28,34 @@ import qualified Data.Map as Map
 import Data.Void (Void)
 import qualified Data.Text as Text (Text, pack)
 import qualified Data.Text.IO as Text (readFile)
-import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..))
+import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..), ConsoleIntensity(..))
 import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErrors, parseErrorTextPretty)
-import Text.Megaparsec (runParserT, PosState(..))
+import Text.Megaparsec (runParserT, PosState(..), (<|>))
 import Text.Megaparsec.Pos (SourcePos(..), unPos)
 import System.IO (hFlush, stdout)
 import Control.Monad (forever)
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, getCurrentDirectory)
 import Data.List.NonEmpty (toList)
 import Data.List.Utils (split)
 import Data.String.Utils (rstrip)
 import Data.Char (toUpper)
+import System.TimeIt (timeItT)
+import Text.Printf (printf)
 
 runREPL :: REPL a -> IO (Either REPLError a)
 runREPL r = do
     liftIO $ do
         replSetColor Vivid White >> putStr "Blob v0.0.1\nType " >> setSGR [Reset]
-        replSetColor Vivid Magenta >> putStr "“:?”" >> setSGR [Reset]
+        setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "“:?”" >> setSGR [Reset]
         replSetColor Vivid White >> putStrLn " for a list of commands." >> setSGR [Reset]
         hFlush stdout
 
     runExceptT (evalStateT (runInputT defaultSettings r) initREPLState)
   where initREPLState = REPLState { ctx = initGlobalEnv
                                   , op = initParseState
-                                  , values = defaultEnv }
+                                  , values = defaultEnv
+                                  
+                                  , lastExecTime = 0.0 }
     
 initGlobalEnv :: GlobalEnv
 initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
@@ -61,8 +65,19 @@ initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
 
 replLoop :: REPL ()
 replLoop = forever $ do
-    replSetColor Vivid Blue
-    input <- getInputLine "β> "
+    time <- lift (gets lastExecTime)
+    liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
+    liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
+    liftIO $ putStr $ printf " %.3fs" time
+    liftIO $ putStr " "
+    liftIO $ setSGR [SetColor Background Dull Blue]
+    liftIO $ setSGR [SetColor Foreground Dull Black]
+    liftIO $ putStr "\57520"
+    liftIO $ setSGR [SetColor Foreground Dull White]
+    liftIO $ putStr " β "
+    liftIO $ setSGR [Reset]
+    liftIO $ setSGR [SetColor Foreground Dull Blue]
+    input <- getInputLine "\57520 "
     liftIO $ setSGR [Reset]
     
     case input of
@@ -73,7 +88,9 @@ replLoop = forever $ do
 
             lift . modify $ \st -> st { op = state' }
 
-            replCheck output
+            (time, _) <- timeItT $ replCheck output
+
+            lift . modify $ \st -> st { lastExecTime = time }
 
 replCheck :: Either (ParseErrorBundle Text.Text Void) Command -> REPL ()
 replCheck = \case
@@ -102,13 +119,13 @@ replCheck = \case
                                 lift . modify $ \st' -> st' { ctx = state' }
 
                                 mapM_ (\case
-                                        Definition id' expr -> do
-                                            let eval' = runExcept $ runReaderT (evaluate expr) (values st)
+                                    Definition id' expr -> do
+                                        let eval' = runExcept $ runReaderT (evaluate expr) (values st)
 
-                                            case eval' of
-                                                Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                                Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
-                                        _                   -> liftIO $ putStr ""
+                                        case eval' of
+                                            Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                            Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                                    _                   -> liftIO $ putStr ""
                                     ) stmts
             else
                 liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" ++ file ++ "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
@@ -127,57 +144,50 @@ replCheck = \case
 
         GetKind typeExpr    -> do
             st <- lift get
-            let (TypeEnv env) = defCtx $ ctx st
-                res           = tiType <$> evalState (runParserT type' "interactive" (Text.pack typeExpr)) (op st)
+            let env = typeDeclCtx $ ctx st
+                res = tiType <$> evalState (runParserT type' "interactive" (Text.pack typeExpr)) (op st)
 
             case res of
                 Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
                 Right t   -> do
-                    let k = runExcept (evalStateT (checkKI $ kindInference (TypeEnv env) t) (ctx st))
+                    let k = runExcept (evalStateT (checkKI $ kindInference env t) (ctx st))
                     case k of
                         Left err   -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                         Right kind -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pType t)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pKind kind) >> setSGR [Reset] >> hFlush stdout
             
         Code stat           -> do
             st <- lift get
-            let res = evalState (runParserT statement "interactive" (Text.pack stat)) (op st)
+            let res = evalState (runParserT ((Right <$> statement) <|> (Left <$> expression)) "interactive" (Text.pack stat)) (op st)
             case res of
                 Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-                Right s -> case programTypeInference (ctx st) (tiProgram $ Program [s]) of
-                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right (_, state') -> do
-                        lift . modify $ \st' -> st' { ctx = state' }
+                Right s -> case s of
+                    Left e  -> do
+                        let env = defCtx $ ctx st
+                            t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                        case t of
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right _  -> do
+                                let res = runExcept $ runReaderT (evaluate e) (values st)
+                                case res of
+                                    Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                                    Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
-                        case s of
-                            Definition id' expr -> liftIO $ putStr ""
-                                -- st' <- lift get
-                                -- let eval' = runExcept $ runReaderT (evaluate expr) (values st')
-
-                                -- case eval' of
-                                --     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                --     Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
-                            TypeDeclaration name tvs t ->
-                                lift . modify $ \ st' -> st' { ctx = let c = ctx st' in
-                                    c { typeDefCtx = Map.insert name (CustomScheme tvs (tiCustomType t)) (typeDefCtx c) } }
-                            _                   -> pure ()
-
-                        liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
-        Eval expr           -> do
-            st <- lift get
-            let (TypeEnv env) = defCtx $ ctx st
-                res           = evalState (runParserT expression "interactive" (Text.pack expr)) (op st)
-
-            case res of
-                Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-                Right e -> do
-                    let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
-                    case t of
+                    Right s -> case programTypeInference (ctx st) (tiProgram $ Program [s]) of
                         Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                        Right _  -> do
-                            let res = runExcept $ runReaderT (evaluate e) (values st)
-                            case res of
-                                Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
-                                Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+                        Right (_, state') -> do
+                            lift . modify $ \st' -> st' { ctx = state' }
+
+                            case s of
+                                Definition id' expr -> do
+                                    st' <- lift get
+                                    let eval' = runExcept $ runReaderT (evaluate expr) (values st')
+
+                                    case eval' of
+                                        Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                        Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                                _                   -> pure ()
+
+                            liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
         Ast ast            -> do
             st <- lift get
             let res = evalState (runParserT statement "interactive" (Text.pack ast)) (op st)
