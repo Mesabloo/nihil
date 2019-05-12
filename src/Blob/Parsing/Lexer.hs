@@ -89,7 +89,7 @@ keyword :: Text -> Parser ()
 keyword kw = lexeme (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
 opSymbol :: Parser String
-opSymbol = (lexeme (some (C.symbolChar <|> oneOf ("*/-" :: String))) >>= check) <?> "operator"
+opSymbol = (lexeme (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-" :: String))) >>= check) <?> "operator"
   where check x = if x `elem` symbols
                   then fail $ "Already existing operator “" ++ x ++ "”"
                   else pure x
