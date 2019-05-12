@@ -128,7 +128,7 @@ checkKI ki = do
         Left err     -> throwError err
         Right result -> pure result
 
-kindInference :: TypeEnv -> Type -> KI Kind
+kindInference :: KindEnv -> Type -> KI Kind
 kindInference _ e = do
     (s, k) <- kiType e
     pure $ applyKind s k

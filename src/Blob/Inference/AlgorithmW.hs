@@ -186,29 +186,35 @@ sepStatements = bimap Map.fromList Map.fromList . separateDecls
 
 handleStatement :: String -> These Expr TP.Type -> Check ()
 handleStatement name (This def)      = do
-    t   <- checkTI $ do
+    t <- checkTI $ do
         var        <- newTyVar "a"
         (subst, t) <- local (insertFun name (Scheme [] var)) (tiExpr def)
         subst1     <- mgu (apply subst var) (apply subst t)
         pure $ apply (subst1 `composeSubst` subst) var
 
-    env <- gets defCtx
-    case getScheme name env of
+    (TypeEnv env) <- gets defCtx
+    case Map.lookup name env of
         Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
         Just _  -> throwError $ makeRedeclaredError name
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
+    env <- gets typeDeclCtx
+
+    let ti = tiType typ
+    checkKI $ kindInference env ti
+
     t <- checkTI $ do
-        t   <- do
+        t <- do
             var        <- newTyVar "a"
             (subst, t) <- local (insertFun name (Scheme [] var)) (tiExpr def)
             subst1     <- mgu (apply subst var) (apply subst t)
             pure $ apply (subst1 `composeSubst` subst) var
-        mgu t (rigidify $ tiType typ)
+
+        mgu t (rigidify ti)
         pure t
     
-    env <- gets defCtx
-    case getScheme name env of
+    (TypeEnv env) <- gets defCtx
+    case Map.lookup name env of
         Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
         Just _  -> throwError $ makeRedeclaredError name
 
