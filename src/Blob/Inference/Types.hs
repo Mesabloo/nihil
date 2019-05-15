@@ -24,7 +24,7 @@ data Type = TVar String
     deriving (Eq, Ord, Show)
 
 data Kind = KType | KArr Kind Kind | KVar String
-    deriving (Eq)
+    deriving (Eq, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
     deriving (Eq, Ord, Show)
@@ -56,6 +56,7 @@ data GlobalEnv = GlobalEnv
     , typeDefCtx  :: CustomTypeEnv
     , defCtx      :: TypeEnv
     , ctorCtx     :: TypeEnv }
+    deriving Show
 
 type Check a = StateT GlobalEnv (Except TIError) a
 
