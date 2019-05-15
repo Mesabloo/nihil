@@ -1,23 +1,37 @@
 module Blob.Parsing.Types
-( Expr(..) , Literal(..), Pattern(..)                 -- Expressions
-, Associativity(..) , Fixity(..) , CustomOperator(..) -- Custom operators
-, Parser , ParseState(..)                             -- Global
-, Program(..) , Statement(..)                         -- AST
-, Scheme(..), Type(..), CustomType(..)                -- Types
-) where
+  ( Expr(..)
+  , Literal(..)
+  , Pattern(..)                 -- Expressions
+  , Associativity(..)
+  , Fixity(..)
+  , CustomOperator(..) -- Custom operators
+  , Parser
+  , ParseState(..)                             -- Global
+  , Program(..)
+  , Statement(..)                         -- AST
+  , Scheme(..)
+  , Type(..)
+  , CustomType(..)                -- Types
+  )
+where
 
-import qualified Data.MultiMap as MMap (MultiMap)
-import qualified Data.Map as Map (Map)
-import qualified Text.Megaparsec as Mega (Pos, ParsecT)
-import Data.Text (Text)
-import Data.Void (Void)
-import Control.Monad.Combinators.Expr (Operator)
-import Control.Monad.State (State)
+import qualified Data.MultiMap                 as MMap
+                                                ( MultiMap )
+import qualified Data.Map                      as Map
+                                                ( Map )
+import qualified Text.Megaparsec               as Mega
+                                                ( Pos
+                                                , Parsec
+                                                )
+import           Data.Text                      ( Text )
+import           Data.Void                      ( Void )
+import           Control.Monad.Combinators.Expr ( Operator )
+import           Control.Monad.State            ( StateT )
 
 ---------------------------------------------------------------------------------------------
 {- Global -}
 
-type Parser = Mega.ParsecT Void Text (State ParseState)
+type Parser = StateT ParseState (Mega.Parsec Void Text)
 
 data ParseState = ParseState
     { operators :: MMap.MultiMap Integer (Operator Parser Expr)
@@ -73,7 +87,7 @@ newtype Program = Program [Statement]
 data Statement = Declaration String Type
                | Definition String Expr
                | OpDeclaration String Fixity
-               | TypeDeclaration String [String] CustomType
+               | TypeDeclaration String [String] CustomType
                | Empty -- Just a placeholder, when a line is a comment, for example.
     deriving (Eq, Ord, Show)
 

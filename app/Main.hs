@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Main 
 (
     main
@@ -7,5 +5,5 @@ module Main
 
 import Blob.REPL.REPL
 
-main :: IO (Either Blob.REPL.REPL.REPLError ())
+main :: IO ()
 main = runREPL replLoop

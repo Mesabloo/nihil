@@ -23,11 +23,11 @@ defaultOps = MMap.fromList [
             ]
 
 initParseState :: ParseState
-initParseState = ParseState defaultOps (mkPos 0)
+initParseState = ParseState defaultOps (mkPos 1)
 
 addOperator :: CustomOperator -> Parser ()
 addOperator fixdecl = m fixdecl (fixityPrec fixdecl)
-  where m f p = lift . modify $ \st -> st { operators = MMap.insert p (toParser f) (operators st) }
+  where m f p = modify $ \st -> st { operators = MMap.insert p (toParser f) (operators st) }
 
 fixityPrec :: CustomOperator -> Integer
 fixityPrec (CustomOperator _ (Infix' _ n)) = n
