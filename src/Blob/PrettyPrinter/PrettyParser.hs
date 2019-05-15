@@ -67,6 +67,7 @@ pPattern p i = case p of
     PInt i   -> text $ show i
     PDec d   -> text $ show d
     PStr s   -> text s
+    PId i    -> text i
 
 pType :: Type -> Int -> Doc
 pType t i = case t of

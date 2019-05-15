@@ -6,7 +6,7 @@ module Blob.Parsing.Parser
 ) where
 
 import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
-import Blob.Parsing.Lexer (lexeme, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, indented, typeIdentifier, string, typeVariable)
+import Blob.Parsing.Lexer (lexeme, lexemeNL, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, indented, typeIdentifier, string, typeVariable, nonIndented)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
@@ -22,27 +22,40 @@ import Blob.PrettyPrinter.PrettyInference (pType)
 program :: Parser Program
 program = fmap Program $
     (many (hidden eol) *> eof $> []) <|> do
-        x  <- many (hidden eol) *> (lexeme statement <?> "statement")
-        xs <- many (some (hidden eol) *> ((lexeme statement <?> "statement") <|> (eof $> Empty))) <* many (hidden eol) <* eof
+        x  <- do
+            hidden $ many eol
+
+            lineI <- indentLevel
+            modify $ \st -> st { currentIndent = lineI }
+
+            lexeme statement <?> "statement"
+        xs <- many (do
+                        some (hidden eol)
+
+                        lineI <- indentLevel
+                        modify $ \st -> st { currentIndent = lineI }
+
+                        (lexeme statement <?> "statement") <|> (eof $> Empty)
+            ) <* many (hidden eol) <* eof
 
         let statements = filter (/= Empty) (x:xs)
         pure statements
 
 statement :: Parser Statement
 statement = 
-    lexeme (operator <|> try declaration <|> try definition <|> try sumType <|>
-        ((lineCmnt <|> blockCmnt) $> Empty))
+    nonIndented (lexeme (operator <|> try declaration <|> try definition <|> try sumType))
+        <|> ((lineCmnt <|> blockCmnt) $> Empty)
 
 declaration :: Parser Statement
 declaration = do
-    id' <- (identifier <|> parens opSymbol) <* symbol ":" <?> "identifier"
+    id' <- lexeme ((identifier <|> parens opSymbol) <* symbol "::") <?> "identifier"
     Declaration id' <$> type'
 
 definition :: Parser Statement
 definition = do
-    id'  <- (identifier <|> parens opSymbol) <?> "identifier"
-    args <- many identifier <* symbol "="
-    expr <- expression
+    id'  <- lexeme (identifier <|> parens opSymbol) <?> "identifier"
+    args <- lexeme (many identifier <* symbol "=")
+    expr <- indented expression
     pure $ Definition id' (foldr ELam expr args)
 
 operator :: Parser Statement

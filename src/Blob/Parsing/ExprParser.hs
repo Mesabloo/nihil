@@ -8,10 +8,10 @@ import Blob.Parsing.Types (Parser, Expr(..), Literal(..), ParseState(..), Patter
 import qualified Data.MultiMap as MMap (elems)
 import Control.Monad.Combinators.Expr (Operator, makeExprParser, Operator(..))
 import Control.Monad.State (get)
-import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional)
+import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional, eof, empty)
 import Text.Megaparsec.Char (eol)
 import Data.Functor ((<$), ($>))
-import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier)
+import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier, block, string')
 
 expression :: Parser Expr
 expression = lexeme $ do
@@ -21,7 +21,7 @@ expression = lexeme $ do
 
 term :: Parser Expr
 term = try lambda'
---   <|> match
+   <|> try match
    <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
    <|> ELit . LDec <$> try float
    <|> ELit . LInt <$> try integer
@@ -69,21 +69,29 @@ list = lexeme . brackets $ do
     e2 <- some (lexeme (string ",") *> expression)
     pure $ EList (e1 : e2)
 
--- match :: Parser Expr
--- match = do
---     toMatch <- keyword "match" *> expression <* keyword "with"
---     optional $ lexeme eol
---     patternsAndVals <- some (do
---         p <- lexeme pattern'
---         lexeme (hidden (string "->") <|> string "→")
---         v <- expression
---         eol
---         pure (p, v)) <?> "patterns"
+match :: Parser Expr
+match = do
+    keyword "match"
+    expr <- expression
+    keyword "with"
+    optional $ some (lexeme eol)
+    pats <- block $ do
+        p      <- pattern'
+        hidden (symbol "->") <|> string "→"
+        e      <- expression
 
---     pure $ EMatch toMatch patternsAndVals 
+        hasEof <- optional eof
+        case hasEof of
+            Nothing -> do
+                some (lexeme eol)
+                pure (p, e)
+            Just _  -> pure (p, e)
 
--- pattern' :: Parser Pattern
--- pattern' = (string' "_" $> Wildcard)
---           <|> (PDec <$> try float)
---           <|> (PInt <$> try integer)
---           <|> (PStr <$> try string'')
+    pure $ EMatch expr pats
+
+pattern' :: Parser Pattern
+pattern' = lexeme $ (string' "_" $> Wildcard)
+                    <|> (PDec <$> try float)
+                    <|> (PInt <$> try integer)
+                    <|> (PStr <$> try string'')
+                    <|> (PId  <$> try identifier)

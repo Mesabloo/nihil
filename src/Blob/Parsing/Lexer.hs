@@ -8,17 +8,23 @@ import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec.Pos (Pos)
 import Blob.Parsing.Types (Parser, ParseState(..))
 import Data.Text (Text, pack)
-import Control.Monad.State (get, lift, modify)
+import Control.Monad.State (get, lift, modify, gets)
 import Data.Functor (($>))
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
+
+lexemeNL :: Parser a -> Parser a
+lexemeNL = L.lexeme scNL
 
 space' :: Parser ()
 space' = skipMany $ oneOf (" \t" :: String)
 
 sc :: Parser ()
 sc = L.space space1' lineCmnt blockCmnt
+
+scNL :: Parser ()
+scNL = L.space (skipSome C.eol) lineCmnt blockCmnt
 
 lineCmnt :: Parser ()
 lineCmnt  = hidden $ L.skipLineComment (pack "--")
@@ -33,7 +39,7 @@ identifier :: Parser String
 identifier = (lexeme . try $ p >>= check) <?> "identifier"
   where
     p = (:)
-            <$> (C.lowerChar <|> oneOf ("'_" :: String))
+            <$> C.lowerChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` kws
               then fail $ "Keyword “" ++ x ++ "” used as identifier."
@@ -95,36 +101,32 @@ opSymbol = (lexeme (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-" :: String
                   else pure x
 
 indentGuard :: Ordering -> Pos -> Parser Pos
-indentGuard = L.indentGuard (skipSome (oneOf (" \t" :: String) <|> (' ' <$ C.eol)))
+indentGuard = L.indentGuard sc
+
+nonIndented :: Parser a -> Parser a
+nonIndented = L.nonIndented sc
 
 indented :: Parser a -> Parser a
 indented p = do
-    env <- get
-    let curIndent = currentIndent env
-    newPos <- indentGuard GT curIndent
-    lift . modify $ \st -> st { currentIndent = newPos }
+    curIndent <- gets currentIndent
+    newPos    <- indentGuard GT curIndent
+    modify $ \st -> st { currentIndent = newPos }
 
-    p
+    try p
+
+aligned :: Parser a -> Parser a
+aligned p = do
+    curIndent <- gets currentIndent
+    indentGuard EQ curIndent
+
+    try p
         
 block :: Parser a -> Parser [a]
 block p = do
-    e1  <- indented p
-    curIndent <- currentIndent <$> get
+    e1        <- indented p
+    curIndent <- gets currentIndent
 
-    es <- many $ do
-        indentGuard EQ curIndent
-        p
-
-    pure (e1:es)
-
-block1 :: Parser a -> Parser [a]
-block1 p = do
-    e1  <- indented p
-    curIndent <- currentIndent <$> get
-
-    es <- some $ do
-        indentGuard EQ curIndent
-        p
+    es        <- many $ aligned (try p)
 
     pure (e1:es)
 
@@ -151,4 +153,4 @@ symbols =
         , "⊸"
         , "\\"
         , "="
-        , ":" ]
+        , "::" ]
