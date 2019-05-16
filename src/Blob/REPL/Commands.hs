@@ -1,9 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 
 module Blob.REPL.Commands where
 
-import Blob.Parsing.Types (Parser, Expr(..), Literal(..))
-import Blob.REPL.Types (Command(..), EvalEnv, Value(..))
+import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
+import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..))
 import Blob.Parsing.Lexer (string', space', space1', symbol)
 import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
@@ -14,11 +14,13 @@ import Control.Monad.Reader (local, asks)
 import Control.Monad.Except (throwError)
 import Data.List (isInfixOf, intercalate)
 import Data.Maybe (fromJust)
-import Text.PrettyPrint.Leijen (text)
+import Text.PrettyPrint.Leijen (text, Doc, dot, linebreak)
 import System.Exit (exitSuccess)
 import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..), ConsoleIntensity(..))
 import Data.Functor (($>))
 import Data.Char (isUpper)
+import Control.Monad (join)
+import Control.Applicative (empty)
 
 
 commands :: [String]
@@ -150,7 +152,23 @@ evaluate (EApp f x)      = do
         VId id'    -> pure $ VCon id' x'
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" ++ show v ++ "`.\nPlease report the issue."
 evaluate (EList es)      = VList <$> mapM evaluate es
+evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
+  where evalBranch pat branch = do
+            e <- evaluate expr
+            s <- unpackPattern e pat
+            pure (local (s <>) (evaluate branch))
 
+        unpackPattern :: Value -> Pattern -> EvalEnv (Scope Value)
+        unpackPattern = curry $ \case
+            (_, Wildcard)               -> pure mempty
+            (VInt n, PInt n') | n == n' -> pure mempty
+            (VStr s, PStr s') | s == s' -> pure mempty
+            (VDec d, PDec d') | d == d' -> pure mempty
+            (v, PId id')                -> pure $ Map.singleton id' v
+            _                           -> empty
+
+        makeMatchError :: EvalEnv Value
+        makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot
 
 
 levenshtein :: String -> String -> Int

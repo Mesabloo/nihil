@@ -78,6 +78,12 @@ insertFun k v (GlobalEnv tdc tdf def ctor) = GlobalEnv { typeDeclCtx = tdc
                                                        , defCtx      = insert k v def
                                                        , ctorCtx     = ctor }
 
+insertEnv :: TypeEnv -> GlobalEnv -> GlobalEnv
+insertEnv (TypeEnv t) (GlobalEnv tdc tdf (TypeEnv def) ctor) = GlobalEnv { typeDeclCtx = tdc
+                                                                         , typeDefCtx  = tdf
+                                                                         , defCtx      = TypeEnv $ def `Map.union` t
+                                                                         , ctorCtx     = ctor }
+
 lookup' :: TypeEnv -> String -> Maybe Scheme
 lookup' (TypeEnv env) n = Map.lookup n env
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Blob.Inference.AlgorithmW 
 ( runTI
 , checkTI
@@ -29,7 +31,7 @@ import Data.Bifunctor (bimap, first, second)
 import Data.Maybe (isJust)
 import Data.Align.Key (alignWithKey)
 import Data.These (These(..))
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
@@ -134,7 +136,37 @@ tiExpr (EList es)   = fmap (TApp TList) <$> (flip (foldM go) es =<< (,) nullSubs
         (s1, t) <- tiExpr item
         s2      <- mgu t type'
         pure (s2 <> s1 <> subst, apply s2 type')
+tiExpr (EMatch e cases) = do
+    (sub, ty)  <- tiExpr e
+    pats       <- mapM (inferPattern . fst) cases
+    let branches = zip (map snd cases) (map snd pats)
+    (subs, ts) <- unzip <$> mapM (uncurry inferBranch) branches
 
+    pSub       <- unifyLSide ty (map fst pats)
+    bSub       <- unifyRSide ts
+
+    pure (foldr composeSubst sub (pSub:(bSub:subs)), head ts)
+  where inferPattern :: Pattern -> TI (Type, TypeEnv)
+        inferPattern = \case
+            Wildcard -> do
+                var <- newTyVar "a"
+                pure (var, TypeEnv mempty)
+            PInt _   -> pure (TInt, TypeEnv mempty)
+            PDec _   -> pure (TFloat, TypeEnv mempty)
+            PStr _   -> pure (TString, TypeEnv mempty)
+            PId id'  -> do
+                var <- newTyVar "a"
+                pure (var, TypeEnv $ Map.singleton id' (generalize (TypeEnv mempty) var))
+
+        unifyLSide :: Type -> [Type] -> TI Subst
+        unifyLSide exprTy = foldM (\acc t -> composeSubst acc <$> mgu t (apply acc exprTy)) nullSubst
+
+        inferBranch :: Expr -> TypeEnv -> TI (Subst, Type)
+        inferBranch e env = local (insertEnv env) (tiExpr e)
+
+        unifyRSide :: [Type] -> TI Subst
+        unifyRSide (t:ts) = foldM (\acc t' -> composeSubst acc <$> mgu t t') nullSubst ts
+        unifyRSide []     = throwError $ text "Match with 0 cases" <> dot <> linebreak
 
 typeInference :: TypeEnv -> Expr -> TI Type
 typeInference _ e = do
@@ -176,13 +208,19 @@ tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
 tiCustomType (TP.TProd c s) = TProd c (tiScheme s)
 tiCustomType (TP.TAlias t)  = TAlias (tiType t)
 
-sepStatements :: [Statement] -> (Map.Map String Expr, Map.Map String TP.Type)
-sepStatements = bimap Map.fromList Map.fromList . separateDecls
+sepStatements :: [Statement] -> Check (Map.Map String Expr, Map.Map String TP.Type) -- uncurry (liftA2 (,)) . 
+sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError mempty) (foldDecls makeRedefinedError mempty) . separateDecls
   where
     separateDecls []                              = mempty
     separateDecls (Declaration id' type' : stmts) = second ((id', type'):) (separateDecls stmts)
     separateDecls (Definition id' expr : stmts)   = first ((id', expr):) (separateDecls stmts)
     separateDecls (_ : stmts)                     = separateDecls stmts
+
+    foldDecls :: (String -> TIError) -> Map.Map String a -> [(String, a)] -> Check (Map.Map String a)
+    foldDecls _ m []              = pure m
+    foldDecls err m ((id', t):ts) = case Map.lookup id' m of
+                                        Nothing -> flip (foldDecls err) ts $ Map.insert id' t m
+                                        Just _  -> throwError $ err id'
 
 handleStatement :: String -> These Expr TP.Type -> Check ()
 handleStatement name (This def)      = do
@@ -192,10 +230,8 @@ handleStatement name (This def)      = do
         subst1     <- mgu (apply subst var) (apply subst t)
         pure $ apply (subst1 `composeSubst` subst) var
 
-    (TypeEnv env) <- gets defCtx
-    case Map.lookup name env of
-        Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
-        Just _  -> throwError $ makeRedeclaredError name
+    env <- gets defCtx
+    modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) env }
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
     env <- gets typeDeclCtx
@@ -213,10 +249,8 @@ handleStatement name (These def typ) = do
         mgu t (rigidify ti)
         pure t
     
-    (TypeEnv env) <- gets defCtx
-    case Map.lookup name env of
-        Nothing -> modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) (defCtx st) }
-        Just _  -> throwError $ makeRedeclaredError name
+    env <- gets defCtx
+    modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) env }
 
 analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do
@@ -249,7 +283,8 @@ checkTI ti = do
 tiProgram :: Program -> Check ()
 tiProgram (Program stmts) = do
     remaining <- sepTypeDecls stmts
-    sequence_ $ uncurry (alignWithKey handleStatement) (sepStatements remaining)
+    stts      <- sepStatements remaining
+    sequence_ $ uncurry (alignWithKey handleStatement) stts
   where sepTypeDecls [] = pure []
         sepTypeDecls (TypeDeclaration k tvs t:ss) = do
             analyseTypeDecl k (CustomScheme tvs (tiCustomType t))
