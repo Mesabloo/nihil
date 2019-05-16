@@ -33,7 +33,7 @@ Some unicode characters are part of the language itself, and may be used interch
 
 ```haskell
 fib: Num a ⇒ a ⊸ a
-fib n = match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
+fib n = match n with --  we clone “n”.
     0  → 1
     1  → 1
     n' → fib (n' - 2) + fib (n' - 1)
@@ -43,7 +43,7 @@ fib n = match !n with --  we clone “n”. I will choose later whether pattern 
 
 ```haskell
 fact: Num a ⇒ a ⊸ a
-fact n = match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
+fact n = match n with --  we clone “n”.
     0  → 1
     n' → n * fact (n' - 1)
 ```
@@ -52,9 +52,9 @@ fact n = match !n with --  we clone “n”. I will choose later whether pattern
 
 ```haskell
 ack: Num a ⇒ a ⊸ a ⊸ a
-ack n m = match !m with --  we clone “m”. I will choose later whether pattern matching auto-clones or not
+ack n m = match m with --  we clone “m”.
     0  → n + 1
-    m' → match !n with --  we clone “n”. I will choose later whether pattern matching auto-clones or not
+    m' → match n with --  we clone “n”.
         0  → ack (m' - 1) 1
         n' → ack (m' - 1) $ ack m (n' - 1)
 ```
