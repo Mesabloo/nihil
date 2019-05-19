@@ -135,15 +135,15 @@ exitCommand =
         >> exitSuccess
 
 evaluate :: Expr -> EvalEnv Value
-evaluate (ELit (LInt v)) = pure $ VInt v
-evaluate (ELit (LStr v)) = pure $ VStr v
-evaluate (ELit (LDec v)) = pure $ VDec v
-evaluate (EId id')       = if isUpper (head id')
-                           then pure $ VId id'
-                           else fromJust <$> asks (Map.lookup id')
-evaluate (ETuple es)     = VTuple <$> mapM evaluate es
-evaluate (ELam x e)      = asks $ VLam x e
-evaluate (EApp f x)      = do
+evaluate (ELit (LInt v))    = pure $ VInt v
+evaluate (ELit (LStr v))    = pure $ VStr v
+evaluate (ELit (LDec v))    = pure $ VDec v
+evaluate (EId id')          = if isUpper (head id')
+                              then pure $ VId id'
+                              else fromJust <$> asks (Map.lookup id')
+evaluate (ETuple es)        = VTuple <$> mapM evaluate es
+evaluate (ELam x e)         = asks $ VLam x e
+evaluate (EApp f x)         = do
     x' <- evaluate x
     f' <- evaluate f
     case f' of
@@ -151,7 +151,7 @@ evaluate (EApp f x)      = do
         HLam f''   -> f'' x'
         VId id'    -> pure $ VCon id' x'
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" ++ show v ++ "`.\nPlease report the issue."
-evaluate (EList es)      = VList <$> mapM evaluate es
+evaluate (EList es)         = VList <$> mapM evaluate es
 evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
   where evalBranch pat branch = do
             e <- evaluate expr
