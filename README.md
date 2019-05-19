@@ -23,6 +23,7 @@ Some unicode characters are part of the language itself, and may be used interch
    |`-o`|`⊸`|
    |`=>`|`⇒`|
    | `\`|`λ`|
+   |`::`|`∷`|
 
 </details>
 <details>
