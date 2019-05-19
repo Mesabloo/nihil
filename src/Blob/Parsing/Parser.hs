@@ -6,13 +6,13 @@ module Blob.Parsing.Parser
 ) where
 
 import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
-import Blob.Parsing.Lexer (lexeme, lexemeNL, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, indented, typeIdentifier, string, typeVariable, nonIndented)
+import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
 import Text.Megaparsec (many, hidden, some, try, (<|>), (<?>), eof, optional)
 import Text.Megaparsec.Char (eol)
-import Text.Megaparsec.Char.Lexer (indentLevel)
+import Text.Megaparsec.Char.Lexer as L (indentLevel, IndentOpt(..))
 import Data.Functor(fmap, (<$>), ($>), (<$))
 import Data.Text (pack)
 import Control.Monad.State (lift, modify)
@@ -48,14 +48,15 @@ statement =
 
 declaration :: Parser Statement
 declaration = do
-    id' <- lexeme ((identifier <|> parens opSymbol) <* symbol "::") <?> "identifier"
-    Declaration id' <$> type'
+    id' <- lexemeN ((identifier <|> parens opSymbol) <* (hidden (symbol "::") <|> symbol "∷")) <?> "identifier"
+    Declaration id' <$> lexemeN type'
 
 definition :: Parser Statement
 definition = do
-    id'  <- lexeme (identifier <|> parens opSymbol) <?> "identifier"
-    args <- lexeme (many identifier <* symbol "=")
-    expr <- indented expression
+    pos  <- indentLevel
+    id'  <- (identifier <|> parens opSymbol) <?> "identifier"
+    args <- (many . indented pos) identifier <* symbol "="
+    expr <- indented pos expression
     pure $ Definition id' (foldr ELam expr args)
 
 operator :: Parser Statement
@@ -79,15 +80,12 @@ operator = do
                 <|> Postfix' <$ keyword "postfix"
 
 sumType :: Parser Statement
-sumType = do
-    string "data"
-    name <- typeIdentifier
-    ts <- many typeVariable
+sumType = flip (<?>) "sum type" $ do
+    name <- string "data" *> lexemeN typeIdentifier
+    ts <- (many . lexemeN) typeVariable
     string "="
-    ctor1 <- constructor name ts
-    ctors <- many $ do
-        string "|"
-        constructor name ts
+    ctor1 <- lexeme $ constructor name ts
+    ctors <- many $ string "|" *> lexeme (constructor name ts)
 
     pure . TypeDeclaration name ts $ TSum (Map.fromList (ctor1:ctors))
   where constructor name ts = flip (<?>) "type constructor" $ do

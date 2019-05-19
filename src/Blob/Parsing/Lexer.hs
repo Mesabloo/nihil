@@ -5,7 +5,7 @@ module Blob.Parsing.Lexer where
 import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
-import Text.Megaparsec.Pos (Pos)
+import Text.Megaparsec.Pos (Pos, unPos)
 import Blob.Parsing.Types (Parser, ParseState(..))
 import Data.Text (Text, pack)
 import Control.Monad.State (get, lift, modify, gets)
@@ -14,8 +14,8 @@ import Data.Functor (($>))
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
-lexemeNL :: Parser a -> Parser a
-lexemeNL = L.lexeme scNL
+lexemeN :: Parser a -> Parser a
+lexemeN = L.lexeme scN
 
 space' :: Parser ()
 space' = skipMany $ oneOf (" \t" :: String)
@@ -23,8 +23,8 @@ space' = skipMany $ oneOf (" \t" :: String)
 sc :: Parser ()
 sc = L.space space1' lineCmnt blockCmnt
 
-scNL :: Parser ()
-scNL = L.space (skipSome C.eol) lineCmnt blockCmnt
+scN :: Parser ()
+scN = L.space (skipSome $ (C.eol $> '_') <|> oneOf (" \t" :: String)) lineCmnt blockCmnt
 
 lineCmnt :: Parser ()
 lineCmnt  = hidden $ L.skipLineComment (pack "--")
@@ -36,7 +36,7 @@ space1' :: Parser ()
 space1' = skipSome $ oneOf (" \t" :: String)
 
 identifier :: Parser String
-identifier = (lexeme . try $ p >>= check) <?> "identifier"
+identifier = (lexemeN . try $ p >>= check) <?> "identifier"
   where
     p = (:)
             <$> C.lowerChar
@@ -46,13 +46,13 @@ identifier = (lexeme . try $ p >>= check) <?> "identifier"
               else pure x
 
 typeIdentifier :: Parser String
-typeIdentifier = lexeme . try $ do
+typeIdentifier = lexemeN $ do
     first <- C.upperChar
     second <- many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     pure $ first:second
 
 typeVariable :: Parser String
-typeVariable = (lexeme . try $ p >>= check) <?> "type variable"
+typeVariable = (lexemeN . try $ p >>= check) <?> "type variable"
   where
     p = (:)
             <$> C.lowerChar
@@ -62,73 +62,58 @@ typeVariable = (lexeme . try $ p >>= check) <?> "type variable"
               else pure x
 
 symbol :: Text -> Parser Text
-symbol s = lexeme . try $ L.symbol sc s
+symbol = lexemeN . L.symbol scN 
 
 parens :: Parser a -> Parser a
-parens p = lexeme . try $ between (symbol "(") (symbol ")") p
+parens = between (symbol "(") (symbol ")")
 
 brackets :: Parser a -> Parser a
-brackets p = lexeme . try $ between (symbol "[") (symbol "]") p
+brackets = between (symbol "[") (symbol "]")
 
 backticks :: Parser a -> Parser a
-backticks p = lexeme . try $ between (string "`") (string "`") p
+backticks = between (symbol "`") (symbol "`")
 
 braces :: Parser a -> Parser a
-braces p = lexeme . try $ between (string "{") (string "}") p
+braces = between (symbol "{") (symbol "}")
 
 integer :: Parser Integer
-integer = lexeme L.decimal
+integer = lexemeN L.decimal
 
 float :: Parser Double
-float = lexeme L.float
+float = lexemeN L.float
 
 string :: Text -> Parser Text
-string s = lexeme $ C.string s
+string = lexemeN . C.string
 
 string' :: Text -> Parser Text
 string' = C.string
 
 string'' :: Parser String
-string'' = lexeme $ C.char '"' *> manyTill L.charLiteral (C.char '"')
+string'' = lexemeN $ C.char '"' *> manyTill L.charLiteral (C.char '"')
 
 keyword :: Text -> Parser ()
-keyword kw = lexeme (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
+keyword kw = lexemeN (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
 opSymbol :: Parser String
-opSymbol = (lexeme (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-" :: String))) >>= check) <?> "operator"
+opSymbol = (lexemeN (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-" :: String))) >>= check) <?> "operator"
   where check x = if x `elem` symbols
                   then fail $ "Already existing operator “" ++ x ++ "”"
                   else pure x
 
 indentGuard :: Ordering -> Pos -> Parser Pos
-indentGuard = L.indentGuard sc
+indentGuard = L.indentGuard scN
 
 nonIndented :: Parser a -> Parser a
-nonIndented = L.nonIndented sc
-
-indented :: Parser a -> Parser a
-indented p = do
-    curIndent <- gets currentIndent
-    newPos    <- indentGuard GT curIndent
-    modify $ \st -> st { currentIndent = newPos }
-
-    try p
-
-aligned :: Parser a -> Parser a
-aligned p = do
-    curIndent <- gets currentIndent
-    indentGuard EQ curIndent
-
-    try p
+nonIndented = L.nonIndented scN
         
-block :: Parser a -> Parser [a]
-block p = do
-    e1        <- indented p
-    curIndent <- gets currentIndent
+indented :: Pos -> Parser a -> Parser a
+indented pos parser = do { indentGuard GT pos ; parser }
 
-    es        <- many $ aligned (try p)
+same :: Pos -> Parser a -> Parser a
+same pos parser = do { indentGuard EQ pos ; parser }
 
-    pure (e1:es)
+sameOrIndented :: Pos -> Parser a -> Parser a
+sameOrIndented pos parser = try (indented pos parser) <|> same pos parser
 
 ---------------------------------------------------------------------------------------------------------
 
@@ -142,8 +127,7 @@ kws =
     , "λ"
     , "match"
     , "with"
-    , "data"
-    ]
+    , "data" ]
 
 symbols :: [String] -- list of reserved symbols
 symbols =
@@ -153,4 +137,5 @@ symbols =
         , "⊸"
         , "\\"
         , "="
-        , "::" ]
+        , "::"
+        , "∷" ]

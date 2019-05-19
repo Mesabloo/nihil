@@ -1,19 +1,4 @@
-module Blob.Parsing.Types
-  ( Expr(..)
-  , Literal(..)
-  , Pattern(..)                 -- Expressions
-  , Associativity(..)
-  , Fixity(..)
-  , CustomOperator(..) -- Custom operators
-  , Parser
-  , ParseState(..)                             -- Global
-  , Program(..)
-  , Statement(..)                         -- AST
-  , Scheme(..)
-  , Type(..)
-  , CustomType(..)                -- Types
-  )
-where
+module Blob.Parsing.Types where
 
 import qualified Data.MultiMap                 as MMap
                                                 ( MultiMap )
@@ -25,7 +10,6 @@ import qualified Text.Megaparsec               as Mega
                                                 )
 import           Data.Text                      ( Text )
 import           Data.Void                      ( Void )
-import           Control.Monad.Combinators.Expr ( Operator )
 import           Control.Monad.State            ( StateT )
 
 ---------------------------------------------------------------------------------------------
@@ -76,6 +60,12 @@ data Fixity = Infix' Associativity Integer
 data CustomOperator = CustomOperator { name :: Text
                                      , fixity :: Fixity }
     deriving (Show, Eq, Ord)
+
+data Operator m a = InfixN  (m (a -> a -> a)) -- ^ Non-associative infix
+                  | InfixL  (m (a -> a -> a)) -- ^ Left-associative infix
+                  | InfixR  (m (a -> a -> a)) -- ^ Right-associative infix
+                  | Prefix  (m (a -> a))      -- ^ Prefix
+                  | Postfix (m (a -> a))      -- ^ Postfix
 
 
 ---------------------------------------------------------------------------------------------
