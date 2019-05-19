@@ -53,7 +53,7 @@ fact n = match n with --  we clone “n”.
 
 ```haskell
 ack: Num a ⇒ a ⊸ a ⊸ a
-ack n m = match m with --  we clone “m”.
+ack m n = match m with --  we clone “m”.
     0  → n + 1
     m' → match n with --  we clone “n”.
         0  → ack (m' - 1) 1
