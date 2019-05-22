@@ -25,11 +25,11 @@ pProgram (Program stmts) = text "Program ["
 
 pStatement :: Statement -> Int -> Doc
 pStatement (Definition id' expr) i     =
-    indent i $ text "Definition" <$$> indent indentLevel (text ("Id=" ++ id') <$$> text "Value=" <> pExpression expr i)
+    indent i $ text "Definition" <$$> indent indentLevel (text ("Id=" <> id') <$$> text "Value=" <> pExpression expr i)
 pStatement (Declaration id' t) i       =
-    indent i $ text "Declaration" <$$> indent indentLevel (text ("Id=" ++ id') <$$> text "Type=" <> pType t i)
+    indent i $ text "Declaration" <$$> indent indentLevel (text ("Id=" <> id') <$$> text "Type=" <> pType t i)
 pStatement (OpDeclaration name' fix) i =
-    indent i $ text "Operator" <$$> indent indentLevel (text ("Symbol=" ++ name') <$$> text "Fixity=" <> pFixity fix i)
+    indent i $ text "Operator" <$$> indent indentLevel (text ("Symbol=" <> name') <$$> text "Fixity=" <> pFixity fix i)
 pStatement (TypeDeclaration name tvs ct) i      =
     indent i $ case ct of
         (TSum cs)   -> text "SumType" <$$> printDetails name (Map.toList cs)
@@ -43,11 +43,11 @@ pStatement Empty _ =
 
 pFixity :: Fixity -> Int -> Doc
 pFixity (Infix' a prec) _ = case a of
-    L -> text $ "Infix - Left - " ++ show prec
-    R -> text $ "Infix - Right - " ++ show prec
-    N -> text $ "Infix - None - " ++ show prec
-pFixity (Prefix' prec) _  = text $ "Prefix - " ++ show prec
-pFixity (Postfix' prec) _ = text $ "Postfix - " ++ show prec
+    L -> text $ "Infix - Left - " <> show prec
+    R -> text $ "Infix - Right - " <> show prec
+    N -> text $ "Infix - None - " <> show prec
+pFixity (Prefix' prec) _  = text $ "Prefix - " <> show prec
+pFixity (Postfix' prec) _ = text $ "Postfix - " <> show prec
 
 pExpression :: Expr -> Int -> Doc
 pExpression expr i = case expr of

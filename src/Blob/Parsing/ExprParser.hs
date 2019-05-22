@@ -32,26 +32,6 @@ term = try lambda'
    <|> ELit . LStr <$> try string''
    <|> hidden (parens expression)
 
--- table :: [[Operator Parser Expr]] -> [[Operator Parser Expr]]
--- table o = o 
-
--- infixL, infixR, infixN :: (Expr -> Expr -> Expr) -> Parser Text -> Operator Parser Expr
--- infixL op sym = InfixL (op <$ sym)
--- infixR op sym = InfixR (op <$ sym)
--- infixN op sym = InfixN (op <$ sym)
-
--- prefix, postfix :: (Expr -> Expr) -> Parser Text -> Operator Parser Expr
--- prefix op sym = Prefix (op <$ sym)
--- postfix op sym = Postfix (op <$ sym)
-
--- anyOp :: Operator Parser Expr
--- anyOp = 
---     let name = (try (parens opSymbol <?> "operator") <|> try (backticks identifier <?> "infix function") >>= check)
---     in infixL (\exp1 exp2 -> pure App (App (Id <$> name) exp1) exp2) (lexeme $ string name)
---   where check x = if x `elem` kws
---                   then fail $ "Keyword “" ++ x ++ "” used as function application."
---                   else pure x
-
 lambda' :: Parser Expr
 lambda' = do
     params <- (symbol "λ" <|> hidden (symbol "\\")) *> many identifier <* (hidden (symbol "->") <|> symbol "→")

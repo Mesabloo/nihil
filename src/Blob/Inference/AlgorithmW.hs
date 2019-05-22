@@ -46,7 +46,7 @@ newTyVar :: String -> TI Type
 newTyVar prefix = do
     s <- get
     put s { tiSupply = tiSupply s + 1 }
-    pure $ TVar (prefix ++ show (tiSupply s))
+    pure $ TVar (prefix <> show (tiSupply s))
 
 instantiate :: Scheme -> TI Type
 instantiate (Scheme vars t) = do

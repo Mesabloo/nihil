@@ -53,11 +53,11 @@ instance Show Value where
     show (VStr s)     = show s
     show (VDec d)     = show d
     show (VVar s)     = s
-    show (VLam i e _) = "λ" ++ i ++ " → " ++ show (pExpression e 0)
-    show (VTuple es)  = "(" ++ intercalate ", " (map show es) ++ ")"
-    show (VList es)   = "[" ++ intercalate ", " (map show es) ++ "]"
+    show (VLam i e _) = "λ" <> i <> " → " <> show (pExpression e 0)
+    show (VTuple es)  = "(" <> intercalate ", " (map show es) <> ")"
+    show (VList es)   = "[" <> intercalate ", " (map show es) <> "]"
     show (HLam _)     = "HLam _"
-    show (VCon id' e) = id' ++ " " ++ show e
+    show (VCon id' e) = id' <> " " <> show e
     show (VId id')    = id'
 
 instance Eq Value where

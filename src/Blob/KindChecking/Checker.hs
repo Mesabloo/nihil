@@ -35,7 +35,7 @@ newKindVar :: String -> KI Kind
 newKindVar prefix = do
     s <- get
     put s { kiSupply = kiSupply s + 1 }
-    pure $ KVar (prefix ++ show (kiSupply s))
+    pure $ KVar (prefix <> show (kiSupply s))
 
 kindVarBind :: String -> Kind -> KI KindSubst
 kindVarBind u k | k == KVar u          = pure nullKindSubst

@@ -102,7 +102,7 @@ command = do {
 makeCommandError :: Parser String
 makeCommandError = do
     cmd <- space' *> manyTill anySingle (space1' <|> eof)
-    pure $ "Unknown command `" ++ cmd ++ "`\n" ++ maybeYouWanted (':':cmd) commands
+    pure $ "Unknown command `" <> cmd <> "`\n" <> maybeYouWanted (':':cmd) commands
 
 helpCommand :: IO ()
 helpCommand = do
@@ -150,7 +150,7 @@ evaluate (EApp f x)         = do
         VLam x e c -> local (Map.insert x x' . Map.union c) (evaluate e)
         HLam f''   -> f'' x'
         VId id'    -> pure $ VCon id' x'
-        v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" ++ show v ++ "`.\nPlease report the issue."
+        v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" <> show v <> "`.\nPlease report the issue."
 evaluate (EList es)         = VList <$> mapM evaluate es
 evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
   where evalBranch pat branch = do
@@ -195,5 +195,5 @@ maybeYouWanted source choices = let s = intercalate ", " $
                                         )
                                 in
                                     if s /= ""
-                                    then "Perhaps you meant " ++ s ++ "?"
+                                    then "Perhaps you meant " <> s <> "?"
                                     else ""

@@ -134,7 +134,7 @@ replCheck = \case
                                 _                   -> liftIO $ putStr ""
                                 ) stmts
         else
-            liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" ++ file ++ "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
+            liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" <> file <> "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
     GetType expr        -> do
         st <- lift get
         let (TypeEnv env) = defCtx $ ctx st
@@ -220,10 +220,10 @@ replErrorPretty bundle = do
     let (PosState _ _ state _ _) = bundlePosState bundle
         errors = map (, state) (toList $ bundleErrors bundle)
         texts  = flip List.map errors $ \(e, pos) -> do let (SourcePos name line col) = pos
-                                                        "at <“" ++ name ++ "”:" ++ show (unPos line) ++ ":" ++ show (unPos col) ++ ">\n" ++ parseErrorTextPretty e
+                                                        "at <“" <> name <> "”:" <> show (unPos line) <> ":" <> show (unPos col) <> ">\n" <> parseErrorTextPretty e
         lines_ = List.map (split "\n") texts
         lines' = List.map (filter (/= "")) lines_
-        errs   = List.map (List.map (capitalize . rstrip . flip (++) ".")) lines'
+        errs   = List.map (List.map (capitalize . rstrip . flip (<>) ".")) lines'
         errs'  = List.map (List.intercalate "\n") errs
     mapM_ putStr errs' >> putStr "\n"
 

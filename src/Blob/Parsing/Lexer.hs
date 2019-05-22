@@ -42,7 +42,7 @@ identifier = (lexemeN . try $ p >>= check) <?> "identifier"
             <$> C.lowerChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` kws
-              then fail $ "Keyword “" ++ x ++ "” used as identifier."
+              then fail $ "Keyword “" <> x <> "” used as identifier."
               else pure x
 
 typeIdentifier :: Parser String
@@ -58,7 +58,7 @@ typeVariable = (lexemeN . try $ p >>= check) <?> "type variable"
             <$> C.lowerChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` kws
-              then fail $ "Keyword “" ++ x ++ "” used as a type variable"
+              then fail $ "Keyword “" <> x <> "” used as a type variable"
               else pure x
 
 symbol :: Text -> Parser Text
@@ -95,9 +95,9 @@ keyword :: Text -> Parser ()
 keyword kw = lexemeN (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
 opSymbol :: Parser String
-opSymbol = (lexemeN (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-" :: String))) >>= check) <?> "operator"
+opSymbol = (lexemeN (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String))) >>= check) <?> "operator"
   where check x = if x `elem` symbols
-                  then fail $ "Already existing operator “" ++ x ++ "”"
+                  then fail $ "Already existing operator “" <> x <> "”"
                   else pure x
 
 indentGuard :: Ordering -> Pos -> Parser Pos
