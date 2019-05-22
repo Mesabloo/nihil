@@ -6,7 +6,7 @@ module Blob.Parsing.Parser
 ) where
 
 import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
-import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented)
+import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented, sameOrIndented)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
@@ -22,34 +22,25 @@ import Blob.PrettyPrinter.PrettyInference (pType)
 program :: Parser Program
 program = fmap Program $
     (many (hidden eol) *> eof $> []) <|> do
-        x  <- do
-            hidden $ many eol
-
-            lineI <- indentLevel
-            modify $ \st -> st { currentIndent = lineI }
-
-            lexeme statement <?> "statement"
-        xs <- many (do
-                        some (hidden eol)
-
-                        lineI <- indentLevel
-                        modify $ \st -> st { currentIndent = lineI }
-
-                        (lexeme statement <?> "statement") <|> (eof $> Empty)
-            ) <* many (hidden eol) <* eof
+        x  <- lexemeN statement <?> "statement"
+        xs <- many (lexemeN statement <?> "statement") <* eof
 
         let statements = filter (/= Empty) (x:xs)
         pure statements
 
 statement :: Parser Statement
 statement = 
-    nonIndented (lexeme (operator <|> try declaration <|> try definition <|> try sumType))
+    nonIndented (operator <|> try declaration <|> try definition <|> try sumType)
         <|> ((lineCmnt <|> blockCmnt) $> Empty)
 
 declaration :: Parser Statement
 declaration = do
-    id' <- lexemeN ((identifier <|> parens opSymbol) <* (hidden (symbol "::") <|> symbol "∷")) <?> "identifier"
-    Declaration id' <$> lexemeN type'
+    pos   <- indentLevel
+    id'   <- (identifier <|> parens opSymbol) <?> "identifier"
+    pos'  <- indentLevel
+    indented pos $ hidden (symbol "::") <|> symbol "∷"
+    type_ <- indented pos' $ lexemeN type'
+    pure $ Declaration id' type_
 
 definition :: Parser Statement
 definition = do
@@ -61,17 +52,18 @@ definition = do
 
 operator :: Parser Statement
 operator = do
+    pos        <- indentLevel
     assocT     <- lexeme fixity' <?> "fixity"
-    precedence <- integer <?> "precedence"
+    pos'       <- indentLevel
+    precedence <- indented pos (integer <?> "precedence")
 
     if (precedence < 10) && (precedence >= 0)
     then do
-        opT <- parens opSymbol
+        opT <- indented pos' $ parens opSymbol
 
         addOperator $ CustomOperator (pack opT) (assocT precedence)
-
         pure $ OpDeclaration opT (assocT precedence)
-    else fail $ "Invalid operator precedence `" ++ show precedence ++ "`. (should be >= 0 and <= 9)"
+    else fail $ "Invalid operator precedence `" <> show precedence <> "`. (should be >= 0 and <= 9)"
 
     where fixity' = Infix' L <$ keyword "infixl"
                 <|> Infix' R <$ keyword "infixr"
@@ -81,16 +73,20 @@ operator = do
 
 sumType :: Parser Statement
 sumType = flip (<?>) "sum type" $ do
-    name <- string "data" *> lexemeN typeIdentifier
-    ts <- (many . lexemeN) typeVariable
-    string "="
-    ctor1 <- lexeme $ constructor name ts
-    ctors <- many $ string "|" *> lexeme (constructor name ts)
+    pos   <- indentLevel
+    string "data"
+    pos'  <- indentLevel
+    name  <- indented pos typeIdentifier
+    ts    <- (many . sameOrIndented pos') typeVariable
+    sameOrIndented pos' $ string "="
+    ctor1 <- lexeme . indented pos $ constructor name ts
+    ctors <- many . indented pos $ string "|" *> lexeme (constructor name ts)
 
-    pure . TypeDeclaration name ts $ TSum (Map.fromList (ctor1:ctors))
+    pure . TypeDeclaration name ts . TSum $ Map.fromList (ctor1:ctors)
   where constructor name ts = flip (<?>) "type constructor" $ do
+            pos   <- indentLevel
             name' <- typeIdentifier
-            type1 <- optional $ many atype'
+            type1 <- optional . many . indented pos $ atype'
             
             case type1 of
                 Nothing -> pure (name', Scheme ts (foldl TApp (TId name) $ map TVar ts))
