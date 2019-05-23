@@ -35,7 +35,7 @@ Some unicode characters are part of the language itself, and may be used interch
 ```haskell
 fib: Num a ⇒ a ⊸ a
 fib = go 0
-  where -- go :: Num a ⇒ a ⊸ a
+  where -- go :: Num a ⇒ a ⊸ a ⊸ a
         go acc n =
             match n with
                 0  → acc
