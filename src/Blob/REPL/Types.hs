@@ -19,6 +19,7 @@ data Command = GetType String
              | Exit
              | Reload
              | Ast String
+             | Time String
     deriving (Eq, Ord, Show)
 
 data Value = VInt Integer

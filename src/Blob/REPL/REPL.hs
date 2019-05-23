@@ -39,12 +39,12 @@ import Data.List.NonEmpty (toList)
 import Data.List.Utils (split)
 import Data.String.Utils (rstrip)
 import Data.Char (toUpper)
-import System.TimeIt (timeItT)
-import Text.Printf (printf)
+import Criterion.Measurement (secs, initializeTime, getTime)
 import Debug.Trace
 
 runREPL :: REPL a -> IO ()
 runREPL r = do
+    initializeTime 
     liftIO $ do
         replSetColor Vivid White >> putStr "Blob v0.0.1\nType " >> setSGR [Reset]
         setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "“:?”" >> setSGR [Reset]
@@ -68,10 +68,14 @@ replLoop :: REPL ()
 replLoop = forever $ do
 
     time <- lift (gets lastExecTime)
-    liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
-    liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
-    liftIO $ putStr $ printf " %.3fs" time
-    liftIO $ putStr " "
+    if time /= 0.0
+    then do
+        liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
+        liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
+        liftIO . putStr $ " " <> secs time <> " " 
+
+        lift . modify $ \st -> st { lastExecTime = 0.0 }
+    else liftIO $ putStr ""
     liftIO $ setSGR [SetColor Background Dull Blue]
     liftIO $ setSGR [SetColor Foreground Dull Black]
     liftIO $ putStr "\57520"
@@ -93,9 +97,7 @@ replLoop = forever $ do
                 Right (output, state') -> do
                     lift . modify $ \st -> st { op = state' }
 
-                    (time, _) <- timeItT $ replCheck output
-
-                    lift . modify $ \st -> st { lastExecTime = time }
+                    replCheck output
     
 replCheck :: Command -> REPL ()
 replCheck = \case
@@ -206,11 +208,38 @@ replCheck = \case
         case res of
             Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right s  -> liftIO . print $ pStatement s 0
+    Time expr          -> do
+        st <- lift get
+        let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
+        case e of
+            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right (e, state) -> do
+                lift . modify $ \st -> st { op = ParseState { operators = operators state
+                                                            , currentIndent = mkPos 1 } }
+                let env = defCtx $ ctx st
+                    t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                case t of
+                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                    Right _  -> do
+                        let res = runExcept $ runReaderT (evaluate e) (values st)
+                        (t, _) <- liftIO . time $ case res of
+                            Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                            Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+
+                        lift . modify $ \st -> st { lastExecTime = t }
 
 
 
 
 
+
+
+time :: IO a -> IO (Double, a)
+time f = do
+    begin  <- getTime
+    result <- f
+    end    <- getTime
+    pure (end - begin, result)
 
 replSetColor :: MonadIO m => ColorIntensity -> Color -> m ()
 replSetColor intensity color = liftIO $ setSGR [SetColor Foreground intensity color]

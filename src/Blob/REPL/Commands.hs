@@ -31,7 +31,8 @@ commands = [  ":help", ":h", ":?"
            ,  ":kind", ":k"
            ,  ":eval", ":ev"
            , ":reset", ":r"
-           ,   ":ast", ":a" ]
+           ,   ":ast", ":a"
+           ,  ":time" ]
 
 help :: Parser Command
 help = space' *> try (hidden (string' "?" <|> string' "help" <|> string' "h") <* eof) $> Help <?> "߷"
@@ -85,10 +86,19 @@ ast = do
         Right _ -> fail "Missing argument “[code]”"
         Left _  -> Ast <$> (space1' *> anySingle `someTill` eof)
 
+time :: Parser Command
+time = do
+    space' *> try (hidden (string' "time")) <?> "߷"
+
+    end <- observing . try $ space' *> eof
+    case end of
+        Right _ -> fail "Missing argument “[expr]”"
+        Left _  -> Time <$> (space1' *> anySingle `someTill` eof)
+
 command :: Parser Command
 command = do {
         space' *> symbol ":" ;
-        cmd <- observing . try $ choice [help, exit, load, getType, getKind, reset, ast] ;
+        cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast] ;
         case cmd of
             Left err ->
                 if "߷" `isInfixOf` parseErrorTextPretty err
