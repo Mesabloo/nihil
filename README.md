@@ -34,10 +34,12 @@ Some unicode characters are part of the language itself, and may be used interch
 
 ```haskell
 fib: Num a ⇒ a ⊸ a
-fib n = match n with --  we clone “n”.
-    0  → 1
-    1  → 1
-    n' → fib (n' - 2) + fib (n' - 1)
+fib = go 0
+  where -- go :: Num a ⇒ a ⊸ a
+        go acc n =
+            match n with
+                0  → acc
+                n' → go (n' * acc) (n' - 1)
 ```
 
 #### Factorial calculation
@@ -46,7 +48,7 @@ fib n = match n with --  we clone “n”.
 fact: Num a ⇒ a ⊸ a
 fact n = match n with --  we clone “n”.
     0  → 1
-    n' → n * fact (n' - 1)
+    n' → n' * fact (n' - 1)
 ```
 
 #### The Ackermann function
@@ -57,7 +59,7 @@ ack m n = match m with --  we clone “m”.
     0  → n + 1
     m' → match n with --  we clone “n”.
         0  → ack (m' - 1) 1
-        n' → ack (m' - 1) $ ack m (n' - 1)
+        n' → ack (m' - 1) $ ack m' (n' - 1)
 ```
 
 </details>
