@@ -20,6 +20,7 @@ data Command = GetType String
              | Reload
              | Ast String
              | Time String
+             | Bench Integer String
     deriving (Eq, Ord, Show)
 
 data Value = VInt Integer

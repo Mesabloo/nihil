@@ -4,7 +4,7 @@ module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
 import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..))
-import Blob.Parsing.Lexer (string', space', space1', symbol)
+import Blob.Parsing.Lexer (string', space', space1', symbol, integer)
 import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
@@ -32,7 +32,8 @@ commands = [  ":help", ":h", ":?"
            ,  ":eval", ":ev"
            , ":reset", ":r"
            ,   ":ast", ":a"
-           ,  ":time" ]
+           ,  ":time"
+           , ":bench" ]
 
 help :: Parser Command
 help = space' *> try (hidden (string' "?" <|> string' "help" <|> string' "h") <* eof) $> Help <?> "߷"
@@ -95,19 +96,32 @@ time = do
         Right _ -> fail "Missing argument “[expr]”"
         Left _  -> Time <$> (space1' *> anySingle `someTill` eof)
 
+bench :: Parser Command
+bench = do
+    space' *> try (hidden (string' "bench")) <?> "߷"
+
+    end <- observing . try $ space' *> eof
+    case end of
+        Right _ -> fail "Missing arguments “[n] [expr]”"
+        Left _  -> do
+            n    <- space1' *> integer
+            end' <- observing . try $ space' *> eof
+            case end' of
+                Right _ -> fail "Missing argument “[expr]”"
+                Left _  -> Bench n <$> (anySingle `someTill` eof)
+
 command :: Parser Command
-command = do {
-        space' *> symbol ":" ;
-        cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast] ;
-        case cmd of
-            Left err ->
-                if "߷" `isInfixOf` parseErrorTextPretty err
-                then do
-                    msg <- makeCommandError
-                    fail msg
-                else fail $ parseErrorTextPretty err
-            Right x  -> pure x
-    } <|> code
+command = do { space' *> symbol ":"
+             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench]
+             ; case cmd of
+                Left err ->
+                    if "߷" `isInfixOf` parseErrorTextPretty err
+                    then do
+                        msg <- makeCommandError
+                        fail msg
+                    else fail $ parseErrorTextPretty err
+                Right x  -> pure x
+             } <|> code
 
 makeCommandError :: Parser String
 makeCommandError = do

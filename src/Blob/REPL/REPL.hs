@@ -33,7 +33,7 @@ import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErr
 import Text.Megaparsec (runParser, PosState(..), (<|>), eof, try)
 import Text.Megaparsec.Pos (SourcePos(..), unPos, mkPos)
 import System.IO (hFlush, stdout)
-import Control.Monad (forever, void)
+import Control.Monad (forever, void, replicateM)
 import System.Directory (doesFileExist, getCurrentDirectory)
 import Data.List.NonEmpty (toList)
 import Data.List.Utils (split)
@@ -227,6 +227,34 @@ replCheck = \case
                             Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
                         lift . modify $ \st -> st { lastExecTime = t }
+    Bench n expr       -> do
+        st <- lift get
+        let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
+        case e of
+            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right (e, state) -> do
+                lift . modify $ \st -> st { op = ParseState { operators = operators state
+                                                            , currentIndent = mkPos 1 } }
+                let env = defCtx $ ctx st
+                    t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                case t of
+                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                    Right _  -> do
+                        let res = runExcept $ runReaderT (evaluate e) (values st)
+                        times <- liftIO . replicateM (fromIntegral n) . time $ case res of
+                            Left err -> replSetColor Vivid Red >> putStr "" >> setSGR [Reset] >> hFlush stdout
+                            Right _  -> replSetColor Vivid Cyan >> putStr "" >> setSGR [Reset] >> hFlush stdout
+                        let t   = map (uncurry const) times
+                            min = minimum t
+                            max = maximum t
+                            avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
+                            tot = foldr (+) 0.0 t
+
+                        liftIO . putStrLn $ "Result for " <> show n <> " runs:"
+                        liftIO . putStrLn $ "- Minimum: " <> secs min
+                        liftIO . putStrLn $ "- Maximum: " <> secs max
+                        liftIO . putStrLn $ "- Average: " <> secs avg
+                        liftIO . putStrLn $ "-   Total: " <> secs tot
 
 
 
