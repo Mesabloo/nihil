@@ -151,6 +151,12 @@ helpCommand = do
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:ast” “:a”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show the AST representation of some code." >> setSGR [Reset]
 
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
+        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
+
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:bench [n] [expr]”" >> setSGR [Reset]
+        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
+
     setSGR [SetColor Foreground Dull White] >> putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
 
 exitCommand :: IO ()
