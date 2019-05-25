@@ -4,7 +4,7 @@ module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
 import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..))
-import Blob.Parsing.Lexer (string', space', space1', symbol, integer)
+import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword)
 import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
@@ -31,19 +31,19 @@ commands = [  ":help", ":h", ":?"
            ,  ":kind", ":k"
            ,  ":eval", ":ev"
            , ":reset", ":r"
-           ,   ":ast", ":a"
+           ,   ":ast"
            ,  ":time"
            , ":bench" ]
 
 help :: Parser Command
-help = space' *> try (hidden (string' "?" <|> string' "help" <|> string' "h") <* eof) $> Help <?> "߷"
+help = space' *> try (hidden (keyword "?" <|> keyword "help" <|> keyword "h") <* eof) $> Help <?> "߷"
 
 exit :: Parser Command
-exit = space' *> try (hidden (string' "quit" <|> string' "q") <* eof) $> Exit <?> "߷"
+exit = space' *> try (hidden (keyword "quit" <|> keyword "q") <* eof) $> Exit <?> "߷"
 
 load :: Parser Command
 load = do
-    space' *> try (hidden (string' "load" <|> string' "l")) <?> "߷"
+    space' *> try (hidden (keyword "load" <|> keyword "l")) <?> "߷"
 
     end <- observing (try (space' *> eof))
     case end of
@@ -58,11 +58,11 @@ code :: Parser Command
 code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
 reset :: Parser Command
-reset = space' *> try (hidden (string' "reset" <|> string' "r")) $> Reload <?> "߷"
+reset = space' *> try (hidden (keyword "reset" <|> keyword "r")) $> Reload <?> "߷"
 
 getType :: Parser Command
 getType = do
-    space' *> try (hidden (string' "type" <|> string' "t")) <?> "߷"
+    space' *> try (hidden (keyword "type" <|> keyword "t")) <?> "߷"
 
     end <- observing . try $ space' *> eof
     case end of
@@ -71,7 +71,7 @@ getType = do
 
 getKind :: Parser Command
 getKind = do
-    space' *> try (hidden (string' "kind" <|> string' "k")) <?> "߷"
+    space' *> try (hidden (keyword "kind" <|> keyword "k")) <?> "߷"
 
     end <- observing . try $ space' *> eof
     case end of
@@ -80,7 +80,7 @@ getKind = do
 
 ast :: Parser Command
 ast = do
-    space' *> try (hidden (string' "ast" <|> string' "a")) <?> "߷"
+    space' *> try (hidden (keyword "ast")) <?> "߷"
 
     end <- observing . try $ space' *> eof
     case end of
@@ -89,7 +89,7 @@ ast = do
 
 time :: Parser Command
 time = do
-    space' *> try (hidden (string' "time")) <?> "߷"
+    space' *> try (hidden (keyword "time")) <?> "߷"
 
     end <- observing . try $ space' *> eof
     case end of
@@ -98,7 +98,7 @@ time = do
 
 bench :: Parser Command
 bench = do
-    space' *> try (hidden (string' "bench")) <?> "߷"
+    space' *> try (hidden (keyword "bench")) <?> "߷"
 
     end <- observing . try $ space' *> eof
     case end of
