@@ -140,7 +140,7 @@ replCheck = \case
     GetType expr        -> do
         st <- lift get
         let (TypeEnv env) = defCtx $ ctx st
-            res           = runParser (evalStateT expression (op st)) "interactive" (Text.pack expr)
+            res           = runParser (evalStateT (expression <* eof) (op st)) "interactive" (Text.pack expr)
 
         case res of
             Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
@@ -153,7 +153,7 @@ replCheck = \case
     GetKind typeExpr    -> do
         st <- lift get
         let env = typeDeclCtx $ ctx st
-            res = tiType <$> runParser (evalStateT type' (op st)) "interactive" (Text.pack typeExpr)
+            res = tiType <$> runParser (evalStateT (type' <* eof) (op st)) "interactive" (Text.pack typeExpr)
 
         case res of
             Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
@@ -203,7 +203,7 @@ replCheck = \case
                             liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
     Ast ast            -> do
         st <- lift get
-        let res = runParser (evalStateT statement (op st)) "interactive" (Text.pack ast)
+        let res = runParser (evalStateT (statement <* eof) (op st)) "interactive" (Text.pack ast)
 
         case res of
             Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
