@@ -4,11 +4,11 @@ module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
 import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..))
-import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword)
+import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN)
 import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
-import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill)
+import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill, lookAhead)
 import Data.String.Utils (rstrip)
 import Control.Monad.Reader (local, asks)
 import Control.Monad.Except (throwError)
@@ -36,83 +36,81 @@ commands = [  ":help", ":h", ":?"
            , ":bench" ]
 
 help :: Parser Command
-help = space' *> try (hidden (keyword "?" <|> keyword "help" <|> keyword "h") <* eof) $> Help <?> "߷"
+help = space' *> (try . hidden . lexemeN) (keyword "?" <|> keyword "help" <|> keyword "h") $> Help <?> "߷"
 
 exit :: Parser Command
-exit = space' *> try (hidden (keyword "quit" <|> keyword "q") <* eof) $> Exit <?> "߷"
+exit = space' *> (try . hidden . lexemeN) (keyword "quit" <|> keyword "q") $> Exit <?> "߷"
 
 load :: Parser Command
 load = do
-    space' *> try (hidden (keyword "load" <|> keyword "l")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "load" <|> keyword "l") <?> "߷"
 
-    end <- observing (try (space' *> eof))
+    end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing argument “[file]”"
         Left _  -> do
-            file <- observing $ space1' *> someTill anySingle eof
-            case file of
-                Left _  -> fail "Invalid argument “[file]”"
-                Right x -> pure $ Load (rstrip x)
+            file <- anySingle `someTill` eof
+            pure . Load $ rstrip file
 
 code :: Parser Command
 code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
 reset :: Parser Command
-reset = space' *> try (hidden (keyword "reset" <|> keyword "r")) $> Reload <?> "߷"
+reset = space' *> (try . hidden . lexemeN) (keyword "reset" <|> keyword "r") $> Reload <?> "߷"
 
 getType :: Parser Command
 getType = do
-    space' *> try (hidden (keyword "type" <|> keyword "t")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "type" <|> keyword "t") <?> "߷"
 
-    end <- observing . try $ space' *> eof
+    end <- observing . lookAhead $  eof
     case end of
         Right _ -> fail "Missing argument “[expr]”"
-        Left _  -> GetType <$> (space1' *> anySingle `someTill` eof)
+        Left _  -> GetType <$> (anySingle `someTill` eof)
 
 getKind :: Parser Command
 getKind = do
-    space' *> try (hidden (keyword "kind" <|> keyword "k")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "kind" <|> keyword "k") <?> "߷"
 
-    end <- observing . try $ space' *> eof
+    end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing argument “[type]”"
-        Left _  -> GetKind <$> (space1' *> anySingle `someTill` eof)
+        Left _  -> GetKind <$> (anySingle `someTill` eof)
 
 ast :: Parser Command
 ast = do
-    space' *> try (hidden (keyword "ast")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "ast") <?> "߷"
 
-    end <- observing . try $ space' *> eof
+    end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing argument “[code]”"
-        Left _  -> Ast <$> (space1' *> anySingle `someTill` eof)
+        Left _  -> Ast <$> (anySingle `someTill` eof)
 
 time :: Parser Command
 time = do
-    space' *> try (hidden (keyword "time")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "time") <?> "߷"
 
-    end <- observing . try $ space' *> eof
+    end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing argument “[expr]”"
-        Left _  -> Time <$> (space1' *> anySingle `someTill` eof)
+        Left _  -> Time <$> (anySingle `someTill` eof)
 
 bench :: Parser Command
 bench = do
-    space' *> try (hidden (keyword "bench")) <?> "߷"
+    space' *> (try . hidden . lexemeN) (keyword "bench") <?> "߷"
 
-    end <- observing . try $ space' *> eof
+    end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing arguments “[n] [expr]”"
         Left _  -> do
-            n    <- space1' *> integer
-            end' <- observing . try $ space' *> eof
+            n    <- integer
+            end' <- observing . lookAhead $ eof
             case end' of
                 Right _ -> fail "Missing argument “[expr]”"
                 Left _  -> Bench n <$> (anySingle `someTill` eof)
 
 command :: Parser Command
 command = do { space' *> symbol ":"
-             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench]
+             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench] <* eof
              ; case cmd of
                 Left err ->
                     if "߷" `isInfixOf` parseErrorTextPretty err
@@ -148,7 +146,7 @@ helpCommand = do
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset” “:r”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:ast” “:a”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:ast”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show the AST representation of some code." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
