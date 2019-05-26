@@ -46,7 +46,7 @@ type REPLError = Doc
 
 type Scope = Map.Map String
 
-type EvalEnv a = ReaderT (Map.Map String Value) (Except REPLError) a
+type EvalEnv a = ReaderT (Map.Map String Value) (ExceptT REPLError IO) a
 
 
 

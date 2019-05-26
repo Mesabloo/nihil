@@ -10,7 +10,7 @@ import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
-import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..))
+import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..))
 import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..))
 import Blob.Parsing.Types(Program(..), Statement(..), ParseState(..))
 import Blob.Parsing.Defaults (initParseState)
@@ -33,13 +33,14 @@ import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErr
 import Text.Megaparsec (runParser, PosState(..), (<|>), eof, try)
 import Text.Megaparsec.Pos (SourcePos(..), unPos, mkPos)
 import System.IO (hFlush, stdout)
-import Control.Monad (forever, void, replicateM)
+import Control.Monad (forever, void, forM, replicateM)
 import System.Directory (doesFileExist, getCurrentDirectory)
 import Data.List.NonEmpty (toList)
 import Data.List.Utils (split)
 import Data.String.Utils (rstrip)
 import Data.Char (toUpper)
-import Criterion.Measurement (secs, initializeTime, getTime)
+import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchmark)
+import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
 
 runREPL :: REPL a -> IO ()
@@ -128,7 +129,7 @@ replCheck = \case
 
                             mapM_ (\case
                                 Definition id' expr -> do
-                                    let eval' = runExcept $ runReaderT (evaluate expr) (values st'')
+                                    eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st'')
 
                                     case eval' of
                                         Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
@@ -180,7 +181,7 @@ replCheck = \case
                         case t of
                             Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                             Right _  -> do
-                                let res = runExcept $ runReaderT (evaluate e) (values st)
+                                res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
                                 case res of
                                     Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
                                     Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
@@ -192,8 +193,8 @@ replCheck = \case
 
                             case s of
                                 Definition id' expr -> do
-                                    st' <- lift get
-                                    let eval' = runExcept $ runReaderT (evaluate expr) (values st')
+                                    st'   <- lift get
+                                    eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st')
 
                                     case eval' of
                                         Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
@@ -212,50 +213,44 @@ replCheck = \case
         st <- lift get
         let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
         case e of
-            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right (e, state) -> do
-                lift . modify $ \st -> st { op = ParseState { operators = operators state
-                                                            , currentIndent = mkPos 1 } }
+            Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right (e, _) -> do
                 let env = defCtx $ ctx st
                     t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
                 case t of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                     Right _  -> do
-                        let res = runExcept $ runReaderT (evaluate e) (values st)
-                        (t, _) <- liftIO . time $ case res of
+                        (t, res) <- liftIO . time $ runExceptT $ runReaderT (evaluate e) (values st)
+                        liftIO $ case res of
                             Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
                             Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
                         lift . modify $ \st -> st { lastExecTime = t }
     Bench n expr       -> do
         st <- lift get
+
         let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
         case e of
-            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right (e, state) -> do
-                lift . modify $ \st -> st { op = ParseState { operators = operators state
-                                                            , currentIndent = mkPos 1 } }
+            Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right (e, _) -> do
                 let env = defCtx $ ctx st
                     t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
                 case t of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                     Right _  -> do
-                        let res = runExcept $ runReaderT (evaluate e) (values st)
-                        times <- liftIO . replicateM (fromIntegral n) . time $ case res of
-                            Left err -> replSetColor Vivid Red >> putStr "" >> setSGR [Reset] >> hFlush stdout
-                            Right _  -> replSetColor Vivid Cyan >> putStr "" >> setSGR [Reset] >> hFlush stdout
-                        let t   = map (uncurry const) times
+                        t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
+
+                        let t   = map (uncurry const) t'
                             min = minimum t
                             max = maximum t
                             avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
-                            tot = foldr (+) 0.0 t
+                            tot = List.foldl' (+) 0.0 t
 
-                        liftIO . putStrLn $ "Result for " <> show n <> " runs:"
+                        liftIO . putStrLn $ "Results for " <> show n <> " runs:"
                         liftIO . putStrLn $ "- Minimum: " <> secs min
                         liftIO . putStrLn $ "- Maximum: " <> secs max
                         liftIO . putStrLn $ "- Average: " <> secs avg
                         liftIO . putStrLn $ "-   Total: " <> secs tot
-
 
 
 
@@ -267,7 +262,7 @@ time f = do
     begin  <- getTime
     result <- f
     end    <- getTime
-    pure (end - begin, result)
+    pure $ (,) (end - begin) result
 
 replSetColor :: MonadIO m => ColorIntensity -> Color -> m ()
 replSetColor intensity color = liftIO $ setSGR [SetColor Foreground intensity color]
