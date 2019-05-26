@@ -2,6 +2,7 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
+  - -O2
 copyright: 2019 Mesabloo
 dependencies:
 - text
@@ -21,6 +22,7 @@ dependencies:
 - these
 - criterion-measurement
 - bytestring
+- vector
 name: Blob
 version: 0.1.0.0
 extra-source-files:
@@ -37,6 +39,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -O2
     dependencies:
     - Blob
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
