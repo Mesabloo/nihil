@@ -149,13 +149,13 @@ tiExpr (EMatch e cases) = do
   where inferPattern :: Pattern -> TI (Type, TypeEnv)
         inferPattern = \case
             Wildcard -> do
-                var <- newTyVar "a"
+                var <- newTyVar "p"
                 pure (var, TypeEnv mempty)
             PInt _   -> pure (TInt, TypeEnv mempty)
             PDec _   -> pure (TFloat, TypeEnv mempty)
             PStr _   -> pure (TString, TypeEnv mempty)
             PId id'  -> do
-                var <- newTyVar "a"
+                var <- newTyVar "p"
                 pure (var, TypeEnv $ Map.singleton id' (generalize (TypeEnv mempty) var))
 
         unifyLSide :: Type -> [Type] -> TI Subst
