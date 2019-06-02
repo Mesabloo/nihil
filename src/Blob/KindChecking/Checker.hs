@@ -53,11 +53,11 @@ mguKind (KArr l r) (KArr l' r') = do
 mguKind k1 k2 = throwError (makeKindUnifyError k1 k2)
 
 makeKindUnifyError :: Kind -> Kind -> KIError
-makeKindUnifyError k1 k2 = text "Could not match kinds “" <> pKind k1 <> text "” with “" <> pKind k2 <> text "”" <> dot <> linebreak
+makeKindUnifyError k1 k2 = text "Could not match kind “" <> pKind k1 <> text "” with “" <> pKind k2 <> text "”" <> dot <> linebreak
 makeKindOccurError :: String -> Kind -> KIError
 makeKindOccurError s k1 = text "Occur check fails: kind " <> text s <> text " vs " <> pKind k1 <> dot <> linebreak
 makeUndefinedTypeError :: String -> KIError
-makeUndefinedTypeError s = text "Undefined kind “" <> text s <> text "”" <> dot <> linebreak
+makeUndefinedTypeError s = text "Undefined kind of type “" <> text s <> text "”" <> dot <> linebreak
 makeRedeclaredTypeError :: String -> KIError
 makeRedeclaredTypeError id' = text "Type “" <> text id' <> text "” already declared" <> dot <> linebreak
 
@@ -91,8 +91,8 @@ kiType (TId n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
 kiType (TVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
-kiType (TRigidVar n) = asks (Map.lookup n) >>= maybe new (pure . (mempty,))
-    where new = (nullKindSubst,) <$> newKindVar "k"
+kiType (TRigidVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
+    where err = throwError (makeUndefinedTypeError n)
 kiType (TTuple []) = pure (mempty, KType)
 kiType (TTuple (t:ts)) = do
     (s1, k) <- kiType t
