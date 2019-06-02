@@ -30,36 +30,28 @@ Some unicode characters are part of the language itself, and may be used interch
 
 <summary>Code examples</summary>
 
-#### The Fibonacci sequence
-
-```haskell
-fib: Num a ⇒ a ⊸ a
-fib = go 0
-  where -- go :: Num a ⇒ a ⊸ a ⊸ a
-        go acc n =
-            match n with
-                0  → acc
-                n' → go (n' * acc) (n' - 1)
-```
-
 #### Factorial calculation
 
 ```haskell
-fact: Num a ⇒ a ⊸ a
-fact n = match n with --  we clone “n”.
-    0  → 1
-    n' → n' * fact (n' - 1)
+fact :: Num a ⇒ a ⊸ a
+fact = go 1
+  where
+        go acc n =
+            match n with
+                0  -> acc
+                n' -> go (acc * n') (n' - 1)
 ```
 
 #### The Ackermann function
 
 ```haskell
-ack: Num a ⇒ a ⊸ a ⊸ a
-ack m n = match m with --  we clone “m”.
-    0  → n + 1
-    m' → match n with --  we clone “n”.
-        0  → ack (m' - 1) 1
-        n' → ack (m' - 1) $ ack m' (n' - 1)
+ack :: Num a ⇒ a ⊸ a ⊸ a
+ack m n =
+    match m with --  we clone “m”.
+        0  → n + 1
+        m' → match n with --  we clone “n”.
+            0  → ack (m' - 1) 1
+            n' → ack (m' - 1) $ ack m' (n' - 1)
 ```
 
 </details>
