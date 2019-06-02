@@ -32,6 +32,7 @@ import Data.Maybe (isJust)
 import Data.Align.Key (alignWithKey)
 import Data.These (These(..))
 import Control.Applicative ((<|>), liftA2)
+import Debug.Trace
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
@@ -236,8 +237,9 @@ handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
     env <- gets typeDeclCtx
 
-    let ti = tiType typ
-    checkKI $ kindInference env ti
+    let ti     = tiType typ
+    let gen'ed = generalize (TypeEnv mempty) (relax ti)
+    checkKI $ kiScheme gen'ed
 
     t <- checkTI $ do
         t <- do
