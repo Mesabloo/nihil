@@ -55,12 +55,12 @@ atype' =
         gtycon'
         <|> TVar <$> lexemeN typeVariable
         <|> try tuple
-        <|> try list
-        <|> try (parens type')
+        <|> list
+        <|> parens type'
 
 
 gtycon' :: Parser Type
-gtycon' = try conid' <|> (try (string "()") $> TTuple [])
+gtycon' = conid' <|> (try (string "()") $> TTuple [])
 
 conid' :: Parser Type
-conid' = TId <$> try typeIdentifier
+conid' = TId <$> typeIdentifier

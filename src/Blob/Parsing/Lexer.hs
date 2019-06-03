@@ -131,11 +131,8 @@ kws =
 
 symbols :: [String] -- list of reserved symbols
 symbols =
-        [ "->"
-        , "→"
-        , "-o"
-        , "⊸"
+        [ "->" , "→"
+        , "-o" , "⊸"
         , "\\"
         , "="
-        , "::"
-        , "∷" ]
+        , "::" , "∷" ]

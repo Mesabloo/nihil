@@ -30,7 +30,7 @@ program = fmap Program $
 
 statement :: Parser Statement
 statement = 
-    nonIndented (operator <|> try declaration <|> try definition <|> try sumType)
+    nonIndented (operator <|> sumType <|> try declaration <|> definition)
         <|> ((lineCmnt <|> blockCmnt) $> Empty)
 
 declaration :: Parser Statement
