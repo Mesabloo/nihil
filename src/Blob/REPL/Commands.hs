@@ -21,6 +21,7 @@ import Data.Functor (($>))
 import Data.Char (isUpper)
 import Control.Monad (join)
 import Control.Applicative (empty)
+import Data.List.Extra
 
 
 commands :: [String]
@@ -166,9 +167,10 @@ evaluate :: Expr -> EvalEnv Value
 evaluate (ELit (LInt v))    = pure $ VInt v
 evaluate (ELit (LStr v))    = pure $ VStr v
 evaluate (ELit (LDec v))    = pure $ VDec v
-evaluate (EId id')          = if isUpper (head id')
-                              then pure $ VId id'
+evaluate (EId id')          = if isCtor id'
+                              then pure $ VCon id' []
                               else fromJust <$> asks (Map.lookup id')
+  where isCtor id' = isUpper (head id') || head id' == ':'
 evaluate (ETuple es)        = VTuple <$> mapM evaluate es
 evaluate (ELam x e)         = asks $ VLam x e
 evaluate (EApp f x)         = do
@@ -177,8 +179,8 @@ evaluate (EApp f x)         = do
     case f' of
         VLam x e c -> local (Map.insert x x' . Map.union c) (evaluate e)
         HLam f''   -> f'' x'
-        VId id'    -> pure $ VCon id' x'
-        v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, got `" <> show v <> "`.\nPlease report the issue."
+        VCon id' e -> pure $ VCon id' (snoc e x')
+        v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, `HLam` or `VCon` ; got `" <> show v <> "`.\nPlease report the issue."
 evaluate (EList es)         = VList <$> mapM evaluate es
 evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
   where evalBranch pat branch = do
