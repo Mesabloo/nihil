@@ -3,6 +3,9 @@ library:
   ghc-options:
   - -Wall
   - -O2
+  - -optc-O3
+  - -DNDEBUG
+  - -fasm
 copyright: 2019 Mesabloo
 dependencies:
 - text
@@ -23,6 +26,7 @@ dependencies:
 - criterion-measurement
 - bytestring
 - vector
+- extra
 name: Blob
 version: 0.1.0.0
 extra-source-files:
@@ -40,6 +44,9 @@ executables:
     - -with-rtsopts=-N
     - -Wall
     - -O2
+    - -optc-O3
+    - -DNDEBUG
+    - -fasm
     dependencies:
     - Blob
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
