@@ -10,7 +10,7 @@ import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
 import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill, lookAhead)
 import Data.String.Utils (rstrip)
-import Control.Monad.Reader (local, asks)
+import Control.Monad.Reader (local, asks, ask)
 import Control.Monad.Except (throwError)
 import Data.List (isInfixOf, intercalate)
 import Data.Maybe (fromJust)
@@ -22,6 +22,7 @@ import Data.Char (isUpper)
 import Control.Monad (join, zipWithM)
 import Control.Applicative (empty)
 import Data.List.Extra
+import Debug.Trace
 
 
 commands :: [String]
@@ -34,7 +35,8 @@ commands = [  ":help", ":h", ":?"
            , ":reset", ":r"
            ,   ":ast"
            ,  ":time"
-           , ":bench" ]
+           , ":bench"
+           ,   ":env" ]
 
 help :: Parser Command
 help = space' *> (try . hidden . lexemeN) (keyword "?" <|> keyword "help" <|> keyword "h") $> Help <?> "߷"
@@ -109,9 +111,12 @@ bench = do
                 Right _ -> fail "Missing argument “[expr]”"
                 Left _  -> Bench n <$> (anySingle `someTill` eof)
 
+env :: Parser Command
+env = space' *> (try . hidden . lexemeN) (keyword "env") $> Env <?> "߷"
+
 command :: Parser Command
 command = do { space' *> symbol ":"
-             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench] <* eof
+             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench, env] <* eof
              ; case cmd of
                 Left err ->
                     if "߷" `isInfixOf` parseErrorTextPretty err

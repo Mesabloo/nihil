@@ -21,6 +21,7 @@ data Command = GetType String
              | Ast String
              | Time String
              | Bench Integer String
+             | Env
     deriving (Eq, Ord, Show)
 
 data Value = VInt Integer
@@ -54,11 +55,11 @@ instance Show Value where
     show (VStr s)     = show s
     show (VDec d)     = show d
     show (VVar s)     = s
-    show (VLam i e _) = "(λ" <> i <> " → " <> show (pExpression e 0) <> ")"
+    show (VLam i e _) = "(λ " <> i <> " → " <> show (pExpression e 0) <> ")"
     show (VTuple es)  = "(" <> intercalate ", " (map show es) <> ")"
     show (VList es)   = "[" <> intercalate ", " (map show es) <> "]"
     show (HLam _)     = "HLam _"
-    show (VCon id' e) = id' <> foldl (\acc t -> acc <> " " <> show t) "" e
+    show (VCon id' e) = "(" <> id' <> foldl (\acc t -> acc <> " " <> show t) "" e <> ")"
 
 instance Eq Value where
     (==) (VInt i) (VInt i')          = i == i'

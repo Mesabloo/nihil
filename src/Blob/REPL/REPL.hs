@@ -11,7 +11,7 @@ import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, Exc
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..))
-import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..))
+import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..))
 import Blob.Parsing.Types(Program(..), Statement(..), ParseState(..))
 import Blob.Parsing.Defaults (initParseState)
 import Blob.REPL.Prelude (defaultEnv, defaultDeclContext, defaultDefContext, defaultTypeDeclContext)
@@ -43,6 +43,7 @@ import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchma
 import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
 import System.IO.Unsafe (unsafePerformIO)
+import Text.PrettyPrint.Leijen (text, (<$$>))
 
 runREPL :: REPL a -> IO ()
 runREPL r = do
@@ -135,6 +136,7 @@ replCheck = \case
 
                             mapM_ (\case
                                 Definition id' expr -> do
+                                    st'' <- lift get
                                     eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st'')
 
                                     case eval' of
@@ -257,6 +259,33 @@ replCheck = \case
                         liftIO . putStrLn $ "- Maximum: " <> secs max
                         liftIO . putStrLn $ "- Average: " <> secs avg
                         liftIO . putStrLn $ "-   Total: " <> secs tot
+    Env                -> do
+        st  <- lift (gets ctx)
+        st' <- lift (gets values)
+        let (t:types)                = Map.toList $ typeDeclCtx st
+            (TypeEnv funs)           = defCtx st <> ctorCtx st
+            ((id, Scheme _ f):funs') = Map.toList funs
+            (v:vals)                 = Map.toList st'
+
+            kinds                    = foldl
+                                            (\acc (k, v) -> acc <$$> text "  " <> text k <> text " :: " <> pKind v)
+                                            (text "  " <> text (fst t) <> text " :: " <> pKind (snd t))
+                                            types
+
+            functions                = foldl
+                                            (\acc (k, Scheme _ v) -> acc <$$> text "  " <> text k <> text " :: " <> pType v)
+                                            (text "  " <> text id <> text " :: " <> pType f)
+                                            funs'
+
+            values'                  = foldl
+                                            (\acc (k, v') -> acc <$$> text "  " <> text k <> text " = " <> text (show v'))
+                                            (text "  " <> text (fst v) <> text " = " <> text (show (snd v)))
+                                            vals
+
+        liftIO . putStrLn $
+            "Types:\n" <> show kinds <> "\n"
+         <> "Functions:\n" <> show functions <> "\n"
+         <> "Values:\n" <> show values'
 
 
 
