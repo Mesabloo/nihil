@@ -2,12 +2,12 @@
 
 module Blob.Parsing.Lexer where
 
-import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof)
+import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof, empty)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec.Pos (Pos, unPos)
 import Blob.Parsing.Types (Parser, ParseState(..))
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import Control.Monad.State (get, lift, modify, gets)
 import Data.Functor (($>))
 
@@ -94,11 +94,28 @@ string'' = lexemeN $ C.char '"' *> manyTill L.charLiteral (C.char '"')
 keyword :: Text -> Parser ()
 keyword kw = lexemeN (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
+keySymbol :: Text -> Parser()
+keySymbol ks = try (opSymbol >>= check . pack) <?> "operator " <> unpack ks
+  where check x | x == ks   = pure ()
+                | otherwise = empty
+
 opSymbol :: Parser String
-opSymbol = (lexemeN (some (C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String))) >>= check) <?> "operator"
+opSymbol = (lexemeN . try) (some p <* notFollowedBy p) >>= check <?> "operator"
+  where check x | x `elem` symbols = fail $ "Already existing operator “" <> x <> "”"
+                -- | head x == ':'    = fail "An operator cannot start with “:” unless it is a type constructor"
+                | otherwise        = pure x
+        p = C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String)
+
+ctorSymbol :: Parser String
+ctorSymbol = (lexemeN . try) p >>= check <?> "constructor"
   where check x = if x `elem` symbols
                   then fail $ "Already existing operator “" <> x <> "”"
                   else pure x
+        
+        p = do
+            c1 <- C.char ':'
+            cs <- many $ C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String)
+            pure (c1:cs)
 
 indentGuard :: Ordering -> Pos -> Parser Pos
 indentGuard = L.indentGuard scN

@@ -6,7 +6,7 @@ import Blob.Parsing.Types (ParseState(..), Parser, Expr(..), CustomOperator(..),
 import qualified Data.MultiMap as MMap
 import Control.Monad.State (lift, modify, get)
 import Data.Text (unpack)
-import Blob.Parsing.Lexer (symbol, indentGuard, space', sameOrIndented, same, indented, scN, opSymbol)
+import Blob.Parsing.Lexer (symbol, indentGuard, space', sameOrIndented, same, indented, scN, opSymbol, keySymbol)
 import Text.Megaparsec.Pos (mkPos)
 import Text.Megaparsec (optional, (<|>), (<?>), try)
 import Text.Megaparsec.Char (eol)
@@ -40,30 +40,30 @@ fixityPrec (CustomOperator _ (Prefix'  n)) = n
 fixityPrec (CustomOperator _ (Postfix' n)) = n
 
 negate' :: Operator Parser Expr
-negate' = Prefix $ symbol "-" $> EApp (EApp (EId "-") (ELit $ LInt 0))
+negate' = Prefix $ keySymbol "-" $> EApp (EApp (EId "-") (ELit $ LInt 0))
 
 toParser :: CustomOperator -> Operator Parser Expr
 toParser (CustomOperator name' fix') = case fix' of
     Infix' L _ -> InfixL $ do
         pos <- indentLevel
-        sameOrIndented pos (symbol name')
+        sameOrIndented pos (keySymbol name')
         pos' <- indentLevel
         sameOrIndented pos' . pure $ EApp . EApp (EId $ unpack name')
     Infix' R _ -> InfixR $ do
         pos <- indentLevel
-        sameOrIndented pos (symbol name')
+        sameOrIndented pos (keySymbol name')
         pos' <- indentLevel
         sameOrIndented pos' . pure $ EApp . EApp (EId $ unpack name')
     Infix' N _ -> InfixN $ do
         pos <- indentLevel
-        sameOrIndented pos (symbol name') <?> unpack name'
+        sameOrIndented pos (keySymbol name') <?> unpack name'
         pos' <- indentLevel
         sameOrIndented pos' . pure $ EApp . EApp (EId $ unpack name')
     Prefix'  _ -> Prefix $ do
-        scN *> symbol name' <* scN
+        keySymbol name'
         pure . EApp . EId $ unpack name'
     Postfix' _ -> Postfix $ do
-        symbol name' <* scN
+        keySymbol name'
         pure . EApp . EId $ unpack name'
 
 -- failingInfixOperator :: Operator Parser Expr
