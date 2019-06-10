@@ -4,8 +4,9 @@ library:
   - -Wall
   - -O2
   - -optc-O3
-  - -DNDEBUG
   - -fasm
+  cpp-options:
+  - -DNDEBUG
 copyright: 2019 Mesabloo
 dependencies:
 - text
@@ -27,6 +28,8 @@ dependencies:
 - bytestring
 - vector
 - extra
+- ghc
+- composition
 name: Blob
 version: 0.1.0.0
 extra-source-files:
@@ -45,8 +48,9 @@ executables:
     - -Wall
     - -O2
     - -optc-O3
-    - -DNDEBUG
     - -fasm
+    cpp-options:
+    - -DNDEBUG
     dependencies:
     - Blob
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
