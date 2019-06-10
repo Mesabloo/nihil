@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Blob.REPL.DefaultEnv where
+module Blob.REPL.Prelude where
 
 import Blob.REPL.Types (Value(..), Scope)
 import Blob.Inference.Types (Scheme(..), Type(..), Kind(..))

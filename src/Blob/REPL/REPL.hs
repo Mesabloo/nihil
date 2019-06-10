@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase, TupleSections #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase, TupleSections, BangPatterns #-}
 
 module Blob.REPL.REPL
 ( runREPL
@@ -14,7 +14,7 @@ import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..))
 import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..))
 import Blob.Parsing.Types(Program(..), Statement(..), ParseState(..))
 import Blob.Parsing.Defaults (initParseState)
-import Blob.REPL.DefaultEnv (defaultEnv, defaultDeclContext, defaultDefContext, defaultTypeDeclContext)
+import Blob.REPL.Prelude (defaultEnv, defaultDeclContext, defaultDefContext, defaultTypeDeclContext)
 import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
 import Blob.Parsing.Parser (program, statement)
 import Blob.Parsing.ExprParser (expression)
@@ -42,6 +42,7 @@ import Data.Char (toUpper)
 import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchmark)
 import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
+import System.IO.Unsafe (unsafePerformIO)
 
 runREPL :: REPL a -> IO ()
 runREPL r = do
@@ -65,27 +66,32 @@ initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
                           , defCtx = TypeEnv defaultDefContext
                           , ctorCtx = TypeEnv mempty }
 
+{-# NOINLINE replLoop #-}
 replLoop :: REPL ()
 replLoop = forever $ do
 
     time <- lift (gets lastExecTime)
-    if time /= 0.0
-    then do
-        liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
-        liftIO $ setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
-        liftIO . putStr $ " " <> secs time <> " " 
+    let !str = unsafePerformIO $!
+                    do
+                        if time /= 0.0
+                        then do
+                            setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
+                            putStr $ " " <> secs time <> " "
+                        else putStr ""
 
-        lift . modify $ \st -> st { lastExecTime = 0.0 }
-    else liftIO $ putStr ""
-    liftIO $ setSGR [SetColor Background Dull Blue]
-    liftIO $ setSGR [SetColor Foreground Dull Black]
-    liftIO $ putStr "\57520"
-    liftIO $ setSGR [SetColor Foreground Dull White]
-    liftIO $ putStr " β "
+                        setSGR [SetColor Background Dull Blue, SetColor Foreground Dull Black]
+                        putStr "\57520"
+                        setSGR [SetColor Foreground Dull White]
+                        putStr " β "
+                        setSGR [Reset]
+                        setSGR [SetColor Foreground Dull Blue]
+
+                        pure ""
+
+    input <- getInputLine $! str <> "\57520 "
     liftIO $ setSGR [Reset]
-    liftIO $ setSGR [SetColor Foreground Dull Blue]
-    input <- getInputLine "\57520 "
-    liftIO $ setSGR [Reset]
+
+    lift . modify $ \st -> st { lastExecTime = 0.0 }
     
     case input of
         Nothing     -> liftIO $ putStr ""
@@ -166,7 +172,7 @@ replCheck = \case
         
     Code stat           -> do
         st <- lift get
-        let res = runParser (runStateT (((Left <$> try statement) <|> (Right <$> try expression)) <* eof) (op st)) "interactive" (Text.pack stat)
+        let res = runParser (runStateT (((Right <$> try (expression <* eof)) <|> (Left <$> statement)) <* eof) (op st)) "interactive" (Text.pack stat)
         
         case res of
             Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
