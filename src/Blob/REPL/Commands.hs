@@ -19,7 +19,7 @@ import System.Exit (exitSuccess)
 import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..), ConsoleIntensity(..))
 import Data.Functor (($>))
 import Data.Char (isUpper)
-import Control.Monad (join)
+import Control.Monad (join, zipWithM)
 import Control.Applicative (empty)
 import Data.List.Extra
 
@@ -195,6 +195,8 @@ evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure ma
             (VStr s, PStr s') | s == s' -> pure mempty
             (VDec d, PDec d') | d == d' -> pure mempty
             (v, PId id')                -> pure $ Map.singleton id' v
+            (VCon id' v, PCtor id'' v')
+                | id' == id''           -> mconcat <$> zipWithM unpackPattern v v'
             _                           -> empty
 
         makeMatchError :: EvalEnv Value
