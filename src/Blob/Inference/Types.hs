@@ -122,3 +122,11 @@ instance Types a => Types [a] where
 instance Types TypeEnv where
     ftv (TypeEnv env)     = ftv (Map.elems env)
     apply s (TypeEnv env) = TypeEnv (Map.map (apply s) env)
+
+
+instance Monoid TypeEnv where
+    mempty = TypeEnv mempty
+    mconcat envs = TypeEnv $ foldl (\acc (TypeEnv t) -> Map.union acc t) mempty envs
+
+instance Semigroup TypeEnv where
+    (<>) (TypeEnv env1) (TypeEnv env2) = TypeEnv $ env1 <> env2

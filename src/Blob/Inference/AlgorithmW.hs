@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, TupleSections #-}
 
 module Blob.Inference.AlgorithmW 
 ( runTI
@@ -21,7 +21,7 @@ import Blob.KindChecking.Types
 import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..), Pattern(..))
 import Blob.PrettyPrinter.PrettyInference (pType)
 import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
-import Control.Monad (zipWithM, foldM)
+import Control.Monad (zipWithM, foldM, forM, mapAndUnzipM, guard)
 import Control.Monad.Trans (lift)
 import Control.Monad.State (runState, get, put, modify, runStateT,gets)
 import Control.Monad.Reader (runReaderT, ask, local, asks)
@@ -33,6 +33,10 @@ import Data.Align.Key (alignWithKey)
 import Data.These (These(..))
 import Control.Applicative ((<|>), liftA2)
 import Debug.Trace
+import Data.List.Extra (snoc)
+import MonadUtils (mapAndUnzip3M)
+import Data.Tuple.Utils (fst3, snd3, thd3)
+import Data.Composition ((.:))
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t = Scheme vars t
@@ -138,36 +142,81 @@ tiExpr (EList es)   = fmap (TApp TList) <$> (flip (foldM go) es =<< (,) nullSubs
         s2      <- mgu t type'
         pure (s2 <> s1 <> subst, apply s2 type')
 tiExpr (EMatch e cases) = do
-    (sub, ty)  <- tiExpr e
-    pats       <- mapM (inferPattern . fst) cases
-    let branches = zip (map snd cases) (map snd pats)
-    (subs, ts) <- unzip <$> mapM (uncurry inferBranch) branches
+    (sub, ty)    <- tiExpr e
+    patterns     <- mapM (tiPattern . fst) cases -- :: [(Subst, Type, TypeEnv)]
+    let branches         = map snd cases         -- :: [(Pattern, Expr)]
 
-    pSub       <- unifyLSide ty (map fst pats)
-    bSub       <- unifyRSide ts
+        ( patternSubst                           -- :: [Subst]
+         , patternTypes                          -- :: [Type]
+         , patternEnvs ) = unzip3 patterns       -- :: [TypeEnv]
 
-    pure (foldr composeSubst sub (pSub:(bSub:subs)), head ts)
-  where inferPattern :: Pattern -> TI (Type, TypeEnv)
-        inferPattern = \case
-            Wildcard -> do
-                var <- newTyVar "p"
-                pure (var, TypeEnv mempty)
-            PInt _   -> pure (TInt, TypeEnv mempty)
-            PDec _   -> pure (TFloat, TypeEnv mempty)
-            PStr _   -> pure (TString, TypeEnv mempty)
-            PId id'  -> do
-                var <- newTyVar "p"
-                pure (var, TypeEnv $ Map.singleton id' (generalize (TypeEnv mempty) var))
+        pSubs            = patternSubst
+        branches'        = zip branches patternEnvs
+        pSub'            = foldr composeSubst nullSubst pSubs
+        toSchemes        = fmap (TypeEnv . Map.mapWithKey (Scheme [] .: flip const)) <$> branches'
 
-        unifyLSide :: Type -> [Type] -> TI Subst
+    (subs, ts) <- unzip <$> mapM (uncurry inferBranch) toSchemes
+
+    (bSub, r)  <- unifyRSide ts
+
+    let subs'            = foldr composeSubst nullSubst subs
+        pbSub            = subs' `composeSubst` pSub' `composeSubst` bSub
+
+    pSub       <- unifyLSide (apply pbSub ty) patternTypes
+
+    let subst            = foldr composeSubst sub (pbSub:pSub:pSubs)
+
+    pure (subst, apply subst r)
+  where unifyLSide :: Type -> [Type] -> TI Subst
         unifyLSide exprTy = foldM (\acc t -> composeSubst acc <$> mgu t (apply acc exprTy)) nullSubst
 
         inferBranch :: Expr -> TypeEnv -> TI (Subst, Type)
         inferBranch e env = local (insertEnv env) (tiExpr e)
 
-        unifyRSide :: [Type] -> TI Subst
-        unifyRSide (t:ts) = foldM (\acc t' -> composeSubst acc <$> mgu t t') nullSubst ts
-        unifyRSide []     = throwError $ text "Match with 0 cases" <> dot <> linebreak
+        unifyRSide :: [Type] -> TI (Subst, Type)
+        unifyRSide (t:ts) = do
+            subst <- foldM (\acc t' -> composeSubst acc <$> mgu t' (apply acc t)) nullSubst ts
+            pure (subst, apply subst t)
+        unifyRSide []     = (nullSubst,) <$> newTyVar "a"
+
+tiPattern :: Pattern -> TI (Subst, Type, Map.Map String Type)
+tiPattern = \case
+    Wildcard -> do
+        var <- newTyVar "p"
+        pure (nullSubst, var, mempty)
+    PInt _         -> pure (nullSubst, TInt, mempty)
+    PDec _         -> pure (nullSubst, TFloat, mempty)
+    PStr _         -> pure (nullSubst, TString, mempty)
+    PId id'        -> do
+        var <- newTyVar "p"
+        pure (nullSubst, var, Map.singleton id' var)
+    PCtor id' args -> do
+        x             <- instantiate =<< lookupCtor id'
+        let (ts, r) = unfoldParams x
+        guard (length args == length ts)
+            <|> throwError (text "Too much or not enough arguments to the type constructor" <> dot <> linebreak)
+        (s, ts', env) <- third mconcat <$> mapAndUnzip3M tiPattern args
+
+        let s'      = foldl composeSubst nullSubst s
+        subst         <- foldM (\acc (t1, t2) -> composeSubst acc <$> mgu t2 (apply acc t1))
+            nullSubst
+            (zip ts ts')
+        let s''     = s' `composeSubst` subst
+
+        pure (s'', apply s'' r, env)
+  where unfoldParams :: Type -> ([Type], Type)
+        unfoldParams (TFun a b) = first (a:) (unfoldParams b)
+        unfoldParams t          = ([], t)
+
+        lookupCtor :: String -> TI Scheme
+        lookupCtor id' = do
+            (TypeEnv ctor) <- asks ctorCtx
+            case Map.lookup id' ctor of
+                Nothing -> throwError $ makeUnboundVarError id'
+                Just s  -> pure s
+
+        third :: (c -> c') -> (a, b, c) -> (a, b, c')
+        third f (a, b, c) = (a, b, f c)
 
 typeInference :: TypeEnv -> Expr -> TI Type
 typeInference _ e = do
@@ -179,7 +228,7 @@ typeInference _ e = do
 makeUnifyError :: Type -> Type -> TIError
 makeUnifyError t1 t2 = text "Could not match type “" <> pType t1 <> text "” with “" <> pType t2 <> text "”" <> dot <> linebreak
 makeOccurError :: String -> Type -> TIError
-makeOccurError s t1 = text "Occur check fails: " <> text s <> text " vs " <> pType t1 <> dot <> linebreak
+makeOccurError s t1 = text "Occur check fails: cannot construct the infinite type “" <> text s <> text " ~ " <> pType t1 <> text "”" <> dot <> linebreak
 makeUnboundVarError :: String -> TIError
 makeUnboundVarError s = text "Unbound symbol “" <> text s <> text "”" <> dot <> linebreak
 makeRedeclaredError :: String -> TIError
