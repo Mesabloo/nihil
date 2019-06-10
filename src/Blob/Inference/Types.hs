@@ -1,6 +1,9 @@
+{-# LANGUAGE TypeFamilies, TypeSynonymInstances #-}
+
 module Blob.Inference.Types where
 
 import qualified Data.Map as Map
+import qualified Data.Map.Unordered as UMap
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Text.PrettyPrint.Leijen (Doc)
@@ -8,6 +11,10 @@ import Control.Monad.Except (Except, ExceptT)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.State (StateT, State)
 import Data.Maybe (fromMaybe)
+import Data.Key (Key(..), Keyed(..))
+import Data.Align.Key (AlignWithKey(..))
+import Data.Align (Align(..))
+import Data.Hashable (Hashable(..))
 
 class Types a where
     ftv :: a -> Set.Set String
@@ -91,6 +98,7 @@ getScheme :: String -> TypeEnv -> Maybe Scheme
 getScheme k (TypeEnv env) = env Map.!? k
 
 ----------------------------------------------------------------------------------------------
+
 instance Types Type where
     ftv (TVar n)      = Set.singleton n
     ftv TInt          = mempty
@@ -130,3 +138,16 @@ instance Monoid TypeEnv where
 
 instance Semigroup TypeEnv where
     (<>) (TypeEnv env1) (TypeEnv env2) = TypeEnv $ env1 <> env2
+
+instance (Hashable k, Eq k) => AlignWithKey (UMap.Map k)
+
+type instance Key (UMap.Map k) = k
+
+instance (Hashable k, Eq k) => Keyed (UMap.Map k) where
+    mapWithKey = UMap.mapWithKey
+
+instance (Hashable k, Eq k) => Align (UMap.Map k) where
+    nil = mempty
+    align m n = UMap.unionWith merge (UMap.map This m) (UMap.map That n)
+      where merge (This a) (That b) = These a b
+            merge _ _ = error "Align (UMap.Map k): internal error"

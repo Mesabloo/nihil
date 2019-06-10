@@ -12,7 +12,8 @@ module Blob.Inference.AlgorithmW
 , generalize
 ) where
 
-import qualified Data.Map as Map
+import qualified Data.Map.Unordered as Map
+import qualified Data.Map as Map'
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
 import Blob.Inference.Types
@@ -56,11 +57,11 @@ newTyVar prefix = do
 instantiate :: Scheme -> TI Type
 instantiate (Scheme vars t) = do
     nvars <- mapM (\_ -> newTyVar "a") vars
-    let s = Map.fromList (zip vars nvars)
+    let s = Map'.fromList (zip vars nvars)
     pure $ apply s (relax t)
 
 rigidify :: Type -> Type
-rigidify t = let subst = Map.fromList . Set.toList $ Set.map (\v -> (v, TRigidVar v)) (ftv t)
+rigidify t = let subst = Map'.fromList . Set.toList $ Set.map (\v -> (v, TRigidVar v)) (ftv t)
              in apply subst t
 
 relax :: Type -> Type
@@ -95,18 +96,18 @@ mgu t1 t2                                  = throwError $ makeUnifyError t1 t2
 
 mguScheme :: Scheme -> Scheme -> TI ()
 mguScheme (Scheme tvs t) (Scheme tvs' t') = () <$ mgu t (apply subst t')
-  where subst = Map.fromList [ (tv', TRigidVar tv) | (tv, tv') <- zip tvs tvs' ]
+  where subst = Map'.fromList [ (tv', TRigidVar tv) | (tv, tv') <- zip tvs tvs' ]
 
 varBind :: String -> Type -> TI Subst
 varBind u t | t == TVar u          = pure nullSubst
             | u `Set.member` ftv t = throwError $ makeOccurError u t
-            | otherwise            = pure $ Map.singleton u t
+            | otherwise            = pure $ Map'.singleton u t
 
 tiExpr :: Expr -> TI (Subst, Type)
 tiExpr (EId n)      = do
     (TypeEnv env)  <- asks defCtx
     (TypeEnv env1) <- asks ctorCtx
-    case Map.lookup n env <|> Map.lookup n env1 of
+    case Map'.lookup n env <|> Map'.lookup n env1 of
         Nothing    -> throwError $ makeUnboundVarError n
         Just sigma -> do
             t <- instantiate sigma
@@ -153,7 +154,7 @@ tiExpr (EMatch e cases) = do
         pSubs            = patternSubst
         branches'        = zip branches patternEnvs
         pSub'            = foldr composeSubst nullSubst pSubs
-        toSchemes        = fmap (TypeEnv . Map.mapWithKey (Scheme [] .: flip const)) <$> branches'
+        toSchemes        = fmap (TypeEnv . Map'.mapWithKey (Scheme [] .: flip const)) <$> branches'
 
     (subs, ts) <- unzip <$> mapM (uncurry inferBranch) toSchemes
 
@@ -179,7 +180,7 @@ tiExpr (EMatch e cases) = do
             pure (subst, apply subst t)
         unifyRSide []     = (nullSubst,) <$> newTyVar "a"
 
-tiPattern :: Pattern -> TI (Subst, Type, Map.Map String Type)
+tiPattern :: Pattern -> TI (Subst, Type, Map'.Map String Type)
 tiPattern = \case
     Wildcard -> do
         var <- newTyVar "p"
@@ -189,7 +190,7 @@ tiPattern = \case
     PStr _         -> pure (nullSubst, TString, mempty)
     PId id'        -> do
         var <- newTyVar "p"
-        pure (nullSubst, var, Map.singleton id' var)
+        pure (nullSubst, var, Map'.singleton id' var)
     PCtor id' args -> do
         x             <- instantiate =<< lookupCtor id'
         let (ts, r) = unfoldParams x
@@ -211,7 +212,7 @@ tiPattern = \case
         lookupCtor :: String -> TI Scheme
         lookupCtor id' = do
             (TypeEnv ctor) <- asks ctorCtx
-            case Map.lookup id' ctor of
+            case Map'.lookup id' ctor of
                 Nothing -> throwError $ makeUnboundVarError id'
                 Just s  -> pure s
 
@@ -270,7 +271,7 @@ sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError memp
     foldDecls _ m []              = pure m
     foldDecls err m ((id', t):ts) = case Map.lookup id' m of
                                         Nothing -> flip (foldDecls err) ts $ Map.insert id' t m
-                                        Just _  -> throwError $ err id'
+                                        Just _ -> throwError $ err id'      
 
 handleStatement :: String -> These Expr TP.Type -> Check ()
 handleStatement name (This def)      = do
@@ -307,19 +308,19 @@ analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do
     kind <- checkKI $ do
         var        <- newKindVar "r"
-        (subst, t) <- local (Map.insert k var) (kiCustomScheme v)
+        (subst, t) <- local (Map'.insert k var) (kiCustomScheme v)
         subst1     <- mguKind (applyKind subst var) (applyKind subst t)
         pure $ applyKind (subst1 `composeKindSubst` subst) var
 
     let (CustomScheme _ t) = v
     schemes <- case t of
         TSum ctors -> pure ctors
-        _          -> pure $ Map.fromList []
+        _          -> pure $ Map'.fromList []
 
-    modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
-                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st)
+    modify $ \st -> st { typeDefCtx  = Map'.insert k v (typeDefCtx st)
+                       , typeDeclCtx = Map'.insert k kind (typeDeclCtx st)
                        , ctorCtx     = let (TypeEnv env) = ctorCtx st
-                                       in TypeEnv (schemes `Map.union` env) }
+                                       in TypeEnv (schemes `Map'.union` env) }
 
 checkTI :: TI a -> Check a
 checkTI ti = do
