@@ -33,13 +33,14 @@ data Expr = EId String
           | EMatch Expr [(Pattern, Expr)]
     deriving (Show, Eq, Ord)
 
-data Pattern = Wildcard         -- _
-             | PId String       -- a basic value like `a`
-             | PInt Integer     -- a basic value like `0`
-             | PDec Double      -- a basic value like `0.0`
-             | PStr String      -- a basic value like `"0"`
-             | PTuple [Pattern] -- a basic value like `(a, b)`
-             | PList [Pattern]  -- a basic value like `[a, b]`
+data Pattern = Wildcard               -- _
+             | PId String             -- a basic value like `a`
+             | PInt Integer           -- a basic value like `0`
+             | PDec Double            -- a basic value like `0.0`
+             | PStr String            -- a basic value like `"0"`
+             | PTuple [Pattern]       -- a basic value like `(a, b)`
+             | PList [Pattern]        -- a basic value like `[a, b]`
+             | PCtor String [Pattern] -- a basic value like `Just a`
     deriving (Show, Eq, Ord)
 
 data Literal = LStr String

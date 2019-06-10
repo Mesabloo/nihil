@@ -12,24 +12,26 @@ import Text.Megaparsec.Char (eol)
 import Text.Megaparsec.Char.Lexer (indentLevel)
 import Text.Megaparsec.Pos (Pos(..))
 import Data.Functor ((<$), ($>))
-import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier, string', indented, same, sameOrIndented)
+import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier, string', indented, same, sameOrIndented, lexemeN, ctorSymbol)
 import Control.Monad (MonadPlus(..))
+import Debug.Trace
 
 expression :: Parser Expr
 expression = lexeme $ do
     st <- get
     let op = reverse . MMap.elems . operators $ st
+
     makeExprParser (lexeme term) op <?> "expression"
 
 term :: Parser Expr
-term = try lambda'
-   <|> try match
+term = lambda'
+   <|> match
    <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
    <|> ELit . LDec <$> try float
-   <|> ELit . LInt <$> try integer
+   <|> ELit . LInt <$> integer
    <|> try tuple
-   <|> try list
-   <|> ELit . LStr <$> try string''
+   <|> list
+   <|> ELit . LStr <$> string''
    <|> hidden (parens expression)
 
 lambda' :: Parser Expr
@@ -64,16 +66,19 @@ match = do
         parseCase = do
             p      <- pattern'
             pos1   <- indentLevel
-            sameOrIndented pos1 $ hidden (symbol "->") <|> string "→"
+            sameOrIndented pos1 $ hidden (symbol "->") <|> symbol "→"
             e      <- indented pos1 expression
             pure (p, e)
 
 pattern' :: Parser Pattern
-pattern' = lexeme $ (string "_" $> Wildcard)
-                    <|> (PDec <$> try float)
-                    <|> (PInt <$> try integer)
-                    <|> (PStr <$> try string'')
-                    <|> (PId  <$> try identifier)
+pattern' = lexemeN $ (string "_" $> Wildcard)
+                     <|> (PDec  <$> try float)
+                     <|> (PInt  <$> integer)
+                     <|> (PStr  <$> string'')
+                     <|> (PId   <$> identifier)
+                     <|> (PCtor <$> ({- ctorSymbol <|> -} typeIdentifier) <*> many pattern')
+                     -- <|> ctorOp
+                     <|> parens pattern'
 
 ---------------------------------------------------------------------------------------------------------
 {- Control.Monad.Combinators.Expr rework for custom indentation -}

@@ -59,15 +59,16 @@ pExpression expr i = case expr of
     ELam arg exp0    -> parens $ text "λ " <> text arg <> text " → " <> pExpression exp0 i
     ETuple es        -> parens . mconcat $ intersperse (text ", ") (map (`pExpression` i) es)
     EList es         -> brackets . mconcat $ intersperse (text ", ") (map (`pExpression` i) es)
-    EMatch e pats    -> parens $ text "match " <> pExpression e i <> mconcat (punctuate line (map (\(a, b) -> indent indentLevel $ pPattern a i <> text " → " <> pExpression b i) pats))
+    EMatch e pats    -> parens $ text "match " <> pExpression e i <> indent indentLevel (mconcat (punctuate line (map (\(a, b) -> pPattern a i <> text " → " <> pExpression b i) pats)))
 
 pPattern :: Pattern -> Int -> Doc
 pPattern p i = case p of
-    Wildcard -> text "_"
-    PInt i   -> text $ show i
-    PDec d   -> text $ show d
-    PStr s   -> text s
-    PId i    -> text i
+    Wildcard   -> text "_"
+    PInt i     -> text $ show i
+    PDec d     -> text $ show d
+    PStr s     -> text s
+    PId i      -> text i
+    PCtor i' a -> text i' <+> foldr ((<+>) . (`pPattern` i)) (text "") a
 
 pType :: Type -> Int -> Doc
 pType t i = case t of
