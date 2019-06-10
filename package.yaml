@@ -23,13 +23,17 @@ dependencies:
 - haskeline
 - MissingH
 - multimap
-- these
+- these <= 0.7.6
 - criterion-measurement
 - bytestring
 - vector
 - extra
 - ghc
 - composition
+- keys
+- hashable
+- deepseq
+- QuickCheck
 name: Blob
 version: 0.1.0.0
 extra-source-files:
