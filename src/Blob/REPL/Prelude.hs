@@ -12,8 +12,7 @@ defaultEnv :: Scope Value
 defaultEnv = Map.fromList [ ("+", addF)
                           , ("-", subF)
                           , ("*", mulF)
-                          , ("/", divF)
-                          , (":", cons) ]
+                          , ("/", divF) ]
   where
     addF = HLam $ \case
         VInt x -> pure . HLam $ \case
@@ -59,10 +58,10 @@ defaultEnv = Map.fromList [ ("+", addF)
             _      -> throwError (text "Expected integer or float")
         _      -> throwError (text "Expected integer or float")
 
-    cons = HLam $ \item -> pure . HLam $ \case
-        VCon id' _ | id' == "[]" -> pure $ VList [item]
-        VList vals'              -> pure $ VList (item:vals')
-        _                        -> throwError (text "Expected list")
+    -- cons = HLam $ \item -> pure . HLam $ \case
+    --     VCon id' _ | id' == "[]" -> pure $ VList [item]
+    --     VList vals'              -> pure $ VList (item:vals')
+    --     _                        -> throwError (text "Expected list")
 
 
 defaultDeclContext :: Map.Map String Scheme
