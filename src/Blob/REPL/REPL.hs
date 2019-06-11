@@ -66,24 +66,12 @@ replLoop :: REPL ()
 replLoop = forever $ do
 
     time <- lift (gets lastExecTime)
-    let !str = unsafePerformIO $!
-                    do
-                        if time /= 0.0
-                        then do
-                            setSGR [SetColor Background Dull Black, SetColor Foreground Dull White]
-                            putStr $ " " <> secs time <> " "
-                        else putStr ""
+    let str = if time /= 0.0
+              then secs time <> " "
+              else ""
 
-                        setSGR [SetColor Background Dull Blue, SetColor Foreground Dull Black]
-                        putStr "\57520"
-                        setSGR [SetColor Foreground Dull White]
-                        putStr " β "
-                        setSGR [Reset]
-                        setSGR [SetColor Foreground Dull Blue]
-
-                        pure ""
-
-    input <- getInputLine $! str <> "\57520 "
+    liftIO $ setSGR [SetColor Foreground Dull Blue]
+    input <- getInputLine $ str <> "⮞ β ⮞ "
     liftIO $ setSGR [Reset]
 
     lift . modify $ \st -> st { lastExecTime = 0.0 }
