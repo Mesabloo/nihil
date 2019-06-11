@@ -158,14 +158,15 @@ tiExpr (EMatch e cases) = do
 
     (subs, ts) <- unzip <$> mapM (uncurry inferBranch) toSchemes
 
-    (bSub, r)  <- unifyRSide ts
-
     let subs'            = foldr composeSubst nullSubst subs
-        pbSub            = subs' `composeSubst` pSub' `composeSubst` bSub
+
+    (bSub, r)  <- unifyRSide (map (apply subs') ts)
+
+    let pbSub            = subs' `composeSubst` pSub' `composeSubst` bSub
 
     pSub       <- unifyLSide (apply pbSub ty) patternTypes
 
-    let subst            = foldr composeSubst sub (pbSub:pSub:pSubs)
+    let subst            = foldr composeSubst sub [pbSub, pSub]
 
     pure (subst, apply subst r)
   where unifyLSide :: Type -> [Type] -> TI Subst
@@ -176,7 +177,7 @@ tiExpr (EMatch e cases) = do
 
         unifyRSide :: [Type] -> TI (Subst, Type)
         unifyRSide (t:ts) = do
-            subst <- foldM (\acc t' -> composeSubst acc <$> mgu t' (apply acc t)) nullSubst ts
+            subst <- foldM (\acc t' -> composeSubst acc <$> mgu t (apply acc t')) nullSubst ts
             pure (subst, apply subst t)
         unifyRSide []     = (nullSubst,) <$> newTyVar "a"
 
