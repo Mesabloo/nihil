@@ -12,7 +12,7 @@ import Text.Megaparsec.Char (eol)
 import Text.Megaparsec.Char.Lexer (indentLevel)
 import Text.Megaparsec.Pos (Pos(..))
 import Data.Functor ((<$), ($>))
-import Blob.Parsing.Lexer (lexeme, float, integer, identifier, opSymbol, parens, string'', space', symbol, brackets, string, keyword, typeIdentifier, string', indented, same, sameOrIndented, lexemeN, ctorSymbol)
+import Blob.Parsing.Lexer 
 import Control.Monad (MonadPlus(..))
 import Debug.Trace
 
@@ -73,14 +73,26 @@ match = do
             pure (p, e)
 
 pattern' :: Parser Pattern
-pattern' = lexemeN $ (string "_" $> Wildcard)
-                     <|> (PDec  <$> try float)
-                     <|> (PInt  <$> integer)
-                     <|> (PStr  <$> string'')
-                     <|> (PId   <$> identifier)
-                     <|> (PCtor <$> ({- ctorSymbol <|> -} typeIdentifier) <*> many pattern')
-                     -- <|> ctorOp
-                     <|> parens pattern'
+pattern' = lexeme (makeExprParser patTerm patOps) <?> "pattern"
+
+patTerm :: Parser Pattern
+patTerm =   Wildcard <$  string "_"
+        <|> PDec     <$> try float
+        <|> PInt     <$> integer
+        <|> PStr     <$> string''
+        <|> PId      <$> identifier
+        <|> PCtor    <$> typeIdentifier <*> many pattern'
+        <|>              patternList
+        <|>              parens pattern'
+  where
+    patternList :: Parser Pattern
+    patternList =   (try . brackets) (string "") $> PCtor "[]" []
+                <|> brackets (do { e1 <- pattern'
+                                 ; es <- many (string "," *> pattern')
+                                 ; pure $ foldr (\exp1 exp2 -> PCtor ":" [exp1, exp2]) (PCtor "[]" []) (e1:es) })
+
+patOps :: [[Operator Parser Pattern]]
+patOps = [ [ InfixR $ keySymbol ":" $> \e1 e2 -> PCtor ":" [e1, e2] ] ] -- prec == 5
 
 ---------------------------------------------------------------------------------------------------------
 {- Control.Monad.Combinators.Expr rework for custom indentation -}
