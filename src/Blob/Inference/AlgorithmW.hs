@@ -90,7 +90,7 @@ mgu TInt (TId u) | u == "Integer"          = pure nullSubst
 mgu TString (TId u) | u == "String"        = pure nullSubst
 mgu TFloat (TId u) | u == "Float"          = pure nullSubst
 mgu (TTuple ts1) (TTuple ts2)              = foldr composeSubst nullSubst <$> zipWithM mgu ts1 ts2
-mgu TList TList                            = pure nullSubst
+-- mgu TList TList                            = pure nullSubst
 mgu (TApp t1 t2) (TApp t1' t2')            = composeSubst <$> mgu t1 t1' <*> mgu t2 t2'
 mgu t1 t2                                  = throwError $ makeUnifyError t1 t2
 
@@ -136,12 +136,12 @@ tiExpr (ETuple es)  = fmap TTuple <$> tiTuple es
         (s1, t)  <- tiExpr e
         (s2, ts) <- tiTuple es'
         pure (s2 `composeSubst` s1, t:ts)
-tiExpr (EList es)   = fmap (TApp TList) <$> (flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a")
-  where
-    go (subst, type') item = do
-        (s1, t) <- tiExpr item
-        s2      <- mgu t type'
-        pure (s2 <> s1 <> subst, apply s2 type')
+-- tiExpr (EList es)   = fmap (TApp TList) <$> (flip (foldM go) es =<< (,) nullSubst <$> newTyVar "a")
+--   where
+--     go (subst, type') item = do
+--         (s1, t) <- tiExpr item
+--         s2      <- mgu t type'
+--         pure (s2 <> s1 <> subst, apply s2 type')
 tiExpr (EMatch e cases) = do
     (sub, ty)    <- tiExpr e
     patterns     <- mapM (tiPattern . fst) cases -- :: [(Subst, Type, TypeEnv)]
@@ -248,7 +248,6 @@ tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
 tiType (TP.TFun t1 t2)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts)      = TTuple (map tiType ts)
 tiType (TP.TVar id')       = TRigidVar id'
-tiType TP.TList            = TList
 tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
 
 tiScheme :: TP.Scheme -> Scheme

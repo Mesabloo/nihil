@@ -47,10 +47,10 @@ atype' =
                                   ; pure $ TTuple (t1 : tk) }
         list = do
             pos <- indentLevel
-            lexemeN $ (try (brackets (string "")) $> TList)
+            lexemeN $ (try (brackets (string "")) $> TId "[]")
                     <|> brackets (do
                         t <- sameOrIndented pos type'
-                        pure $ TApp TList t)
+                        pure $ TApp (TId "[]") t)
     in
         gtycon'
         <|> TVar <$> lexemeN typeVariable

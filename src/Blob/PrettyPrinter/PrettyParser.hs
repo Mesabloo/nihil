@@ -58,7 +58,6 @@ pExpression expr i = case expr of
     EApp exp1 exp2   -> parens $ pExpression exp1 i <+> pExpression exp2 i
     ELam arg exp0    -> parens $ text "λ " <> text arg <> text " → " <> pExpression exp0 i
     ETuple es        -> parens . mconcat $ intersperse (text ", ") (map (`pExpression` i) es)
-    EList es         -> brackets . mconcat $ intersperse (text ", ") (map (`pExpression` i) es)
     EMatch e pats    -> parens $ text "match " <> pExpression e i <> indent indentLevel (mconcat (punctuate line (map (\(a, b) -> pPattern a i <> text " → " <> pExpression b i) pats)))
 
 pPattern :: Pattern -> Int -> Doc
@@ -77,5 +76,4 @@ pType t i = case t of
     TTuple ts           -> parens . mconcat $ intersperse (text ", ") (map (`pType` i) ts)
     TArrow count t' t'' -> parens $ brackets (pExpression count i) <> pType t' i <> text " → " <> pType t'' i
     TFun t1 t2          -> text "(" <> pType t1 i <> text " → " <> pType t2 i <> text ")"
-    TList               -> brackets empty
     TApp t1 t2          -> pType t1 i <+> parens (pType t2 i)

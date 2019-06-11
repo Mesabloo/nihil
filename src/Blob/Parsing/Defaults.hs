@@ -21,6 +21,7 @@ defaultOps = MMap.fromList [
                 , (7, toParser $ CustomOperator "/" (Infix' L 7))
                 , (6, toParser $ CustomOperator "+" (Infix' L 6))
                 , (6, toParser $ CustomOperator "-" (Infix' L 6))
+                , (5, toParser $ CustomOperator ":" (Infix' R 5))
                 , (4, negate')
                 -- , (-1, failingInfixOperator)
                 -- , (-1, failingPrefixOperator)

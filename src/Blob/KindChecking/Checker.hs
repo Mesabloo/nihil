@@ -105,7 +105,6 @@ kiType (TFun t1 t2) = do
     s3 <- mguKind k1 KType
     s4 <- mguKind k2 KType
     pure (concatKindSubsts [s4,s3,s2,s1], KType)
-kiType TList = pure (mempty, KArr KType KType)
 kiType (TApp f t) = do
     kv       <- newKindVar "k"
     (s1, k1) <- kiType f

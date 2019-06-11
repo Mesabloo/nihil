@@ -10,11 +10,11 @@ import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
-import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..))
+import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..), EvalState(..))
 import Blob.Inference.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..))
-import Blob.Parsing.Types(Program(..), Statement(..), ParseState(..))
+import Blob.Parsing.Types (Program(..), Statement(..), ParseState(..))
 import Blob.Parsing.Defaults (initParseState)
-import Blob.REPL.Prelude (defaultEnv, defaultDeclContext, defaultDefContext, defaultTypeDeclContext)
+import Blob.REPL.Prelude (defaultEnv, initGlobalEnv, initEvalState)
 import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
 import Blob.Parsing.Parser (program, statement)
 import Blob.Parsing.ExprParser (expression)
@@ -43,7 +43,7 @@ import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchma
 import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
 import System.IO.Unsafe (unsafePerformIO)
-import Text.PrettyPrint.Leijen (text, (<$$>))
+import Text.PrettyPrint.Leijen (text, (<$$>), empty)
 
 runREPL :: REPL a -> IO ()
 runREPL r = do
@@ -57,15 +57,9 @@ runREPL r = do
     handleInterrupt exitCommand . void $ runExceptT (evalStateT (runInputT defaultSettings (withInterrupt r)) initREPLState)
   where initREPLState = REPLState { ctx = initGlobalEnv
                                   , op = initParseState
-                                  , values = defaultEnv
+                                  , values = initEvalState
                                   
                                   , lastExecTime = 0.0 }
-    
-initGlobalEnv :: GlobalEnv
-initGlobalEnv = GlobalEnv { typeDeclCtx = defaultTypeDeclContext
-                          , typeDefCtx = mempty
-                          , defCtx = TypeEnv defaultDefContext
-                          , ctorCtx = TypeEnv mempty }
 
 {-# NOINLINE replLoop #-}
 replLoop :: REPL ()
@@ -114,7 +108,7 @@ replCheck = \case
     Reload              ->
         lift . modify $ \st -> st { ctx = initGlobalEnv
                                     , op = initParseState
-                                    , values = defaultEnv }
+                                    , values = initEvalState }
     Load file           -> do
         fileExists <- liftIO     $ doesFileExist file
         if fileExists
@@ -141,7 +135,8 @@ replCheck = \case
 
                                     case eval' of
                                         Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                        Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                                        Right evalRes -> lift . modify $ \st' -> st' { values = let env  = values st'
+                                                                                                in env { vals = Map.insert id' evalRes (vals env) } }
                                 _                   -> liftIO $ putStr ""
                                 ) stmts
         else
@@ -206,7 +201,8 @@ replCheck = \case
 
                                     case eval' of
                                         Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                        Right evalRes -> lift . modify $ \st' -> st' { values = Map.insert id' evalRes (values st') }
+                                        Right evalRes -> lift . modify $ \st' -> st' { values = let env = values st'
+                                                                                                in env { vals = Map.insert id' evalRes (vals env) }}
                                 _                   -> pure ()
 
                             liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
@@ -265,7 +261,7 @@ replCheck = \case
         let (t:types)                = Map.toList $ typeDeclCtx st
             (TypeEnv funs)           = defCtx st <> ctorCtx st
             ((id, Scheme _ f):funs') = Map.toList funs
-            (v:vals)                 = Map.toList st'
+            vals'                    = Map.toList (vals st')
 
             kinds                    = foldl
                                             (\acc (k, v) -> acc <$$> text "  " <> text k <> text " :: " <> pKind v)
@@ -277,10 +273,12 @@ replCheck = \case
                                             (text "  " <> text id <> text " :: " <> pType f)
                                             funs'
 
-            values'                  = foldl
-                                            (\acc (k, v') -> acc <$$> text "  " <> text k <> text " = " <> text (show v'))
-                                            (text "  " <> text (fst v) <> text " = " <> text (show (snd v)))
-                                            vals
+            values'                  = case vals' of
+                                            []        -> empty
+                                            (v:vals') -> foldl
+                                                            (\acc (k, v') -> acc <$$> text "  " <> text k <> text " = " <> text (show v'))
+                                                            (text "  " <> text (fst v) <> text " = " <> text (show (snd v)))
+                                                            vals'
 
         liftIO . putStrLn $
             "Types:\n" <> show kinds <> "\n"

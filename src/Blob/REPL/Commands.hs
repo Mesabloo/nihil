@@ -3,7 +3,7 @@
 module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
-import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..))
+import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..), EvalState(..))
 import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN)
 import Blob.Parsing.Parser (statement, program)
 import Blob.Parsing.ExprParser (expression)
@@ -13,7 +13,7 @@ import Data.String.Utils (rstrip)
 import Control.Monad.Reader (local, asks, ask)
 import Control.Monad.Except (throwError)
 import Data.List (isInfixOf, intercalate)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Text.PrettyPrint.Leijen (text, Doc, dot, linebreak)
 import System.Exit (exitSuccess)
 import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..), ConsoleIntensity(..))
@@ -172,26 +172,28 @@ evaluate :: Expr -> EvalEnv Value
 evaluate (ELit (LInt v))    = pure $ VInt v
 evaluate (ELit (LStr v))    = pure $ VStr v
 evaluate (ELit (LDec v))    = pure $ VDec v
-evaluate (EId id')          = if isCtor id'
-                              then pure $ VCon id' []
-                              else fromJust <$> asks (Map.lookup id')
-  where isCtor id' = isUpper (head id') || head id' == ':'
+evaluate (EId id')          = do
+                                    isNotCtor <- isJust . Map.lookup id' <$> asks vals
+
+                                    if isNotCtor
+                                    then fromJust . Map.lookup id' <$> asks vals
+                                    else pure $ VCon id' []
 evaluate (ETuple es)        = VTuple <$> mapM evaluate es
-evaluate (ELam x e)         = asks $ VLam x e
+evaluate (ELam x e)         = VLam x e <$> asks vals
 evaluate (EApp f x)         = do
     x' <- evaluate x
     f' <- evaluate f
     case f' of
-        VLam x e c -> local (Map.insert x x' . Map.union c) (evaluate e)
+        VLam x e c -> local (\env -> env { vals = Map.insert x x' . Map.union c $ vals env }) (evaluate e)
         HLam f''   -> f'' x'
         VCon id' e -> pure $ VCon id' (snoc e x')
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, `HLam` or `VCon` ; got `" <> show v <> "`.\nPlease report the issue."
-evaluate (EList es)         = VList <$> mapM evaluate es
+-- evaluate (EList es)         = VList <$> mapM evaluate es
 evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
   where evalBranch pat branch = do
             e <- evaluate expr
             s <- unpackPattern e pat
-            pure (local (s <>) (evaluate branch))
+            pure (local (\env -> env { vals = s <> vals env }) (evaluate branch))
 
         unpackPattern :: Value -> Pattern -> EvalEnv (Scope Value)
         unpackPattern = curry $ \case

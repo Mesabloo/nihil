@@ -36,7 +36,7 @@ data Value = VInt Integer
 
 data REPLState = REPLState { ctx :: GlobalEnv
                            , op :: ParseState
-                           , values :: Map.Map String Value
+                           , values :: EvalState
                            
                            , lastExecTime :: Double }
 
@@ -46,7 +46,11 @@ type REPLError = Doc
 
 type Scope = Map.Map String
 
-type EvalEnv a = ReaderT (Map.Map String Value) (ExceptT REPLError IO) a
+type EvalEnv a = ReaderT EvalState (ExceptT REPLError IO) a
+
+data EvalState = EvalState { vals :: Scope Value
+                           , ctors :: [String] }
+
 
 
 

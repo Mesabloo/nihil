@@ -15,6 +15,7 @@ import Data.Key (Key(..), Keyed(..))
 import Data.Align.Key (AlignWithKey(..))
 import Data.Align (Align(..))
 import Data.Hashable (Hashable(..))
+import Data.These(These(..))
 
 class Types a where
     ftv :: a -> Set.Set String
@@ -25,7 +26,6 @@ data Type = TVar String
           | TInt | TString | TFloat
           | TFun Type Type
           | TTuple [Type]
-          | TList
           | TApp Type Type
           | TId String
     deriving (Eq, Ord, Show)
@@ -105,8 +105,7 @@ instance Types Type where
     ftv TString       = mempty
     ftv TFloat        = mempty
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
-    ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts 
-    ftv TList         = mempty
+    ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
     ftv (TRigidVar _) = mempty
     ftv (TId _)       = mempty
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2

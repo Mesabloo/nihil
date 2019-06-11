@@ -42,16 +42,18 @@ lambda' = do
     pure $ foldr ELam expr params
 
 tuple :: Parser Expr
-tuple = lexeme . parens $ do
+tuple = lexemeN . parens $ do
     e1 <- expression
     e2 <- some (lexeme (string ",") *> expression)
     pure $ ETuple (e1 : e2)
 
 list :: Parser Expr
-list = lexeme . brackets $ do
-    e1 <- expression
-    e2 <- some (lexeme (string ",") *> expression)
-    pure $ EList (e1 : e2)
+list = lexemeN $
+    (try (brackets (string "")) $> EId "[]")
+    <|> brackets (do
+        e1 <- expression
+        es <- many (lexeme (string ",") *> expression)
+        pure $ foldr (\exp1 exp2 -> EApp (EApp (EId ":") exp1) exp2) (EId "[]") (e1 : es))
 
 match :: Parser Expr
 match = do

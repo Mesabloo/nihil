@@ -29,7 +29,6 @@ data Expr = EId String
           | ELam String Expr
           | EApp Expr Expr
           | ETuple [Expr]
-          | EList [Expr]
           | EMatch Expr [(Pattern, Expr)]
     deriving (Show, Eq, Ord)
 
@@ -94,7 +93,6 @@ data Type = TId String            -- Type
           | TFun Type Type
           | TVar String           -- a...
           | TApp Type Type        -- Type a...
-          | TList                 -- []
     deriving (Eq, Ord, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
