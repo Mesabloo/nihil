@@ -67,7 +67,7 @@ pPattern p i = case p of
     PDec d     -> text $ show d
     PStr s     -> text s
     PId i      -> text i
-    PCtor i' a -> text i' <+> foldr ((<+>) . (`pPattern` i)) (text "") a
+    PCtor i' a -> parens $ text i' <+> foldr ((<+>) . (`pPattern` i)) (text "") a
 
 pType :: Type -> Int -> Doc
 pType t i = case t of
