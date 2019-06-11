@@ -27,6 +27,7 @@ data Command = GetType String
 data Value = VInt Integer
            | VStr String
            | VDec Double
+           | VChr Char
            | VVar String
            | VLam String Expr (Scope Value)
            | VTuple [Value]
@@ -57,6 +58,7 @@ instance Show Value where
     show (VInt i)     = show i
     show (VStr s)     = show s
     show (VDec d)     = show d
+    show (VChr c)     = show c
     show (VVar s)     = s
     show (VLam i e _) = "(λ " <> i <> " → " <> show (pExpression e 0) <> ")"
     show (VTuple es)  = "(" <> intercalate ", " (map show es) <> ")"
@@ -67,6 +69,7 @@ instance Eq Value where
     (==) (VInt i) (VInt i')          = i == i'
     (==) (VStr s) (VStr s')          = s == s'
     (==) (VDec d) (VDec d')          = d == d'
+    (==) (VChr v) (VChr v')          = v == v'
     (==) (VLam i e _) (VLam i' e' _) = i == i' && e == e'
     (==) (VTuple es) (VTuple es')    = es == es'
     (==) (VCon id' e) (VCon id'' e') = id' == id'' && e == e'
@@ -76,6 +79,7 @@ instance Ord Value where
     (<=) (VInt i) (VInt i')          = i <= i'
     (<=) (VStr s) (VStr s')          = s <= s'
     (<=) (VDec d) (VDec d')          = d <= d'
+    (<=) (VChr v) (VChr v')          = v <= v'
     (<=) (VLam i e _) (VLam i' e' _) = i <= i' && e <= e'
     (<=) (VTuple es) (VTuple es')    = es <= es'
     (<=) (VCon id' _) (VCon id'' _)  = id' <= id''

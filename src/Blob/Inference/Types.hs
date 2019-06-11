@@ -23,7 +23,7 @@ class Types a where
 
 data Type = TVar String
           | TRigidVar String
-          | TInt | TString | TFloat
+          | TInt | TString | TFloat | TChar
           | TFun Type Type
           | TTuple [Type]
           | TApp Type Type
@@ -104,6 +104,7 @@ instance Types Type where
     ftv TInt          = mempty
     ftv TString       = mempty
     ftv TFloat        = mempty
+    ftv TChar         = mempty
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
     ftv (TRigidVar _) = mempty

@@ -55,6 +55,7 @@ pExpression expr i = case expr of
     ELit (LStr str)  -> text $ show str
     ELit (LInt int') -> text $ show int'
     ELit (LDec dec') -> text $ show dec'
+    ELit (LChr chr)  -> text $ show chr
     EApp exp1 exp2   -> parens $ pExpression exp1 i <+> pExpression exp2 i
     ELam arg exp0    -> parens $ text "λ " <> text arg <> text " → " <> pExpression exp0 i
     ETuple es        -> parens . mconcat $ intersperse (text ", ") (map (`pExpression` i) es)
@@ -65,7 +66,8 @@ pPattern p i = case p of
     Wildcard   -> text "_"
     PInt i     -> text $ show i
     PDec d     -> text $ show d
-    PStr s     -> text s
+    PStr s     -> text $ show s
+    PChr c     -> text $ show c
     PId i      -> text i
     PCtor i' a -> parens $ text i' <+> foldr ((<+>) . (`pPattern` i)) (text "") a
 

@@ -6,7 +6,7 @@ module Blob.Parsing.Parser
 ) where
 
 import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
-import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented, sameOrIndented)
+import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented, sameOrIndented, ctorSymbol)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
@@ -85,7 +85,7 @@ sumType = flip (<?>) "sum type" $ do
     pure . TypeDeclaration name ts . TSum $ Map.fromList (ctor1:ctors)
   where constructor name ts = flip (<?>) "type constructor" $ do
             pos   <- indentLevel
-            name' <- typeIdentifier
+            name' <- typeIdentifier -- <|> parens ctorSymbol
             type1 <- optional . many . indented pos $ atype'
             
             case type1 of

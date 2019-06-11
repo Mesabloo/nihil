@@ -77,6 +77,7 @@ defaultTypeDeclContext :: Map.Map String Kind
 defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
                                       , ("Float",   KType)
                                       , ("String",  KType)
+                                      , ("Char",    KType)
                                       , ("[]",      KArr KType KType) ]
 
 defaultCtorsContext :: Map.Map String Scheme

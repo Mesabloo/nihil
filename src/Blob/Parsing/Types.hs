@@ -37,6 +37,7 @@ data Pattern = Wildcard               -- _
              | PInt Integer           -- a basic value like `0`
              | PDec Double            -- a basic value like `0.0`
              | PStr String            -- a basic value like `"0"`
+             | PChr Char              -- a basic value like `'a'`
              | PTuple [Pattern]       -- a basic value like `(a, b)`
              | PList [Pattern]        -- a basic value like `[a, b]`
              | PCtor String [Pattern] -- a basic value like `Just a`
@@ -45,6 +46,7 @@ data Pattern = Wildcard               -- _
 data Literal = LStr String
              | LInt Integer
              | LDec Double
+             | LChr Char
     deriving (Show, Eq, Ord)
 
 data Associativity = L

@@ -81,14 +81,17 @@ mgu t (TVar u)                             = varBind u t
 mgu TInt TInt                              = pure nullSubst
 mgu TString TString                        = pure nullSubst
 mgu TFloat TFloat                          = pure nullSubst
+mgu TChar TChar                            = pure nullSubst
 mgu (TRigidVar u) (TRigidVar u') | u == u' = pure nullSubst
 mgu (TId u) (TId u') | u == u'             = pure nullSubst
 mgu (TId u) TInt | u == "Integer"          = pure nullSubst
 mgu (TId u) TString | u == "String"        = pure nullSubst
 mgu (TId u) TFloat | u == "Float"          = pure nullSubst
+mgu (TId u) TChar | u == "Char"            = pure nullSubst
 mgu TInt (TId u) | u == "Integer"          = pure nullSubst
 mgu TString (TId u) | u == "String"        = pure nullSubst
 mgu TFloat (TId u) | u == "Float"          = pure nullSubst
+mgu TChar (TId u) | u == "Char"            = pure nullSubst
 mgu (TTuple ts1) (TTuple ts2)              = foldr composeSubst nullSubst <$> zipWithM mgu ts1 ts2
 -- mgu TList TList                            = pure nullSubst
 mgu (TApp t1 t2) (TApp t1' t2')            = composeSubst <$> mgu t1 t1' <*> mgu t2 t2'
@@ -116,9 +119,10 @@ tiExpr (ELit l)     = do
     env <- ask
     tiLit env l
   where
-    tiLit _ (LInt _) = return (nullSubst, TInt)
-    tiLit _ (LStr _) = return (nullSubst, TString)
-    tiLit _ (LDec _) = return (nullSubst, TFloat)
+    tiLit _ (LInt _) = pure (nullSubst, TInt)
+    tiLit _ (LStr _) = pure (nullSubst, TString)
+    tiLit _ (LDec _) = pure (nullSubst, TFloat)
+    tiLit _ (LChr _) = pure (nullSubst, TChar)
 tiExpr (ELam n e)   = do
     tv       <- newTyVar "a"
     (s1, t1) <- local (insertFun n (Scheme [] tv)) (tiExpr e)
@@ -189,6 +193,7 @@ tiPattern = \case
     PInt _         -> pure (nullSubst, TInt, mempty)
     PDec _         -> pure (nullSubst, TFloat, mempty)
     PStr _         -> pure (nullSubst, TString, mempty)
+    PChr _         -> pure (nullSubst, TChar, mempty)
     PId id'        -> do
         var <- newTyVar "p"
         pure (nullSubst, var, Map'.singleton id' var)

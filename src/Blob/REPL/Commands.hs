@@ -172,6 +172,7 @@ evaluate :: Expr -> EvalEnv Value
 evaluate (ELit (LInt v))    = pure $ VInt v
 evaluate (ELit (LStr v))    = pure $ VStr v
 evaluate (ELit (LDec v))    = pure $ VDec v
+evaluate (ELit (LChr v))    = pure $ VChr v
 evaluate (EId id')          = do
                                     isNotCtor <- isJust . Map.lookup id' <$> asks vals
 

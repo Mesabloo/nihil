@@ -18,7 +18,7 @@ lexemeN :: Parser a -> Parser a
 lexemeN = L.lexeme scN
 
 space' :: Parser ()
-space' = skipMany $ oneOf (" \t" :: String)
+space' = skipMany C.spaceChar
 
 sc :: Parser ()
 sc = L.space space1' lineCmnt blockCmnt
@@ -33,7 +33,7 @@ blockCmnt :: Parser ()
 blockCmnt = lexeme . hidden $ L.skipBlockComment (pack "{-") (pack "-}")
 
 space1' :: Parser ()
-space1' = skipSome $ oneOf (" \t" :: String)
+space1' = skipSome C.spaceChar
 
 identifier :: Parser String
 identifier = (lexemeN . try $ p >>= check) <?> "identifier"
@@ -90,6 +90,9 @@ string' = C.string
 
 string'' :: Parser String
 string'' = lexemeN $ C.char '"' *> manyTill L.charLiteral (C.char '"')
+
+char'' :: Parser Char
+char'' = lexemeN $ between (C.char '\'') (C.char '\'') L.charLiteral
 
 keyword :: Text -> Parser ()
 keyword kw = lexemeN (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw

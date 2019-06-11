@@ -29,6 +29,7 @@ term = lambda'
    <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
    <|> ELit . LDec <$> try float
    <|> ELit . LInt <$> integer
+   <|> ELit . LChr <$> char''
    <|> try tuple
    <|> list
    <|> ELit . LStr <$> string''
@@ -80,6 +81,7 @@ patTerm =   Wildcard <$  string "_"
         <|> PDec     <$> try float
         <|> PInt     <$> integer
         <|> PStr     <$> string''
+        <|> PChr     <$> char''
         <|> PId      <$> identifier
         <|> PCtor    <$> typeIdentifier <*> many pattern'
         <|>              patternList
