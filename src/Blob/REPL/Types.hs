@@ -31,7 +31,6 @@ data Value = VInt Integer
            | VLam String Expr (Scope Value)
            | VTuple [Value]
            | HLam (Value -> EvalEnv Value)
-           | VList [Value]
            | VCon String [Value]
 
 data REPLState = REPLState { ctx :: GlobalEnv
@@ -61,7 +60,6 @@ instance Show Value where
     show (VVar s)     = s
     show (VLam i e _) = "(λ " <> i <> " → " <> show (pExpression e 0) <> ")"
     show (VTuple es)  = "(" <> intercalate ", " (map show es) <> ")"
-    show (VList es)   = "[" <> intercalate ", " (map show es) <> "]"
     show (HLam _)     = "HLam _"
     show (VCon id' e) = "(" <> id' <> foldl (\acc t -> acc <> " " <> show t) "" e <> ")"
 
@@ -71,7 +69,6 @@ instance Eq Value where
     (==) (VDec d) (VDec d')          = d == d'
     (==) (VLam i e _) (VLam i' e' _) = i == i' && e == e'
     (==) (VTuple es) (VTuple es')    = es == es'
-    (==) (VList es) (VList es')      = es == es'
     (==) (VCon id' e) (VCon id'' e') = id' == id'' && e == e'
     (==) _ _                         = False
 
@@ -81,6 +78,5 @@ instance Ord Value where
     (<=) (VDec d) (VDec d')          = d <= d'
     (<=) (VLam i e _) (VLam i' e' _) = i <= i' && e <= e'
     (<=) (VTuple es) (VTuple es')    = es <= es'
-    (<=) (VList  es) (VList  es')    = es <= es'
     (<=) (VCon id' _) (VCon id'' _)  = id' <= id''
     (<=) _ _                         = False
