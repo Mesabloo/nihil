@@ -303,8 +303,8 @@ handleStatement name (These def typ) = do
             subst1     <- mgu (apply subst var) (apply subst t)
             pure $ apply (subst1 `composeSubst` subst) var
 
-        mgu t (rigidify ti)
-        pure t
+        s <- mgu t (rigidify ti)
+        pure $ apply s t
     
     env <- gets defCtx
     modify $ \st -> st { defCtx = insert name (generalize (TypeEnv mempty) t) env }
