@@ -2,10 +2,10 @@
 
 module Blob.KindChecking.Checker where
 
-import Blob.Inference.Types
+import Blob.TypeChecking.Types
 import qualified Blob.Parsing.Types as PT
 import Blob.KindChecking.Types
-import Blob.PrettyPrinter.PrettyInference (pType, pKind)
+import Blob.Pretty.Inference (pType, pKind)
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

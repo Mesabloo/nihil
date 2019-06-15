@@ -3,7 +3,7 @@
 module Blob.REPL.Prelude where
 
 import Blob.REPL.Types (Value(..), Scope, EvalState(..))
-import Blob.Inference.Types (Scheme(..), Type(..), Kind(..), GlobalEnv(..), TypeEnv(..), CustomScheme(..), CustomType(..))
+import Blob.TypeChecking.Types (Scheme(..), Type(..), Kind(..), GlobalEnv(..), TypeEnv(..), CustomScheme(..), CustomType(..))
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen (text)
 import Control.Monad.Except (throwError)

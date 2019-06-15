@@ -17,7 +17,7 @@ import Data.Functor(fmap, (<$>), ($>), (<$))
 import Data.Text (pack)
 import Control.Monad.State (lift, modify)
 import qualified Data.Map as Map (fromList)
-import Blob.PrettyPrinter.PrettyInference (pType)
+import Blob.Pretty.Inference (pType)
 
 program :: Parser Program
 program = fmap Program $

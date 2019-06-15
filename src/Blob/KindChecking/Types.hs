@@ -7,7 +7,7 @@ import Control.Monad.State (State)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (ExceptT)
 import Data.Maybe (fromMaybe)
-import Blob.Inference.Types (CustomTypeEnv, Kind(..), KindEnv)
+import Blob.TypeChecking.Types (CustomTypeEnv, Kind(..), KindEnv)
 
 type KIError = Doc
 

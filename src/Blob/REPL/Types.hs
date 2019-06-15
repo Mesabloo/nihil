@@ -1,8 +1,8 @@
 module Blob.REPL.Types where
 
 import Blob.Parsing.Types (ParseState, Expr)
-import Blob.Inference.Types (GlobalEnv)
-import Blob.PrettyPrinter.PrettyParser (pExpression)
+import Blob.TypeChecking.Types (GlobalEnv)
+import Blob.Pretty.Parser (pExpression)
 import Text.PrettyPrint.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad.State (StateT)

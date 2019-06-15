@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase, TupleSections #-}
 
-module Blob.Inference.AlgorithmW 
+module Blob.TypeChecking.AlgorithmW 
 ( runTI
 , checkTI
 , typeInference
@@ -16,11 +16,11 @@ import qualified Data.Map.Unordered as Map
 import qualified Data.Map as Map'
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
-import Blob.Inference.Types
+import Blob.TypeChecking.Types
 import Blob.KindChecking.Checker
 import Blob.KindChecking.Types
 import Blob.Parsing.Types (Expr(..), Literal(..), Statement(..), Program(..), Pattern(..))
-import Blob.PrettyPrinter.PrettyInference (pType)
+import Blob.Pretty.Inference (pType)
 import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad (zipWithM, foldM, forM, mapAndUnzipM, guard)
 import Control.Monad.Trans (lift)

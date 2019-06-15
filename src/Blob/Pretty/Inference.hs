@@ -1,10 +1,10 @@
-module Blob.PrettyPrinter.PrettyInference
+module Blob.Pretty.Inference
 ( pType
 , pKind
 ) where
 
 import Text.PrettyPrint.Leijen (text, parens, Doc, brackets, empty)
-import Blob.Inference.Types (Type(..), Kind(..))
+import Blob.TypeChecking.Types (Type(..), Kind(..))
 import Data.List (intersperse)
 
 pType :: Type -> Doc

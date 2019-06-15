@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeSynonymInstances #-}
 
-module Blob.Inference.Types where
+module Blob.TypeChecking.Types where
 
 import qualified Data.Map as Map
 import qualified Data.Map.Unordered as UMap
