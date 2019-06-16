@@ -87,12 +87,12 @@ kiCustomScheme (CustomScheme tvs t) = do
             pure (concatKindSubsts [s3,s2,s1])
 
 kiType :: Type -> KI (KindSubst, Kind)
-kiType (TId n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
+kiType (TId n)       = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
-kiType (TVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
+kiType (TVar (TV n)) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
-kiType (TRigidVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
-    where err = throwError (makeUndefinedTypeError n)
+-- kiType (TRigidVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
+--     where err = throwError (makeUndefinedTypeError n)
 kiType (TTuple []) = pure (mempty, KType)
 kiType (TTuple (t:ts)) = do
     (s1, k) <- kiType t
@@ -115,8 +115,8 @@ kiType t = traceShow t undefined
 
 kiScheme :: Scheme -> KI (KindSubst, Kind)
 kiScheme (Scheme vars t) = do
-    nvars <- mapM (\_ -> newKindVar "k") vars
-    let s = Map.fromList (zip vars nvars)
+    nvars <- mapM (const $ newKindVar "k") vars
+    let s = Map.fromList (zipWith (\(TV v) n -> (v, n)) vars nvars)
     local (Map.union s) (kiType t)
 
 checkKI :: KI a -> Check a
