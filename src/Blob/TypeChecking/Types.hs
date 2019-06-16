@@ -72,7 +72,7 @@ type Constraint = (Type, Type)
 type Unifier = (Subst, [Constraint])
 
 -- | Constraint solver monad
-type Solve = StateT Unifier (Except TIError)
+type Solve = Except TIError
 
 
 
