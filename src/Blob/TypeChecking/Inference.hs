@@ -70,7 +70,7 @@ generalize env t  = Scheme as t
     where as = Set.toList $ ftv t `Set.difference` ftv env
 
 infer :: Expr -> Infer (Type, [Constraint])
-infer expr = case expr of
+infer = \case
     ELit (LInt _) -> pure (TId "Integer", [])
     ELit (LDec _) -> pure (TId "Double", [])
     ELit (LStr _) -> pure (TId "String", [])
