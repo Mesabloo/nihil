@@ -126,6 +126,10 @@ infer = \case
                 PId id' -> do
                     t <- fresh "p"
                     pure (t, [], Map.singleton id' (Scheme [] t))
+                PTuple exp -> do
+                    pats <- mapM inferPattern exp
+                    let (ts, cs, envs) = unzip3 pats
+                    pure (TTuple ts, mconcat cs, mconcat envs)
                 PCtor id' args -> do
                     ctor <- instantiate =<< lookupCtor id'
                     let (ts, r) = unfoldParams ctor
@@ -202,6 +206,7 @@ unifies t1 t2 | t1 == t2          = pure nullSubst
 unifies (TVar v)     t            = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies t1           t2           = throwError $ makeUnifyError t1 t2
 
 -- Unification solver
