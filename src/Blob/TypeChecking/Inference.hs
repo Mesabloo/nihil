@@ -12,6 +12,11 @@ import  Blob.Parsing.Types hiding (Type(..), Scheme)
 import Control.Monad.RWS
 import Control.Monad.Identity
 import Data.List (nub)
+import Text.PrettyPrint.Leijen (text, dot, linebreak)
+import Control.Monad.Reader
+import MonadUtils (mapAndUnzip3M)
+import Control.Applicative ((<|>))
+import Data.Bifunctor (first, second)
 
 -- | Run the inference monad
 runInfer :: TypeEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -45,6 +50,11 @@ inEnv (x, sc) m = do
     let scope e = remove e x `extend` (x, sc)
     local scope m
 
+inEnvMany :: [(String, Scheme)] -> Infer a -> Infer a
+inEnvMany list m = do
+    let map' = Map.fromList list
+    local (TypeEnv . Map.union map' . getMap) m
+
 -- | Lookup type in the environment
 lookupEnv :: String -> Infer Type
 lookupEnv x = do
@@ -71,10 +81,10 @@ generalize env t  = Scheme as t
 
 infer :: Expr -> Infer (Type, [Constraint])
 infer = \case
-    ELit (LInt _) -> pure (TId "Integer", [])
-    ELit (LDec _) -> pure (TId "Double", [])
-    ELit (LStr _) -> pure (TId "String", [])
-    ELit (LChr _) -> pure (TId "Char", [])
+    ELit (LInt _) -> pure (TInt, [])
+    ELit (LDec _) -> pure (TFloat, [])
+    ELit (LStr _) -> pure (TString, [])
+    ELit (LChr _) -> pure (TChar, [])
     EId x -> do
         t <- lookupEnv x
         pure (t, [])
@@ -90,6 +100,59 @@ infer = \case
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldl (\acc c -> acc <> snd c) [] ts)
+    EMatch e cases -> do
+        (tExp, tCon) <- infer e
+        let (pats, branches) = unzip cases
+        (patsTy, patsCons, envs) <- unzip3 <$> mapM inferPattern pats
+        let envBranch = zip envs branches
+            types = zipFrom tExp patsTy
+
+        xs <- forM envBranch $ \(env, expr) -> inEnvMany (Map.toList env) (infer expr)
+        let ret = fst $ head xs
+
+        let types2 = zipFrom ret (map fst xs)
+            cons = mconcat (map snd xs)
+
+        pure (ret, types2 <> cons <> types <> mconcat patsCons <> tCon)
+      where inferPattern :: Pattern -> Infer (Type, [Constraint], Map.Map String Scheme)
+            inferPattern = \case
+                Wildcard -> do
+                    t <- fresh "p"
+                    pure (t, [], mempty)
+                PInt _ -> pure (TInt, [], mempty)
+                PStr _ -> pure (TString, [], mempty)
+                PDec _ -> pure (TFloat, [], mempty)
+                PChr _ -> pure (TChar, [], mempty)
+                PId id' -> do
+                    t <- fresh "p"
+                    pure (t, [], Map.singleton id' (Scheme [] t))
+                PCtor id' args -> do
+                    ctor <- instantiate =<< lookupCtor id'
+                    let (ts, r) = unfoldParams ctor
+
+                    guard (length args == length ts)
+                        <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor “" <> text id' <> text "”, but got " <> text (show $ length args) <> dot <> linebreak)
+
+                    (_, cons, env) <- third mconcat <$> mapAndUnzip3M inferPattern args
+
+                    pure (r, mconcat cons, env)
+                  where lookupCtor :: String -> Infer Scheme
+                        lookupCtor id' = do
+                            (TypeEnv env) <- ask
+                            case Map.lookup id' env of
+                                Nothing -> throwError $ makeUnboundVarError id'
+                                Just x  -> pure x
+
+                        unfoldParams :: Type -> ([Type], Type)
+                        unfoldParams (TFun a b) = first (a:) (unfoldParams b)
+                        unfoldParams t = ([], t)
+
+            third :: (c -> d) -> (a, b, c) -> (a, b, d)
+            third f (a, b, c) = (a, b, f c)
+
+            zipFrom :: a -> [b] -> [(a, b)]
+            zipFrom = zip . repeat
+            
 
 inferTop :: TypeEnv -> [(String, Expr)] -> Either TIError TypeEnv
 inferTop env [] = Right env
@@ -98,7 +161,7 @@ inferTop env ((name, ex):xs) = case inferExpr env ex of
     Right ty -> inferTop (extend env (name, ty)) xs
 
 letters :: [String]
-letters = [1 ..] >>= flip replicateM ['a' .. 'z']
+letters = [1..] >>= flip replicateM ['a'..'z']
 
 normalize :: Scheme -> Scheme
 normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
@@ -107,14 +170,18 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
 
     fv (TVar a)   = [a]
     fv (TFun a b) = fv a <> fv b
-    fv (TId _)    = []
+    fv (TApp a b) = fv a <> fv b
+    fv (TTuple e) = foldl (\acc t -> acc <> fv t) [] e
     fv _          = []
 
-    normtype (TFun a b) = TFun (normtype a) (normtype b)
-    normtype (TVar a)   =
+    normtype (TFun a b)       = TFun (normtype a) (normtype b)
+    normtype (TApp a b)       = TApp (normtype a) (normtype b)
+    normtype (TTuple e)       = TTuple (map normtype e)
+    normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
             Just x -> TVar x
-            Nothing -> error "type variable not in signature"
+            Nothing -> error $ "The type variable “" <> x' <> "” has not been declared in type, but wants to be used.\n"
+                                <> "This error should never happen. If you see it, please report it to one of the maintainer of Blob."
     normtype t          = t
 
 -- | Run the constraint solver
