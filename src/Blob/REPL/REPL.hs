@@ -11,7 +11,7 @@ import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, Exc
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..), EvalState(..))
-import Blob.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..))
+import Blob.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
 import Blob.Parsing.Types (Program(..), Statement(..), ParseState(..))
 import Blob.Parsing.Defaults (initParseState)
 import Blob.REPL.Prelude (defaultEnv, initGlobalEnv, initEvalState)
@@ -19,7 +19,7 @@ import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
 import Blob.Parsing.Parser (program, statement)
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type')
-import Blob.TypeChecking.AlgorithmW (programTypeInference, tiProgram, tiType, tiCustomType, checkTI, typeInference)
+import Blob.TypeChecking.Inference
 import Blob.KindChecking.Checker (kiType, checkKI, kindInference)
 import Blob.Pretty.Parser (pExpression, pStatement)
 import Blob.Pretty.Inference (pType, pKind)
@@ -137,10 +137,12 @@ replCheck = \case
         case res of
             Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right e   -> do
-                let t = runExcept (evalStateT (checkTI $ typeInference (TypeEnv env) e) (ctx st))
+                let t = runInfer (ctx st) (infer e)
                 case t of
                     Left err    -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right type' ->  liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e (0 :: Int))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
+                    Right ((type',cons),_) -> case runSolve cons of
+                        Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                        Right s -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e (0 :: Int))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType $ apply s type') >> setSGR [Reset] >> hFlush stdout
 
     GetKind typeExpr    -> do
         st <- lift get
@@ -168,14 +170,17 @@ replCheck = \case
                 case s of
                     Right e -> do
                         let env = defCtx $ ctx st
-                            t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                            t   = runInfer (ctx st) (infer e)
                         case t of
                             Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                            Right _  -> do
-                                res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
-                                case res of
-                                    Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
-                                    Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+                            Right ((_,c),_)  ->
+                                case runSolve c of
+                                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                    Right _ -> do
+                                        res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
+                                        case res of
+                                            Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                                            Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
                     Left s  -> case programTypeInference (ctx st) (tiProgram $ Program [s]) of
                         Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
@@ -208,16 +213,19 @@ replCheck = \case
             Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right (e, _) -> do
                 let env = defCtx $ ctx st
-                    t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                    t   = runInfer (ctx st) (infer e)
                 case t of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right _  -> do
-                        (t, res) <- liftIO . time $ runExceptT $ runReaderT (evaluate e) (values st)
-                        liftIO $ case res of
-                            Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
-                            Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+                    Right ((_,c),_)  -> 
+                        case runSolve c of
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right _ -> do
+                                (t, res) <- liftIO . time $ runExceptT $ runReaderT (evaluate e) (values st)
+                                liftIO $ case res of
+                                    Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                                    Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
-                        lift . modify $ \st -> st { lastExecTime = t }
+                                lift . modify $ \st -> st { lastExecTime = t }
     Bench n expr       -> do
         st <- lift get
 
@@ -226,23 +234,26 @@ replCheck = \case
             Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right (e, _) -> do
                 let env = defCtx $ ctx st
-                    t   = runExcept (evalStateT (checkTI $ typeInference env e) (ctx st))
+                    t   = runInfer (ctx st) (infer e)
                 case t of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right _  -> do
-                        t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
+                    Right ((_,c),_) ->
+                        case runSolve c of
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right _ -> do
+                                t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
 
-                        let t   = map (uncurry const) t'
-                            min = minimum t
-                            max = maximum t
-                            avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
-                            tot = List.foldl' (+) 0.0 t
+                                let t   = map (uncurry const) t'
+                                    min = minimum t
+                                    max = maximum t
+                                    avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
+                                    tot = List.foldl' (+) 0.0 t
 
-                        liftIO . putStrLn $ "Results for " <> show n <> " runs:"
-                        liftIO . putStrLn $ "- Minimum: " <> secs min
-                        liftIO . putStrLn $ "- Maximum: " <> secs max
-                        liftIO . putStrLn $ "- Average: " <> secs avg
-                        liftIO . putStrLn $ "-   Total: " <> secs tot
+                                liftIO . putStrLn $ "Results for " <> show n <> " runs:"
+                                liftIO . putStrLn $ "- Minimum: " <> secs min
+                                liftIO . putStrLn $ "- Maximum: " <> secs max
+                                liftIO . putStrLn $ "- Average: " <> secs avg
+                                liftIO . putStrLn $ "-   Total: " <> secs tot
     Env                -> do
         st  <- lift (gets ctx)
         st' <- lift (gets values)
