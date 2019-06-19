@@ -8,16 +8,23 @@ import Control.Monad.State
 import qualified Data.Set as Set
 import Blob.TypeChecking.Errors
 import qualified Data.Map as Map
-import  Blob.Parsing.Types hiding (Type(..), Scheme)
+import Blob.Parsing.Types hiding (Type(..), Scheme, CustomType(..))
+import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad.RWS
 import Control.Monad.Identity
 import Data.List (nub)
 import Text.PrettyPrint.Leijen (text, dot, linebreak, empty)
 import Control.Monad.Reader
 import MonadUtils (mapAndUnzip3M)
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 import Data.Bifunctor (first, second)
 import Debug.Trace
+import Data.These
+import qualified Data.Map.Unordered as UMap
+import Data.Bifunctor (bimap)
+import Blob.KindChecking.Checker
+import Blob.KindChecking.Types
+import Data.Align.Key (alignWithKey)
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -209,6 +216,14 @@ unifyMany t1 t2 = throwError $ foldl (\acc (t1', t2') -> acc <> makeUnifyError t
 
 unifies :: Type -> Type -> Solve Subst
 unifies t1 t2 | t1 == t2          = pure nullSubst
+unifies (TId i) TString | i == "String" = pure nullSubst
+unifies TString (TId i) | i == "String" = pure nullSubst
+unifies (TId i) TInt | i == "Integer" = pure nullSubst
+unifies TInt (TId i) | i == "Integer" = pure nullSubst
+unifies (TId i) TFloat | i == "Double" = pure nullSubst
+unifies TFloat (TId i) | i == "Double" = pure nullSubst
+unifies (TId i) TChar | i == "Char" = pure nullSubst
+unifies TChar (TId i) | i == "Char" = pure nullSubst
 unifies (TVar v)     t            = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
@@ -231,3 +246,106 @@ bind a t | t == TVar a     = pure nullSubst
 
 occursCheck :: Substitutable a => TVar -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
+
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
+
+tiType :: TP.Type -> Type
+tiType (TP.TId id')        = TId id'
+tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
+tiType (TP.TFun t1 t2)     = TFun (tiType t1) (tiType t2)
+tiType (TP.TTuple ts)      = TTuple (map tiType ts)
+tiType (TP.TVar id')       = TVar (TV id')
+tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
+
+tiScheme :: TP.Scheme -> Scheme
+tiScheme (TP.Scheme tvs t) = Scheme (map TV tvs) (tiType t)
+
+tiCustomType :: TP.CustomType -> CustomType
+tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
+tiCustomType (TP.TProd c s) = TProd c (tiScheme s)
+tiCustomType (TP.TAlias t)  = TAlias (tiType t)
+
+sepStatements :: [Statement] -> Check (UMap.Map String Expr, UMap.Map String TP.Type)
+sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError mempty) (foldDecls makeRedefinedError mempty) . separateDecls
+  where
+    separateDecls []                              = mempty
+    separateDecls (Declaration id' type' : stmts) = second ((id', type'):) (separateDecls stmts)
+    separateDecls (Definition id' expr : stmts)   = first ((id', expr):) (separateDecls stmts)
+    separateDecls (_ : stmts)                     = separateDecls stmts
+
+    foldDecls :: (String -> TIError) -> UMap.Map String a -> [(String, a)] -> Check (UMap.Map String a)
+    foldDecls _ m []              = pure m
+    foldDecls err m ((id', t):ts) = case UMap.lookup id' m of
+                                        Nothing -> flip (foldDecls err) ts $ UMap.insert id' t m
+                                        Just _ -> throwError $ err id'      
+
+handleStatement :: String -> These Expr TP.Type -> Check ()
+handleStatement name (This def)      = do
+    e <- get
+    let res = runInfer e $ do { var <- fresh "a"
+                              ; inEnv (name, Scheme [] var) $ infer def }
+
+    case res of
+        Left err -> throwError err
+        Right ((t,c),_) -> 
+            case runSolve c of
+                Left err -> throwError err
+                Right x ->
+                    modify $ \st -> st { defCtx = let env' = defCtx st
+                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
+                                                  in TypeEnv tv }
+handleStatement name (That _)        = throwError $ makeBindLackError name
+handleStatement name (These def typ) = do
+    env <- gets typeDeclCtx
+
+    let ti     = tiType typ
+    let gen'ed = closeOver ti
+    checkKI $ kiScheme gen'ed
+
+    e <- get
+    let res = runInfer e $ do { var <- fresh "a"
+                              ; inEnv (name, Scheme [] var) $ infer def }
+
+    case res of
+        Left err -> throwError err
+        Right ((t,c),_) -> 
+            case runSolve ((ti, t):c) of
+                Left err -> throwError err
+                Right x ->
+                    modify $ \st -> st { defCtx = let env' = defCtx st
+                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
+                                                  in TypeEnv tv }
+
+analyseTypeDecl :: String -> CustomScheme -> Check ()
+analyseTypeDecl k v = do
+    kind <- checkKI $ do
+        var        <- newKindVar "r"
+        (subst, t) <- local (Map.insert k var) (kiCustomScheme v)
+        subst1     <- mguKind (applyKind subst var) (applyKind subst t)
+        pure $ applyKind (subst1 `composeKindSubst` subst) var
+
+    let (CustomScheme _ t) = v
+    schemes <- case t of
+        TSum ctors -> pure ctors
+        _          -> pure $ Map.fromList []
+
+    modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
+                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st)
+                       , ctorCtx     = let (TypeEnv env) = ctorCtx st
+                                       in TypeEnv (schemes `Map.union` env) }
+
+tiProgram :: Program -> Check ()
+tiProgram (Program stmts) = do
+    remaining <- sepTypeDecls stmts
+    stts      <- sepStatements remaining
+    sequence_ $ uncurry (alignWithKey handleStatement) stts
+  where sepTypeDecls [] = pure []
+        sepTypeDecls (TypeDeclaration k tvs t:ss) = do
+            analyseTypeDecl k (CustomScheme tvs (tiCustomType t))
+            sepTypeDecls ss
+        sepTypeDecls (s:ss) = (s:) <$> sepTypeDecls ss
+
+programTypeInference :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
+programTypeInference g p = runExcept (runStateT p g)
