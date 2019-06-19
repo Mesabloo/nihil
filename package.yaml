@@ -2,7 +2,7 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
-  - -O2
+  - -O6
   - -optc-O3
   - -fasm
   cpp-options:
@@ -51,7 +51,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
-    - -O2
+    - -O6
     - -optc-O3
     - -fasm
     cpp-options:

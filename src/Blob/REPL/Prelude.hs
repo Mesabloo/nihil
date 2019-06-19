@@ -3,7 +3,7 @@
 module Blob.REPL.Prelude where
 
 import Blob.REPL.Types (Value(..), Scope, EvalState(..))
-import Blob.Inference.Types (Scheme(..), Type(..), Kind(..), GlobalEnv(..), TypeEnv(..), CustomScheme(..), CustomType(..))
+import Blob.TypeChecking.Types
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen (text)
 import Control.Monad.Except (throwError)
@@ -65,10 +65,10 @@ defaultEnv = Map.fromList [ ("+", addF)
 
 
 defaultDeclContext :: Map.Map String Scheme
-defaultDeclContext = Map.fromList [ ("+", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a")))
-                                  , ("-", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a")))
-                                  , ("*", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a")))
-                                  , ("/", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TRigidVar "a") (TRigidVar "a"))) ]
+defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                  , ("-", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                  , ("*", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                  , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a"))) ]
 
 defaultDefContext :: Map.Map String Scheme
 defaultDefContext = defaultDeclContext
@@ -78,16 +78,22 @@ defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
                                       , ("Float",   KType)
                                       , ("String",  KType)
                                       , ("Char",    KType)
-                                      , ("[]",      KArr KType KType) ]
+                                      , ("[]",      KType `KArr` KType)
+                                      , ("Either",  KType `KArr` KType `KArr` KType) ]
 
 defaultCtorsContext :: Map.Map String Scheme
-defaultCtorsContext = Map.fromList [ (":", Scheme ["a"] $ TFun (TRigidVar "a") (TFun (TApp (TId "[]") $ TRigidVar "a") (TApp (TId "[]") $ TRigidVar "a")))
-                                   , ("[]", Scheme ["a"] $ TApp (TId "[]") (TRigidVar "a"))]
+defaultCtorsContext = Map.fromList [ (":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TApp (TId "[]") $ TVar $ TV "a") (TApp (TId "[]") . TVar $ TV "a")))
+                                   , ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
+                                   , ("Left", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "a") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
+                                   , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b"))) ]
 
 defaultTypeDefContext :: Map.Map String CustomScheme
 defaultTypeDefContext = Map.fromList [ ("[]", CustomScheme ["a"] . TSum $
-                                                    Map.fromList [ ("[]", Scheme ["a"] $ TApp (TId "[]") (TRigidVar "a"))
-                                                                 , ( ":", Scheme ["a"] $ TFun (TRigidVar "a") (TApp (TId "[]") (TRigidVar "a"))) ]) ]
+                                                    Map.fromList [ ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
+                                                                 , ( ":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TApp (TId "[]") (TVar $ TV "a"))) ])
+                                     , ("Either", CustomScheme ["a", "b"] . TSum $
+                                                    Map.fromList [ ("Left", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "a") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
+                                                                 , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b"))) ]) ]
 
 initGlobalEnv :: GlobalEnv
 initGlobalEnv =

@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeSynonymInstances #-}
 
-module Blob.Inference.Types where
+module Blob.TypeChecking.Types where
 
 import qualified Data.Map as Map
 import qualified Data.Map.Unordered as UMap
@@ -16,13 +16,16 @@ import Data.Align.Key (AlignWithKey(..))
 import Data.Align (Align(..))
 import Data.Hashable (Hashable(..))
 import Data.These(These(..))
+import Data.Composition ((.:))
+import Data.Unique (Unique)
+import Control.Monad.RWS
+import Control.Monad.Identity
+import Data.Bifunctor
 
-class Types a where
-    ftv :: a -> Set.Set String
-    apply :: Subst -> a -> a
+newtype TVar = TV String
+    deriving (Eq, Ord, Show)
 
-data Type = TVar String
-          | TRigidVar String
+data Type = TVar TVar
           | TInt | TString | TFloat | TChar
           | TFun Type Type
           | TTuple [Type]
@@ -41,7 +44,7 @@ data CustomScheme = CustomScheme [String] CustomType
 
 type TIError = Doc
 
-data Scheme = Scheme [String] Type
+data Scheme = Scheme [TVar] Type
     deriving (Eq, Ord, Show)
 
 newtype TypeEnv = TypeEnv (Map.Map String Scheme)
@@ -50,13 +53,28 @@ newtype TypeEnv = TypeEnv (Map.Map String Scheme)
 type KindEnv = Map.Map String Kind
 type CustomTypeEnv = Map.Map String CustomScheme
 
-type Subst = Map.Map String Type
+type Subst = Map.Map TVar Type
 
-data TIState = TIState
-    { tiSupply :: Integer
-    , tiSubst :: Subst }
+-- | Inference monad
+type Infer a = RWST
+                  GlobalEnv       -- Typing environment
+                  [Constraint]    -- Generated constraints
+                  InferState      -- Inference state
+                  (Except         -- Inference errors
+                    TIError)
+                  a               -- Result
 
-type TI a = ExceptT TIError (ReaderT GlobalEnv (State TIState)) a
+-- | Inference state
+newtype InferState = InferState { count :: Int }
+
+type Constraint = (Type, Type)
+
+type Unifier = (Subst, [Constraint])
+
+-- | Constraint solver monad
+type Solve = Except TIError
+
+
 
 data GlobalEnv = GlobalEnv
     { typeDeclCtx :: KindEnv
@@ -65,41 +83,33 @@ data GlobalEnv = GlobalEnv
     , ctorCtx     :: TypeEnv }
     deriving Show
 
-type Check a = StateT GlobalEnv (Except TIError) a
+type Check = StateT GlobalEnv (Except TIError)
+
+getMap :: TypeEnv -> Map.Map String Scheme
+getMap (TypeEnv m) = m
+
+extend :: TypeEnv -> (String, Scheme) -> TypeEnv
+extend = TypeEnv .: flip (uncurry Map.insert) . getMap
 
 nullSubst :: Subst
-nullSubst = mempty
+nullSubst = Map.empty
 
-composeSubst :: Subst -> Subst -> Subst
-composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+compose :: Subst -> Subst -> Subst
+compose s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+
+emptyUnifier :: Unifier
+emptyUnifier = (nullSubst, [])
 
 remove :: TypeEnv -> String -> TypeEnv
-remove (TypeEnv env) var = TypeEnv (Map.delete var env)
+remove = TypeEnv .: flip Map.delete . getMap
 
-insert :: String -> Scheme -> TypeEnv -> TypeEnv
-insert k v (TypeEnv env) = TypeEnv $ Map.insert k v env
-
-insertFun :: String -> Scheme -> GlobalEnv -> GlobalEnv
-insertFun k v (GlobalEnv tdc tdf def ctor) = GlobalEnv { typeDeclCtx = tdc
-                                                       , typeDefCtx  = tdf
-                                                       , defCtx      = insert k v def
-                                                       , ctorCtx     = ctor }
-
-insertEnv :: TypeEnv -> GlobalEnv -> GlobalEnv
-insertEnv (TypeEnv t) (GlobalEnv tdc tdf (TypeEnv def) ctor) = GlobalEnv { typeDeclCtx = tdc
-                                                                         , typeDefCtx  = tdf
-                                                                         , defCtx      = TypeEnv $ def `Map.union` t
-                                                                         , ctorCtx     = ctor }
-
-lookup' :: TypeEnv -> String -> Maybe Scheme
-lookup' (TypeEnv env) n = Map.lookup n env
-
-getScheme :: String -> TypeEnv -> Maybe Scheme
-getScheme k (TypeEnv env) = env Map.!? k
+class Substitutable a where
+    apply :: Subst -> a -> a
+    ftv   :: a -> Set.Set TVar
 
 ----------------------------------------------------------------------------------------------
 
-instance Types Type where
+instance Substitutable Type where
     ftv (TVar n)      = Set.singleton n
     ftv TInt          = mempty
     ftv TString       = mempty
@@ -107,29 +117,31 @@ instance Types Type where
     ftv TChar         = mempty
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
-    ftv (TRigidVar _) = mempty
     ftv (TId _)       = mempty
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv _             = mempty
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
-    apply s (TRigidVar n) = fromMaybe (TRigidVar n) (Map.lookup n s)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
     apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
     apply _ t             = t
 
-instance Types Scheme where
+instance Substitutable Scheme where
     ftv (Scheme vars t)     = ftv t Set.\\ Set.fromList vars
     apply s (Scheme vars t) = Scheme vars (apply (foldr Map.delete s vars) t)
 
-instance Types a => Types [a] where
-    apply s = map (apply s)
-    ftv     = foldr (Set.union . ftv) mempty
+instance Substitutable a => Substitutable [a] where
+    ftv   = foldr (Set.union . ftv) mempty
+    apply = fmap . apply
 
-instance Types TypeEnv where
-    ftv (TypeEnv env)     = ftv (Map.elems env)
-    apply s (TypeEnv env) = TypeEnv (Map.map (apply s) env)
+instance Substitutable TypeEnv where
+    ftv   = ftv . Map.elems . getMap
+    apply = TypeEnv .: flip (flip (Map.map . apply) . getMap)
+
+instance (Substitutable a, Substitutable b) => Substitutable (a, b) where
+    ftv (t1, t2) = ftv t1 `Set.union` ftv t2
+    apply s = bimap (apply s) (apply s)
 
 
 instance Monoid TypeEnv where
@@ -138,6 +150,7 @@ instance Monoid TypeEnv where
 
 instance Semigroup TypeEnv where
     (<>) (TypeEnv env1) (TypeEnv env2) = TypeEnv $ env1 <> env2
+
 
 instance (Hashable k, Eq k) => AlignWithKey (UMap.Map k)
 

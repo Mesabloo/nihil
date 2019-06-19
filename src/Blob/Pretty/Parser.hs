@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 
-module Blob.PrettyPrinter.PrettyParser
+module Blob.Pretty.Parser
 ( pProgram
 , pStatement
 , pExpression
@@ -12,7 +12,7 @@ import Text.PrettyPrint.Leijen (text, parens, indent, line, (<$$>), (<>), empty,
 import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import Data.List (intersperse)
 import qualified Data.Map as Map (toList)
-import qualified Blob.Inference.Types as I (Scheme(..))
+import qualified Blob.TypeChecking.Types as I (Scheme(..))
 
 indentLevel :: Int
 indentLevel = 4
