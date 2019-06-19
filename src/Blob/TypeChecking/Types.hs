@@ -57,7 +57,7 @@ type Subst = Map.Map TVar Type
 
 -- | Inference monad
 type Infer a = RWST
-                  TypeEnv         -- Typing environment
+                  GlobalEnv       -- Typing environment
                   [Constraint]    -- Generated constraints
                   InferState      -- Inference state
                   (Except         -- Inference errors
