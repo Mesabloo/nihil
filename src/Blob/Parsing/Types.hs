@@ -30,6 +30,7 @@ data Expr = EId String
           | EApp Expr Expr
           | ETuple [Expr]
           | EMatch Expr [(Pattern, Expr)]
+          | EHole
     deriving (Show, Eq, Ord)
 
 data Pattern = Wildcard               -- _

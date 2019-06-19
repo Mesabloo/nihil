@@ -25,6 +25,7 @@ import Data.Bifunctor (bimap)
 import Blob.KindChecking.Checker
 import Blob.KindChecking.Types
 import Data.Align.Key (alignWithKey)
+import Data.Either (fromRight)
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -37,7 +38,9 @@ inferExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
     Right ((ty, c), _) -> case runSolve c of
         Left err -> Left err
-        Right subst -> Right . closeOver $ apply subst ty
+        Right subst -> case runHoleInspect ty subst of
+            Left err -> Left err
+            Right _ -> Right . closeOver $ apply subst ty
 
 -- | Return the internal constraints used in solving for the type of an expression
 constraintsExpr :: GlobalEnv -> Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
@@ -96,6 +99,9 @@ infer = \case
     ELit (LDec _) -> pure (TFloat, [])
     ELit (LStr _) -> pure (TString, [])
     ELit (LChr _) -> pure (TChar, [])
+    EHole -> do
+        tv <- fresh "h"
+        pure (tv, [])
     EId x -> do
         t <- lookupEnv x
         pure (t, [])
@@ -224,7 +230,7 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
-unifies (TVar v)     t            = v `bind` t
+unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
@@ -240,12 +246,32 @@ solver (su, cs) = case cs of
         solver (su1 `compose` su, apply su1 cs0)
 
 bind :: TVar -> Type -> Solve Subst
-bind a t | t == TVar a     = pure nullSubst
+bind a t | t == TVar a     = case a of
+                                TV id' -> if head id' == 'h'
+                                          then throwError $ makeHoleError t
+                                          else pure nullSubst
          | occursCheck a t = throwError $ makeOccurError a t
          | otherwise       = pure $ Map.singleton a t
 
 occursCheck :: Substitutable a => TVar -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
+
+
+-- type hole solver
+runHoleInspect :: Type -> Subst -> Either TIError ()
+runHoleInspect t subst = 
+    case t of
+        TVar (TV id') | head id' == 'h' -> do
+            (var,_) <- runIdentity . runExceptT $ evalRWST (fresh "a") initGEnv initInferS
+            throwError $ makeHoleError var
+        _ -> do
+            let map' = Map.filterWithKey (\(TV k) _ -> head k == 'h') subst
+            if null map'
+            then pure ()
+            else throwError $ Map.foldl (\acc type' -> acc <> makeHoleError type') (text "") map'
+  where
+    initGEnv = GlobalEnv { typeDeclCtx = mempty, typeDefCtx = mempty, defCtx = mempty, ctorCtx = mempty }
+    initInferS = InferState { count = 0 }
 
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
@@ -293,9 +319,11 @@ handleStatement name (This def)      = do
             case runSolve c of
                 Left err -> throwError err
                 Right x ->
-                    modify $ \st -> st { defCtx = let env' = defCtx st
-                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
-                                                  in TypeEnv tv }
+                    case runHoleInspect t x of
+                        Left err -> throwError err
+                        Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
+                                                                     tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
+                                                                 in TypeEnv tv }
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
     env <- gets typeDeclCtx
@@ -314,9 +342,11 @@ handleStatement name (These def typ) = do
             case runSolve ((ti, t):c) of
                 Left err -> throwError err
                 Right x ->
-                    modify $ \st -> st { defCtx = let env' = defCtx st
-                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
-                                                  in TypeEnv tv }
+                    case runHoleInspect t x of
+                        Left err -> throwError err
+                        Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
+                                                                     tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
+                                                                 in TypeEnv tv }
 
 analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do

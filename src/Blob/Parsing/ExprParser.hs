@@ -8,7 +8,7 @@ import Blob.Parsing.Types (Parser, Expr(..), Literal(..), ParseState(..), Patter
 import qualified Data.MultiMap as MMap (elems)
 import Control.Monad.State (get)
 import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional, eof, empty, choice, option)
-import Text.Megaparsec.Char (eol)
+import Text.Megaparsec.Char (eol, char)
 import Text.Megaparsec.Char.Lexer (indentLevel)
 import Text.Megaparsec.Pos (Pos(..))
 import Data.Functor ((<$), ($>))
@@ -24,7 +24,8 @@ expression = lexeme $ do
     makeExprParser (lexeme term) op <?> "expression"
 
 term :: Parser Expr
-term = lambda'
+term = hole
+   <|> lambda'
    <|> match
    <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
    <|> ELit . LDec <$> try float
@@ -56,6 +57,11 @@ list = lexemeN $
         es <- many (lexeme (string ",") *> expression)
         pure $ foldr (\exp1 exp2 -> EApp (EApp (EId ":") exp1) exp2) (EId "[]") (e1 : es))
 
+hole :: Parser Expr
+hole = lexemeN $ do
+    some (char '_')
+    pure EHole
+
 match :: Parser Expr
 match = do
     pos  <- indentLevel
@@ -77,7 +83,7 @@ pattern' :: Parser Pattern
 pattern' = lexeme (makeExprParser patTerm patOps) <?> "pattern"
 
 patTerm :: Parser Pattern
-patTerm =   Wildcard <$  string "_"
+patTerm =   Wildcard <$  hole
         <|> PDec     <$> try float
         <|> PInt     <$> integer
         <|> PStr     <$> string''

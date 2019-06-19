@@ -51,6 +51,7 @@ pFixity (Postfix' prec) _ = text $ "Postfix - " <> show prec
 
 pExpression :: Expr -> Int -> Doc
 pExpression expr i = case expr of
+    EHole            -> text "_"
     EId str          -> text str
     ELit (LStr str)  -> text $ show str
     ELit (LInt int') -> text $ show int'
@@ -69,6 +70,7 @@ pPattern p i = case p of
     PStr s     -> text $ show s
     PChr c     -> text $ show c
     PId i      -> text i
+    PTuple e   -> parens $ mconcat (intersperse (text ", ") (map (`pPattern` i) e))
     PCtor i' a -> parens $ text i' <+> foldr ((<+>) . (`pPattern` i)) (text "") a
 
 pType :: Type -> Int -> Doc

@@ -113,13 +113,8 @@ class Substitutable a where
 
 instance Substitutable Type where
     ftv (TVar n)      = Set.singleton n
-    ftv TInt          = mempty
-    ftv TString       = mempty
-    ftv TFloat        = mempty
-    ftv TChar         = mempty
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
-    ftv (TId _)       = mempty
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv _             = mempty
 

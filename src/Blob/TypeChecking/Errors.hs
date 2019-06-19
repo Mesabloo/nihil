@@ -16,3 +16,5 @@ makeRedefinedError :: String -> TIError
 makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already defined" <> dot <> linebreak
 makeBindLackError :: String -> TIError
 makeBindLackError id' = text "“" <> text id' <> text "” lacks an accompanying definition" <> dot <> linebreak
+makeHoleError :: Type -> TIError
+makeHoleError t1 = text "Found hole: _ :: " <> pType t1 <> dot <> linebreak
