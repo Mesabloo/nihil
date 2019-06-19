@@ -36,6 +36,8 @@ data Type = TVar TVar
 data Kind = KType | KArr Kind Kind | KVar String
     deriving (Eq, Show)
 
+infixr 3 `KArr`
+
 data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
     deriving (Eq, Ord, Show)
 
