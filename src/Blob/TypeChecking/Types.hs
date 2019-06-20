@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import Text.PrettyPrint.Leijen (Doc)
 import Control.Monad.Except (Except, ExceptT)
-import Control.Monad.Reader (ReaderT)
+import Control.Monad.Reader (ReaderT, Reader)
 import Control.Monad.State (StateT, State)
 import Data.Maybe (fromMaybe)
 import Data.Key (Key(..), Keyed(..))
@@ -74,7 +74,7 @@ type Constraint = (Type, Type)
 type Unifier = (Subst, [Constraint])
 
 -- | Constraint solver monad
-type Solve = Except TIError
+type Solve = ExceptT TIError (Reader GlobalEnv)
 
 
 

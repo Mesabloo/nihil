@@ -37,7 +37,7 @@ runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
 inferExpr :: GlobalEnv -> Expr -> Either TIError Scheme
 inferExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
-    Right ((ty, c), _) -> case runSolve c of
+    Right ((ty, c), _) -> case runSolve env c of
         Left err -> Left err
         Right subst -> case runHoleInspect subst of
             Left err -> Left err
@@ -47,7 +47,7 @@ inferExpr env ex = case runInfer env (infer ex) of
 constraintsExpr :: GlobalEnv -> Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
 constraintsExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
-    Right ((ty, c), _) -> case runSolve c of
+    Right ((ty, c), _) -> case runSolve env c of
         Left err -> Left err
         Right subst -> Right (c, subst, ty, sc)
           where sc = closeOver $ apply subst ty
@@ -210,8 +210,8 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     normtype t          = t
 
 -- | Run the constraint solver
-runSolve :: [Constraint] -> Either TIError Subst
-runSolve cs = runIdentity . runExceptT $ solver st
+runSolve :: GlobalEnv -> [Constraint] -> Either TIError Subst
+runSolve g cs = runReader (runExceptT $ solver st) g
   where st = (nullSubst, cs)
 
 unifyMany :: [Type] -> [Type] -> Solve Subst
@@ -232,12 +232,22 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
+unifies (TId i) t'                = unifyId i t'
+unifies t' (TId i)                = unifyId i t'
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies t1           t2           = throwError $ makeUnifyError t1 t2
+
+unifyId :: String -> Type -> Solve Subst
+unifyId i t = do
+    env <- asks typeDefCtx
+    case Map.lookup i env of
+        Nothing -> pure nullSubst
+        Just (CustomScheme _ (TAlias x)) -> unifies x t
+        Just _ -> pure nullSubst
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
@@ -310,7 +320,7 @@ handleStatement name (This def)      = do
     case res of
         Left err -> throwError err
         Right ((t,c),_) -> 
-            case runSolve c of
+            case runSolve e c of
                 Left err -> throwError err
                 Right x ->
                     case runHoleInspect x of
@@ -333,7 +343,7 @@ handleStatement name (These def typ) = do
     case res of
         Left err -> throwError err
         Right ((t,c),_) -> 
-            case runSolve ((ti, t):c) of
+            case runSolve e ((ti, t):c) of
                 Left err -> throwError err
                 Right x ->
                     case runHoleInspect x of

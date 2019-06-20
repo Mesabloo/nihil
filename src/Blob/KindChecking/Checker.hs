@@ -64,14 +64,18 @@ makeRedeclaredTypeError id' = text "Type “" <> text id' <> text "” already d
 kiCustomScheme :: CustomScheme -> KI (KindSubst, Kind)
 kiCustomScheme (CustomScheme tvs t) = do
     typeArgs <- Map.fromList <$> mapM (\ v -> (v,) <$> newKindVar "k") tvs
-    s <- local (Map.union typeArgs) $ case t of
-        TSum constrs -> kiConstrs (Map.toList constrs)
-        TProd c s -> kiConstrs [(c, s)]
+    local (Map.union typeArgs) $ case t of
+        TSum constrs -> kiConstrsApply typeArgs (Map.toList constrs)
+        TProd c s -> kiConstrsApply typeArgs [(c, s)]
+        TAlias t -> kiType t
         _ -> undefined
-    let k = foldr KArr KType (fromJust . flip Map.lookup typeArgs <$> tvs)
-    pure (s, applyKind s k)
   where foldConstr (TFun t1 t2) = t1 : foldConstr t2
         foldConstr t = []
+
+        kiConstrsApply typeArgs constrs = do
+            s <- kiConstrs constrs
+            let k = foldr KArr KType (fromJust . flip Map.lookup typeArgs <$> tvs)
+            pure (s, applyKind s k)
 
         kiConstrs [] = pure nullKindSubst
         kiConstrs ((n, Scheme _ c):cs) = do
