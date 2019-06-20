@@ -95,5 +95,5 @@ data Type = TId String            -- Type
           | TApp Type Type        -- Type a...
     deriving (Eq, Ord, Show)
 
-data CustomType = TSum (Map.Map String Scheme) | TProd String Scheme | TAlias Type
+data CustomType = TSum (Map.Map String Scheme) | TAlias Type
     deriving (Eq, Ord, Show)

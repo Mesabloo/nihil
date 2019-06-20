@@ -290,7 +290,6 @@ tiScheme (TP.Scheme tvs t) = Scheme (map TV tvs) (tiType t)
 
 tiCustomType :: TP.CustomType -> CustomType
 tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
-tiCustomType (TP.TProd c s) = TProd c (tiScheme s)
 tiCustomType (TP.TAlias t)  = TAlias (tiType t)
 
 sepStatements :: [Statement] -> Check (UMap.Map String Expr, UMap.Map String TP.Type)

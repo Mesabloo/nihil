@@ -66,7 +66,6 @@ kiCustomScheme (CustomScheme tvs t) = do
     typeArgs <- Map.fromList <$> mapM (\ v -> (v,) <$> newKindVar "k") tvs
     (s,k') <- local (Map.union typeArgs) $ case t of
         TSum constrs -> (,KType) <$> kiConstrs (Map.toList constrs)
-        TProd c s -> (,KType) <$> kiConstrs [(c, s)]
         TAlias t -> kiType t
         _ -> undefined
 

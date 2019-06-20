@@ -33,7 +33,7 @@ pStatement (OpDeclaration name' fix) i =
 pStatement (TypeDeclaration name tvs ct) i      =
     indent i $ case ct of
         (TSum cs)   -> text "SumType" <$$> printDetails name (Map.toList cs)
-        (TProd c s) -> text "ProductType" <$$> printDetails name [(c, s)]
+        (TAlias t)  -> text "Alias { " <> pType t i <> text " }"
   where printDetails name cs         = indent indentLevel (text "Constructors ["
                                             <$$> indent indentLevel (pCtor (head cs) indentLevel <> mconcat (map (\c -> line <> pCtor c indentLevel) (tail cs)))
                                             <$$> text "]")
