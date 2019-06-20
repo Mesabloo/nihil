@@ -62,7 +62,7 @@ inEnv (x, sc) m =
     flip local m $ do
         env <- ask
         let ctx = getMap $ defCtx env
-        pure $ env { defCtx = TypeEnv $ ctx `Map.union` getMap (remove (TypeEnv ctx) x `extend` (x, sc)) }
+        pure $ env { defCtx = TypeEnv $ getMap (remove (TypeEnv ctx) x `extend` (x, sc)) `Map.union` ctx }
 
 inEnvMany :: [(String, Scheme)] -> Infer a -> Infer a
 inEnvMany list m = do
