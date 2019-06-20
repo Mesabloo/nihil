@@ -30,7 +30,7 @@ program = fmap Program $
 
 statement :: Parser Statement
 statement = 
-    nonIndented (operator <|> sumType <|> try declaration <|> definition)
+    nonIndented (operator <|> sumType <|> typeAlias <|> try declaration <|> definition)
         <|> ((lineCmnt <|> blockCmnt) $> Empty)
 
 declaration :: Parser Statement
@@ -91,3 +91,15 @@ sumType = flip (<?>) "sum type" $ do
             case type1 of
                 Nothing -> pure (name', Scheme ts (foldl TApp (TId name) $ map TVar ts))
                 Just cs -> pure (name', Scheme ts (foldr TFun (foldl TApp (TId name) $ map TVar ts) cs))
+
+typeAlias :: Parser Statement
+typeAlias = flip (<?>) "type alias" $ do
+    pos <- indentLevel
+    string "type"
+    pos' <- indentLevel
+    name <- indented pos typeIdentifier
+    ts <- (many . sameOrIndented pos') typeVariable
+    sameOrIndented pos' $ string "="
+    t <- indented pos type'
+
+    pure . TypeDeclaration name ts $ TAlias t

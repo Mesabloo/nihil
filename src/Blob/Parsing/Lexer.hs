@@ -147,7 +147,8 @@ kws =
     , "λ"
     , "match"
     , "with"
-    , "data" ]
+    , "data" 
+    , "type" ]
 
 symbols :: [String] -- list of reserved symbols
 symbols =
