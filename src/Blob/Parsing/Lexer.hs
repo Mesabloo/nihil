@@ -46,14 +46,11 @@ identifier = (lexemeN . try $ p >>= check) <?> "identifier"
               else pure x
 
 typeIdentifier :: Parser String
-typeIdentifier = (lexemeN . try $ p >>= check) <?> "type identifier"
+typeIdentifier = (lexemeN . try $ p) <?> "type identifier"
   where
     p =  (:)
             <$> C.upperChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
-    check x = if x `elem` builtins
-              then fail $ "Cannot alter definition of built-in type “" <> x <> "”."
-              else pure x
 
 typeVariable :: Parser String
 typeVariable = (lexemeN . try $ p >>= check) <?> "type variable"

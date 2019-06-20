@@ -6,7 +6,7 @@ module Blob.Parsing.Parser
 ) where
 
 import Blob.Parsing.Types (Parser, Program(..), Statement(..), Expr(..), Associativity(..), Fixity(..), CustomOperator(..), ParseState(..), Scheme(..), CustomType(..), Type(..))
-import Blob.Parsing.Lexer (lexeme, lexemeN, lineCmnt, blockCmnt, identifier, parens, opSymbol, symbol, integer, keyword, typeIdentifier, string, typeVariable, nonIndented, indented, sameOrIndented, ctorSymbol)
+import Blob.Parsing.Lexer
 import Blob.Parsing.ExprParser (expression)
 import Blob.Parsing.TypeParser (type', atype')
 import Blob.Parsing.Defaults (addOperator)
@@ -76,7 +76,7 @@ sumType = flip (<?>) "sum type" $ do
     pos   <- indentLevel
     string "data"
     pos'  <- indentLevel
-    name  <- indented pos typeIdentifier
+    name  <- indented pos typeIdentifier >>= check
     ts    <- (many . sameOrIndented pos') typeVariable
     sameOrIndented pos' $ string "="
     ctor1 <- lexeme . indented pos $ constructor name ts
@@ -92,14 +92,21 @@ sumType = flip (<?>) "sum type" $ do
                 Nothing -> pure (name', Scheme ts (foldl TApp (TId name) $ map TVar ts))
                 Just cs -> pure (name', Scheme ts (foldr TFun (foldl TApp (TId name) $ map TVar ts) cs))
 
+        check x = if x `elem` builtins
+                  then fail $ "Cannot alter definition of built-in type “" <> x <> "”."
+                  else pure x
+
 typeAlias :: Parser Statement
 typeAlias = flip (<?>) "type alias" $ do
     pos <- indentLevel
     string "type"
     pos' <- indentLevel
-    name <- indented pos typeIdentifier
+    name <- indented pos typeIdentifier >>= check
     ts <- (many . sameOrIndented pos') typeVariable
     sameOrIndented pos' $ string "="
     t <- indented pos type'
 
     pure . TypeDeclaration name ts $ TAlias t
+  where check x = if x `elem` builtins
+                  then fail $ "Cannot alter definition of built-in type “" <> x <> "”."
+                  else pure x
