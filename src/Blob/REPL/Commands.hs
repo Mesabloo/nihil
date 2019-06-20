@@ -209,6 +209,7 @@ evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure ma
 
         makeMatchError :: EvalEnv Value
         makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot
+evaluate EHole = throwError . text $ "Developer error: type checking failed ; unexpected type hole while executing.\nPlease report the issue."
 
 
 levenshtein :: String -> String -> Int

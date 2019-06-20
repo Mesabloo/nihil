@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, TupleSections #-}
+{-# LANGUAGE LambdaCase, TupleSections, BlockArguments #-}
 
 module Blob.TypeChecking.Inference where
 
@@ -26,6 +26,7 @@ import Blob.KindChecking.Checker
 import Blob.KindChecking.Types
 import Data.Align.Key (alignWithKey)
 import Data.Either (fromRight)
+import Data.Maybe (isNothing, catMaybes, fromJust)
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -38,7 +39,7 @@ inferExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
     Right ((ty, c), _) -> case runSolve c of
         Left err -> Left err
-        Right subst -> case runHoleInspect ty subst of
+        Right subst -> case runHoleInspect subst of
             Left err -> Left err
             Right _ -> Right . closeOver $ apply subst ty
 
@@ -101,7 +102,8 @@ infer = \case
     ELit (LChr _) -> pure (TChar, [])
     EHole -> do
         tv <- fresh "h"
-        pure (tv, [])
+        tv' <- fresh "a"
+        pure (tv, [(tv, tv')])
     EId x -> do
         t <- lookupEnv x
         pure (t, [])
@@ -258,20 +260,12 @@ occursCheck a t = a `Set.member` ftv t
 
 
 -- type hole solver
-runHoleInspect :: Type -> Subst -> Either TIError ()
-runHoleInspect t subst = 
-    case t of
-        TVar (TV id') | head id' == 'h' -> do
-            (var,_) <- runIdentity . runExceptT $ evalRWST (fresh "a") initGEnv initInferS
-            throwError $ makeHoleError var
-        _ -> do
-            let map' = Map.filterWithKey (\(TV k) _ -> head k == 'h') subst
-            if null map'
-            then pure ()
-            else throwError $ Map.foldl (\acc type' -> acc <> makeHoleError type') (text "") map'
-  where
-    initGEnv = GlobalEnv { typeDeclCtx = mempty, typeDefCtx = mempty, defCtx = mempty, ctorCtx = mempty }
-    initInferS = InferState { count = 0 }
+runHoleInspect :: Subst -> Either TIError ()
+runHoleInspect subst =
+    let map' = Map.filterWithKey (\(TV k) _ -> head k == 'h') subst
+    in if null map'
+        then pure ()
+        else throwError $ Map.foldl (\acc t -> acc <> makeHoleError t) empty map'
 
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
@@ -319,7 +313,7 @@ handleStatement name (This def)      = do
             case runSolve c of
                 Left err -> throwError err
                 Right x ->
-                    case runHoleInspect t x of
+                    case runHoleInspect x of
                         Left err -> throwError err
                         Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
                                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
@@ -342,7 +336,7 @@ handleStatement name (These def typ) = do
             case runSolve ((ti, t):c) of
                 Left err -> throwError err
                 Right x ->
-                    case runHoleInspect t x of
+                    case runHoleInspect x of
                         Left err -> throwError err
                         Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
                                                                      tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
