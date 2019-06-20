@@ -92,6 +92,7 @@ patTerm =   Wildcard <$  hole
         <|> PChr     <$> char''
         <|> PId      <$> identifier
         <|> PCtor    <$> typeIdentifier <*> many pattern'
+        <|>              try patternTuple
         <|>              patternList
         <|>              patternString
         <|>              parens pattern'
@@ -108,6 +109,12 @@ patTerm =   Wildcard <$  hole
         if null s
         then pure $ PCtor "[]" []
         else pure $ foldr (\c1 cs -> PCtor ":" [PChr c1, cs]) (PCtor "[]" []) s
+
+    patternTuple :: Parser Pattern
+    patternTuple = parens $ do
+        e1 <- pattern'
+        es <- some (string "," *> pattern')
+        pure $ PTuple (e1:es)
 
 patOps :: [[Operator Parser Pattern]]
 patOps = [ [ InfixR $ keySymbol ":" $> \e1 e2 -> PCtor ":" [e1, e2] ] ] -- prec == 5
