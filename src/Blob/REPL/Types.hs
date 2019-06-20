@@ -25,7 +25,6 @@ data Command = GetType String
     deriving (Eq, Ord, Show)
 
 data Value = VInt Integer
-           | VStr String
            | VDec Double
            | VChr Char
            | VVar String
@@ -56,7 +55,6 @@ data EvalState = EvalState { vals :: Scope Value
 
 instance Show Value where
     show (VInt i)     = show i
-    show (VStr s)     = show s
     show (VDec d)     = show d
     show (VChr c)     = show c
     show (VVar s)     = s
@@ -67,7 +65,6 @@ instance Show Value where
 
 instance Eq Value where
     (==) (VInt i) (VInt i')          = i == i'
-    (==) (VStr s) (VStr s')          = s == s'
     (==) (VDec d) (VDec d')          = d == d'
     (==) (VChr v) (VChr v')          = v == v'
     (==) (VLam i e _) (VLam i' e' _) = i == i' && e == e'
@@ -77,7 +74,6 @@ instance Eq Value where
 
 instance Ord Value where
     (<=) (VInt i) (VInt i')          = i <= i'
-    (<=) (VStr s) (VStr s')          = s <= s'
     (<=) (VDec d) (VDec d')          = d <= d'
     (<=) (VChr v) (VChr v')          = v <= v'
     (<=) (VLam i e _) (VLam i' e' _) = i <= i' && e <= e'

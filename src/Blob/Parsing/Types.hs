@@ -37,14 +37,12 @@ data Pattern = Wildcard               -- _
              | PId String             -- a basic value like `a`
              | PInt Integer           -- a basic value like `0`
              | PDec Double            -- a basic value like `0.0`
-             | PStr String            -- a basic value like `"0"`
              | PChr Char              -- a basic value like `'a'`
              | PTuple [Pattern]       -- a basic value like `(a, b)`
              | PCtor String [Pattern] -- a basic value like `Just a`
     deriving (Show, Eq, Ord)
 
-data Literal = LStr String
-             | LInt Integer
+data Literal = LInt Integer
              | LDec Double
              | LChr Char
     deriving (Show, Eq, Ord)

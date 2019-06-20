@@ -9,7 +9,6 @@ import Data.List (intersperse)
 
 pType :: Type -> Doc
 pType (TVar (TV id')) = text id'
-pType TString         = text "String"
 pType TInt            = text "Integer"
 pType TFloat          = text "Float"
 pType TChar           = text "Char"

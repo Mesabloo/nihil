@@ -98,7 +98,6 @@ infer :: Expr -> Infer (Type, [Constraint])
 infer = \case
     ELit (LInt _) -> pure (TInt, [])
     ELit (LDec _) -> pure (TFloat, [])
-    ELit (LStr _) -> pure (TString, [])
     ELit (LChr _) -> pure (TChar, [])
     EHole -> do
         tv <- fresh "h"
@@ -139,7 +138,6 @@ infer = \case
                     t <- fresh "p"
                     pure (t, [], mempty)
                 PInt _ -> pure (TInt, [], mempty)
-                PStr _ -> pure (TString, [], mempty)
                 PDec _ -> pure (TFloat, [], mempty)
                 PChr _ -> pure (TChar, [], mempty)
                 PId id' -> do
@@ -224,8 +222,6 @@ unifyMany t1 t2 = throwError $ foldl (\acc (t1', t2') -> acc <> makeUnifyError t
 
 unifies :: Type -> Type -> Solve Subst
 unifies t1 t2 | t1 == t2          = pure nullSubst
-unifies (TId i) TString | i == "String" = pure nullSubst
-unifies TString (TId i) | i == "String" = pure nullSubst
 unifies (TId i) TInt | i == "Integer" = pure nullSubst
 unifies TInt (TId i) | i == "Integer" = pure nullSubst
 unifies (TId i) TFloat | i == "Double" = pure nullSubst

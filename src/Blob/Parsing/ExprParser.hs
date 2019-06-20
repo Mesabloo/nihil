@@ -33,7 +33,7 @@ term = hole
    <|> ELit . LChr <$> char''
    <|> try tuple
    <|> list
-   <|> ELit . LStr <$> string''
+   <|> string_
    <|> hidden (parens expression)
 
 lambda' :: Parser Expr
@@ -56,6 +56,9 @@ list = lexemeN $
         e1 <- expression
         es <- many (lexeme (string ",") *> expression)
         pure $ foldr (\exp1 exp2 -> EApp (EApp (EId ":") exp1) exp2) (EId "[]") (e1 : es))
+
+string_ :: Parser Expr
+string_ = foldr (\c1 cs -> EApp (EApp (EId ":") (ELit $ LChr c1)) cs) (EId "[]") <$> string''
 
 hole :: Parser Expr
 hole = lexemeN $ do
@@ -86,11 +89,11 @@ patTerm :: Parser Pattern
 patTerm =   Wildcard <$  hole
         <|> PDec     <$> try float
         <|> PInt     <$> integer
-        <|> PStr     <$> string''
         <|> PChr     <$> char''
         <|> PId      <$> identifier
         <|> PCtor    <$> typeIdentifier <*> many pattern'
         <|>              patternList
+        <|>              patternString
         <|>              parens pattern'
   where
     patternList :: Parser Pattern
@@ -98,6 +101,13 @@ patTerm =   Wildcard <$  hole
                 <|> brackets (do { e1 <- pattern'
                                  ; es <- many (string "," *> pattern')
                                  ; pure $ foldr (\exp1 exp2 -> PCtor ":" [exp1, exp2]) (PCtor "[]" []) (e1:es) })
+
+    patternString :: Parser Pattern
+    patternString = do
+        s <- string''
+        if null s
+        then pure $ PCtor "[]" []
+        else pure $ foldr (\c1 cs -> PCtor ":" [PChr c1, cs]) (PCtor "[]" []) s
 
 patOps :: [[Operator Parser Pattern]]
 patOps = [ [ InfixR $ keySymbol ":" $> \e1 e2 -> PCtor ":" [e1, e2] ] ] -- prec == 5

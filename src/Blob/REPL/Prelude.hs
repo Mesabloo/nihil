@@ -99,7 +99,8 @@ defaultTypeDefContext = Map.fromList [ ("[]", CustomScheme ["a"] . TSum $
                                                                  , ("Right", defaultCtorsContext Map.! "Right") ])
                                      , ("Maybe", CustomScheme ["a"] . TSum $
                                                     Map.fromList [ ("Just", defaultCtorsContext Map.! "Just")
-                                                                 , ("Nothing", defaultCtorsContext Map.! "Nothing") ]) ]
+                                                                 , ("Nothing", defaultCtorsContext Map.! "Nothing") ]) 
+                                     , ("String", CustomScheme [] . TAlias $ TApp (TId "[]") TChar) ]
 
 initGlobalEnv :: GlobalEnv
 initGlobalEnv =

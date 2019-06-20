@@ -26,7 +26,7 @@ newtype TVar = TV String
     deriving (Eq, Ord, Show)
 
 data Type = TVar TVar
-          | TInt | TString | TFloat | TChar
+          | TInt | TFloat | TChar
           | TFun Type Type
           | TTuple [Type]
           | TApp Type Type

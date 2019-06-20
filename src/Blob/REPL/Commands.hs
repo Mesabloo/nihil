@@ -170,7 +170,6 @@ exitCommand =
 
 evaluate :: Expr -> EvalEnv Value
 evaluate (ELit (LInt v))    = pure $ VInt v
-evaluate (ELit (LStr v))    = pure $ VStr v
 evaluate (ELit (LDec v))    = pure $ VDec v
 evaluate (ELit (LChr v))    = pure $ VChr v
 evaluate (EId id')          = do
@@ -200,7 +199,6 @@ evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure ma
         unpackPattern = curry $ \case
             (_, Wildcard)               -> pure mempty
             (VInt n, PInt n') | n == n' -> pure mempty
-            (VStr s, PStr s') | s == s' -> pure mempty
             (VDec d, PDec d') | d == d' -> pure mempty
             (v, PId id')                -> pure $ Map.singleton id' v
             (VCon id' v, PCtor id'' v')

@@ -53,7 +53,6 @@ pExpression :: Expr -> Int -> Doc
 pExpression expr i = case expr of
     EHole            -> text "_"
     EId str          -> text str
-    ELit (LStr str)  -> text $ show str
     ELit (LInt int') -> text $ show int'
     ELit (LDec dec') -> text $ show dec'
     ELit (LChr chr)  -> text $ show chr
@@ -67,7 +66,6 @@ pPattern p i = case p of
     Wildcard   -> text "_"
     PInt i     -> text $ show i
     PDec d     -> text $ show d
-    PStr s     -> text $ show s
     PChr c     -> text $ show c
     PId i      -> text i
     PTuple e   -> parens $ mconcat (intersperse (text ", ") (map (`pPattern` i) e))

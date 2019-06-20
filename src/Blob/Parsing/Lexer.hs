@@ -46,10 +46,14 @@ identifier = (lexemeN . try $ p >>= check) <?> "identifier"
               else pure x
 
 typeIdentifier :: Parser String
-typeIdentifier = lexemeN $ do
-    first <- C.upperChar
-    second <- many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
-    pure $ first:second
+typeIdentifier = (lexemeN . try $ p >>= check) <?> "type identifier"
+  where
+    p =  (:)
+            <$> C.lowerChar
+            <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
+    check x = if x `elem` builtins
+              then fail $ "Cannot alter definition of built-in type “" <> x <> "”."
+              else pure x
 
 typeVariable :: Parser String
 typeVariable = (lexemeN . try $ p >>= check) <?> "type variable"
@@ -157,3 +161,9 @@ symbols =
         , "\\"
         , "="
         , "::" , "∷" ]
+
+builtins :: [String]
+builtins =
+    [ "Char"
+    , "Integer"
+    , "Float" ]
