@@ -49,7 +49,7 @@ typeIdentifier :: Parser String
 typeIdentifier = (lexemeN . try $ p >>= check) <?> "type identifier"
   where
     p =  (:)
-            <$> C.lowerChar
+            <$> C.upperChar
             <*> many (C.alphaNumChar <|> C.digitChar <|> oneOf ("'_" :: String))
     check x = if x `elem` builtins
               then fail $ "Cannot alter definition of built-in type “" <> x <> "”."
