@@ -79,21 +79,27 @@ defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
                                       , ("String",  KType)
                                       , ("Char",    KType)
                                       , ("[]",      KType `KArr` KType)
-                                      , ("Either",  KType `KArr` KType `KArr` KType) ]
+                                      , ("Either",  KType `KArr` KType `KArr` KType)
+                                      , ("Maybe",   KType `KArr` KType) ]
 
 defaultCtorsContext :: Map.Map String Scheme
 defaultCtorsContext = Map.fromList [ (":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TApp (TId "[]") $ TVar $ TV "a") (TApp (TId "[]") . TVar $ TV "a")))
                                    , ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
                                    , ("Left", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "a") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
-                                   , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b"))) ]
+                                   , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
+                                   , ("Just", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TApp (TId "Maybe") (TVar $ TV "a")))
+                                   , ("Nothing", Scheme [TV "a"] $ TApp (TId "Maybe") (TVar $ TV "a")) ]
 
 defaultTypeDefContext :: Map.Map String CustomScheme
 defaultTypeDefContext = Map.fromList [ ("[]", CustomScheme ["a"] . TSum $
-                                                    Map.fromList [ ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
-                                                                 , ( ":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TApp (TId "[]") (TVar $ TV "a"))) ])
+                                                    Map.fromList [ ("[]", defaultCtorsContext Map.! "[]")
+                                                                 , ( ":", defaultCtorsContext Map.! ":") ])
                                      , ("Either", CustomScheme ["a", "b"] . TSum $
-                                                    Map.fromList [ ("Left", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "a") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
-                                                                 , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b"))) ]) ]
+                                                    Map.fromList [ ("Left", defaultCtorsContext Map.! "Left")
+                                                                 , ("Right", defaultCtorsContext Map.! "Right") ])
+                                     , ("Maybe", CustomScheme ["a"] . TSum $
+                                                    Map.fromList [ ("Just", defaultCtorsContext Map.! "Just")
+                                                                 , ("Nothing", defaultCtorsContext Map.! "Nothing") ]) ]
 
 initGlobalEnv :: GlobalEnv
 initGlobalEnv =
