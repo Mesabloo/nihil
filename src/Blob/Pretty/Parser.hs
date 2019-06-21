@@ -67,7 +67,7 @@ pExpression (EMatch toMatch cases) =
     let printCase (pat, expr) = pPattern pat <+> text "→" <+> pExpression expr
         printCases c = mconcat $ map (flip (<>) linebreak . printCase) c
     in text "Match" <+> pExpression toMatch <+> text "=" <$$> indent indentLevel (printCases cases)
-pExpression (EApp e1 e2) = parenthesizeIfNeeded e1 <+> parenthesizeIfNeeded e2
+pExpression (EApp e1 e2) = pExpression e1 <+> parenthesizeIfNeeded e2
   where parenthesizeIfNeeded e@(EApp _ _) = parens $ pExpression e
         parenthesizeIfNeeded e@(EMatch _ _) = parens $ pExpression e
         parenthesizeIfNeeded p = pExpression p
@@ -91,7 +91,7 @@ pType = \case
     TId i -> text i
     TVar tv -> text tv
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
-    TApp t1 t2 -> parenthesizeIfNeeded t1 <+> parenthesizeIfNeeded t2
+    TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
     TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "→{?}" <+> parenthesizeIfNeededF t2
     TArrow n t1 t2 -> parenthesizeIfNeededF t1 <+> text "→{" <> pExpression n <> text "}" <+> parenthesizeIfNeededF t2
   where parenthesizeIfNeeded t = case t of

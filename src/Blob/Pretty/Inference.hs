@@ -18,7 +18,7 @@ pType = \case
     TChar -> text "Char"
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
     TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "→" <+> parenthesizeIfNeededF t2
-    TApp t1 t2 -> parenthesizeIfNeeded t1 <+> parenthesizeIfNeeded t2
+    TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
   where parenthesizeIfNeeded t = case t of
             TFun _ _ -> parens $ pType t
             TApp _ _ -> parens $ pType t
