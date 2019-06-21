@@ -58,7 +58,7 @@ instance Show Value where
     show (VDec d)     = show d
     show (VChr c)     = show c
     show (VVar s)     = s
-    show (VLam i e _) = "(λ " <> i <> " → " <> show (pExpression e 0) <> ")"
+    show (VLam i e _) = "(λ " <> i <> " → " <> show (pExpression e) <> ")"
     show (VTuple es)  = "(" <> intercalate ", " (map show es) <> ")"
     show (HLam _)     = "HLam _"
     show (VCon id' e) = "(" <> id' <> foldl (\acc t -> acc <> " " <> show t) "" e <> ")"

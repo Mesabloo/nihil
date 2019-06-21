@@ -27,7 +27,7 @@ type' = lexemeN $ do
 
     case multipleIds of
         Nothing                      -> pure firstId
-        Just (Nothing, type'')       -> TArrow (ELit . LInt $ -1) firstId <$> type''
+        Just (Nothing, type'')       -> TFun firstId <$> type''
         Just (Just counter', type'') -> TArrow counter' firstId <$> type''
 
 btype' :: Parser Type

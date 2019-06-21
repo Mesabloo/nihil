@@ -139,7 +139,7 @@ replCheck = \case
                 let t = inferExpr (ctx st) e
                 case t of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right (Scheme _ type') -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e (0 :: Int))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
+                    Right (Scheme _ type') -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
 
     GetKind typeExpr    -> do
         st <- lift get
@@ -199,7 +199,7 @@ replCheck = \case
 
         case res of
             Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right s  -> liftIO . print $ pStatement s 0
+            Right s  -> liftIO . print $ pStatement s
     Time expr          -> do
         st <- lift get
         let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
