@@ -241,7 +241,7 @@ unifyId :: String -> Type -> Solve Subst
 unifyId i t = do
     env <- asks typeDefCtx
     case Map.lookup i env of
-        Nothing -> pure nullSubst
+        Nothing -> throwError $ makeUnifyError (TId i) t
         Just (CustomScheme _ (TAlias x)) -> unifies x t
         Just _ -> pure nullSubst
 
