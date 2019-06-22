@@ -228,22 +228,26 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
-unifies (TId i) t'                = unifyId i t'
-unifies t' (TId i)                = unifyId i t'
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies a@(TApp _ _) t = unifyCustom a t
+unifies t a@(TApp _ _) = unifyCustom a t
 unifies t1           t2           = throwError $ makeUnifyError t1 t2
 
-unifyId :: String -> Type -> Solve Subst
-unifyId i t = do
-    env <- asks typeDefCtx
-    case Map.lookup i env of
-        Nothing -> throwError $ makeUnifyError (TId i) t
-        Just (CustomScheme _ (TAlias x)) -> unifies x t
-        Just _ -> pure nullSubst
+unifyCustom :: Type -> Type -> Solve Subst
+unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
+  where go (TApp t1' t2') args = go t1' (t2':args)
+        go (TId i) args = asks (Map.lookup i . typeDefCtx) >>= \case
+            Just (CustomScheme tvs (TAlias t)) ->
+                let sub = Map.fromList (zipWith (\k v -> (TV k, v)) tvs args)
+                in unifies (apply sub t) t3
+            Just _ -> throwError $ makeUnifyError a t3
+            Nothing -> undefined -- case handled by kind checking
+        go t args = undefined -- incorrectly kinded applications are reported by kind checking
+unifyCustom _ _ = undefined -- never happening
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
