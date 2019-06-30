@@ -6,9 +6,9 @@ import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec.Pos (Pos, unPos)
-import Blob.Parsing.Types (Parser, ParseState(..))
+import Blob.Parsing.Types (Parser)
 import Data.Text (Text, pack, unpack)
-import Control.Monad.State (get, lift, modify, gets)
+import Control.Monad.State (get, lift, modify, gets, void)
 import Data.Functor (($>))
 
 lexeme :: Parser a -> Parser a
@@ -33,7 +33,7 @@ blockCmnt :: Parser ()
 blockCmnt = lexeme . hidden $ L.skipBlockComment (pack "{-") (pack "-}")
 
 space1' :: Parser ()
-space1' = skipSome C.spaceChar
+space1' = void . skipSome $ oneOf (" \t" :: String)
 
 identifier :: Parser String
 identifier = (lexemeN . try $ p >>= check) <?> "identifier"
@@ -98,11 +98,6 @@ char'' = lexemeN $ between (C.char '\'') (C.char '\'') L.charLiteral
 keyword :: Text -> Parser ()
 keyword kw = lexemeN (string' kw *> notFollowedBy C.alphaNumChar) <?> show kw
 
-keySymbol :: Text -> Parser()
-keySymbol ks = try (opSymbol >>= check . pack) <?> "operator " <> unpack ks
-  where check x | x == ks   = pure ()
-                | otherwise = empty
-
 opSymbol :: Parser String
 opSymbol = (lexemeN . try) (some p <* notFollowedBy p) >>= check <?> "operator"
   where check x | x `elem` symbols = fail $ "Already existing operator “" <> x <> "”"
@@ -133,16 +128,23 @@ indented pos parser = do { indentGuard GT pos ; parser }
 same :: Pos -> Parser a -> Parser a
 same pos parser = do { indentGuard EQ pos ; parser }
 
+less :: Pos -> Parser a -> Parser a
+less pos parser = do { indentGuard LT pos ; parser }
+
 sameOrIndented :: Pos -> Parser a -> Parser a
 sameOrIndented pos parser = try (indented pos parser) <|> same pos parser
+
+sameOrLess :: Pos -> Parser a -> Parser a
+sameOrLess pos parser = try (less pos parser) <|> same pos parser
+
+parseEither :: Parser a -> Parser b -> Parser (Either a b)
+parseEither p1 p2 = Left <$> p1 <|> Right <$> p2
 
 ---------------------------------------------------------------------------------------------------------
 
 kws :: [String] -- list of reserved words
 kws =
-    [ "prefix"
-    , "postfix"
-    , "infix"
+    [ "infix"
     , "infixl"
     , "infixr"
     , "λ"
@@ -163,4 +165,4 @@ builtins :: [String]
 builtins =
     [ "Char"
     , "Integer"
-    , "Float" ]
+    , "Double" ]
