@@ -8,8 +8,8 @@ import Control.Monad.State
 import qualified Data.Set as Set
 import Blob.TypeChecking.Errors
 import qualified Data.Map as Map
-import Blob.Parsing.Types hiding (Type(..), Scheme, CustomType(..))
-import qualified Blob.Parsing.Types as TP (Type(..), Scheme(..), CustomType(..))
+import Blob.Desugaring.Types hiding (Type(..), Scheme, CustomType(..))
+import qualified Blob.Desugaring.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad.RWS
 import Control.Monad.Identity
 import Data.List (nub)
@@ -27,6 +27,7 @@ import Blob.KindChecking.Types
 import Data.Align.Key (alignWithKey)
 import Data.Either (fromRight)
 import Data.Maybe (isNothing, catMaybes, fromJust)
+import Blob.Parsing.Annotation
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -34,7 +35,7 @@ runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
   where initInfer = InferState { count = 0 }
 
 -- | Solve for the toplevel type of an expression in a given environment
-inferExpr :: GlobalEnv -> Expr -> Either TIError Scheme
+inferExpr :: GlobalEnv -> Annotated Expr -> Either TIError Scheme
 inferExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
     Right ((ty, c), _) -> case runSolve env c of
@@ -44,7 +45,7 @@ inferExpr env ex = case runInfer env (infer ex) of
             Right _ -> Right . closeOver $ apply subst ty
 
 -- | Return the internal constraints used in solving for the type of an expression
-constraintsExpr :: GlobalEnv -> Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
+constraintsExpr :: GlobalEnv -> Annotated Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
 constraintsExpr env ex = case runInfer env (infer ex) of
     Left err -> Left err
     Right ((ty, c), _) -> case runSolve env c of
@@ -94,8 +95,8 @@ generalize :: TypeEnv -> Type -> Scheme
 generalize env t  = Scheme as t
     where as = Set.toList $ ftv t `Set.difference` ftv env
 
-infer :: Expr -> Infer (Type, [Constraint])
-infer = \case
+infer :: Annotated Expr -> Infer (Type, [Constraint])
+infer (e :- _) = case e of
     ELit (LInt _) -> pure (TInt, [])
     ELit (LDec _) -> pure (TFloat, [])
     ELit (LChr _) -> pure (TChar, [])
@@ -106,9 +107,9 @@ infer = \case
     EId x -> do
         t <- lookupEnv x
         pure (t, [])
-    ELam x e -> do
+    ELam x e' -> do
         tv <- fresh "a"
-        (t, c) <- inEnv (x, Scheme [] tv) (infer e)
+        (t, c) <- inEnv (x, Scheme [] tv) (infer e')
         pure (tv `TFun` t, c)
     EApp e1 e2 -> do
         (t1, c1) <- infer e1
@@ -132,8 +133,8 @@ infer = \case
             cons = mconcat (map snd xs)
 
         pure (ret, types2 <> cons <> types <> mconcat patsCons <> tCon)
-      where inferPattern :: Pattern -> Infer (Type, [Constraint], Map.Map String Scheme)
-            inferPattern = \case
+      where inferPattern :: Annotated Pattern -> Infer (Type, [Constraint], Map.Map String Scheme)
+            inferPattern (p :- _) = case p of
                 Wildcard -> do
                     t <- fresh "p"
                     pure (t, [], mempty)
@@ -177,7 +178,7 @@ infer = \case
             zipFrom = zip . repeat
             
 
-inferTop :: GlobalEnv -> [(String, Expr)] -> Either TIError GlobalEnv
+inferTop :: GlobalEnv -> [(String, Annotated Expr)] -> Either TIError GlobalEnv
 inferTop env [] = Right env
 inferTop env ((name, ex):xs) = case inferExpr env ex of
     Left err -> Left err
@@ -281,22 +282,22 @@ runHoleInspect subst =
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
 
-tiType :: TP.Type -> Type
-tiType (TP.TId id')        = TId id'
-tiType (TP.TArrow _ t1 t2) = TFun (tiType t1) (tiType t2)
-tiType (TP.TFun t1 t2)     = TFun (tiType t1) (tiType t2)
-tiType (TP.TTuple ts)      = TTuple (map tiType ts)
-tiType (TP.TVar id')       = TVar (TV id')
-tiType (TP.TApp t1 t2)     = TApp (tiType t1) (tiType t2)
+tiType :: Annotated TP.Type -> Type
+tiType (TP.TId id' :- _)        = TId id'
+tiType (TP.TArrow _ t1 t2 :- _) = TFun (tiType t1) (tiType t2)
+tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
+tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
+tiType (TP.TVar id' :- _)       = TVar (TV id')
+tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
 
 tiScheme :: TP.Scheme -> Scheme
 tiScheme (TP.Scheme tvs t) = Scheme (map TV tvs) (tiType t)
 
-tiCustomType :: TP.CustomType -> CustomType
-tiCustomType (TP.TSum cs)   = TSum (fmap tiScheme cs)
-tiCustomType (TP.TAlias t)  = TAlias (tiType t)
+tiCustomType :: Annotated TP.CustomType -> CustomType
+tiCustomType (TP.TSum cs :- _)   = TSum (fmap tiScheme cs)
+tiCustomType (TP.TAlias t :- _)  = TAlias (tiType t)
 
-sepStatements :: [Statement] -> Check (UMap.Map String Expr, UMap.Map String TP.Type)
+sepStatements :: [Statement] -> Check (UMap.Map String (Annotated Expr), UMap.Map String (Annotated TP.Type))
 sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError mempty) (foldDecls makeRedefinedError mempty) . separateDecls
   where
     separateDecls []                              = mempty
@@ -310,7 +311,7 @@ sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError memp
                                         Nothing -> flip (foldDecls err) ts $ UMap.insert id' t m
                                         Just _ -> throwError $ err id'      
 
-handleStatement :: String -> These Expr TP.Type -> Check ()
+handleStatement :: String -> These (Annotated Expr) (Annotated TP.Type) -> Check ()
 handleStatement name (This def)      = do
     e <- get
     let res = runInfer e $ do { var <- fresh "a"
@@ -369,16 +370,16 @@ analyseTypeDecl k v = do
                        , ctorCtx     = let (TypeEnv env) = ctorCtx st
                                        in TypeEnv (schemes `Map.union` env) }
 
-tiProgram :: Program -> Check ()
-tiProgram (Program stmts) = do
+tiProgram :: Annotated Program -> Check ()
+tiProgram (Program stmts :- _) = do
     remaining <- sepTypeDecls stmts
     stts      <- sepStatements remaining
     sequence_ $ uncurry (alignWithKey handleStatement) stts
   where sepTypeDecls [] = pure []
-        sepTypeDecls (TypeDeclaration k tvs t:ss) = do
+        sepTypeDecls ((TypeDeclaration k tvs t :- _):ss) = do
             analyseTypeDecl k (CustomScheme tvs (tiCustomType t))
             sepTypeDecls ss
-        sepTypeDecls (s:ss) = (s:) <$> sepTypeDecls ss
+        sepTypeDecls ((s :- _):ss) = (s:) <$> sepTypeDecls ss
 
 programTypeInference :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
 programTypeInference g p = runExcept (runStateT p g)
