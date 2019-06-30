@@ -112,9 +112,6 @@ replCheck = \case
                     case res1 of
                         Left err            -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                         Right (ast, state') -> do
-
-                            liftIO $ putStr $ show (pProgram (getAnnotated ast))
-
                             lift . modify $ \ st -> st { op = state' }
 
                             case programTypeInference (ctx st'') (tiProgram ast) of
