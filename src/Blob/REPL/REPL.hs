@@ -10,18 +10,19 @@ import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
-import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), Value(..), EvalState(..))
+import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..))
+import Blob.Interpreter.Types (Value(..), EvalState(..))
 import Blob.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
-import Blob.Parsing.Types (Program(..), Statement(..), ParseState(..))
-import Blob.Parsing.Defaults (initParseState)
-import Blob.REPL.Prelude (defaultEnv, initGlobalEnv, initEvalState)
-import Blob.REPL.Commands (command, helpCommand, exitCommand, evaluate)
-import Blob.Parsing.Parser (program, statement)
-import Blob.Parsing.ExprParser (expression)
+import Blob.Desugaring.Types (Program(..), Statement(..), SugarState(..))
+import Blob.Prelude (defaultEnv, initGlobalEnv, initEvalState)
+import Blob.Interpreter.Eval (evaluate)
+import Blob.REPL.Commands (command, helpCommand, exitCommand)
+import Blob.Parsing.Parser (parseProgram, parseStatement)
+import Blob.Parsing.ExprParser (parseExpression)
 import Blob.Parsing.TypeParser (type')
 import Blob.TypeChecking.Inference
 import Blob.KindChecking.Checker (kiType, checkKI, kindInference)
-import Blob.Pretty.Parser (pExpression, pStatement)
+import Blob.Pretty.Parser (pExpression, pStatement, pProgram)
 import Blob.Pretty.Inference (pType, pKind)
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -44,6 +45,9 @@ import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
 import System.IO.Unsafe (unsafePerformIO)
 import Text.PrettyPrint.Leijen (text, (<$$>), empty)
+import Blob.Desugaring.Defaults
+import Blob.Desugaring.Desugarer
+import Blob.Parsing.Annotation
 
 runREPL :: REPL a -> IO ()
 runREPL r = do
@@ -56,10 +60,9 @@ runREPL r = do
 
     handleInterrupt exitCommand . void $ runExceptT (evalStateT (runInputT defaultSettings (withInterrupt r)) initREPLState)
   where initREPLState = REPLState { ctx = initGlobalEnv
-                                  , op = initParseState
                                   , values = initEvalState
-                                  
-                                  , lastExecTime = 0.0 }
+                                  , lastExecTime = 0.0
+                                  , op = initSugarState }
 
 replLoop :: REPL ()
 replLoop = forever $ do
@@ -79,14 +82,11 @@ replLoop = forever $ do
         Nothing     -> liftIO $ putStr ""
         Just input' -> do
             env <- lift get
-            let res = runParser (runStateT command (op env)) "" (Text.pack input')
+            let res = runParser command "" (Text.pack input')
 
             case res of
-                Left err               -> liftIO $ replSetColor Vivid Red >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err) >> setSGR [Reset] >> hFlush stdout
-                Right (output, state') -> do
-                    lift . modify $ \st -> st { op = state' }
-
-                    replCheck output
+                Left err     -> liftIO $ replSetColor Vivid Red >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err) >> setSGR [Reset] >> hFlush stdout
+                Right output -> replCheck output
     
 replCheck :: Command -> REPL ()
 replCheck = \case
@@ -94,7 +94,6 @@ replCheck = \case
     Exit                -> liftIO exitCommand
     Reload              ->
         lift . modify $ \st -> st { ctx = initGlobalEnv
-                                    , op = initParseState
                                     , values = initEvalState }
     Load file           -> do
         fileExists <- liftIO     $ doesFileExist file
@@ -102,146 +101,187 @@ replCheck = \case
         then do
             content <- liftIO $ Text.readFile file
             st''    <- lift get
-            let res = runParser (runStateT program (op st'')) file content
+            let res = runParser parseProgram file content
             
             case res of
-                Left err                           -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-                Right (ast@(Program stmts), state) -> do
-                    lift . modify $ \st -> st { op = ParseState { operators = operators state
-                                                        , currentIndent = mkPos 1 } }
+                Left err        -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+                Right parseTree -> do
+                    let state' = op st''
+                    let res1 = runSugar (runDesugarer file (parseTree :- Nothing)) state'
 
-                    case programTypeInference (ctx st'') (tiProgram ast) of
-                        Left err          -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                        Right (_, state') -> do
-                            lift . modify $ \st' -> st' { ctx = state' }
+                    case res1 of
+                        Left err            -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                        Right (ast, state') -> do
 
-                            mapM_ (\case
-                                Definition id' expr -> do
-                                    st'' <- lift get
-                                    eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st'')
+                            liftIO $ putStr $ show (pProgram (getAnnotated ast))
 
-                                    case eval' of
-                                        Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                        Right evalRes -> lift . modify $ \st' -> st' { values = let env  = values st'
-                                                                                                in env { vals = Map.insert id' evalRes (vals env) } }
-                                _                   -> liftIO $ putStr ""
-                                ) stmts
+                            lift . modify $ \ st -> st { op = state' }
+
+                            case programTypeInference (ctx st'') (tiProgram ast) of
+                                Left err          -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                Right (_, state') -> do
+                                    lift . modify $ \st' -> st' { ctx = state' }
+
+                                    let (Program stmts) = getAnnotated ast
+
+                                    mapM_ (\case
+                                        Definition id' expr :- _ -> do
+                                            st'' <- lift get
+                                            eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st'')
+
+                                            case eval' of
+                                                Left err      -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                                Right evalRes -> lift . modify $ \st' -> st' { values = let env  = values st'
+                                                                                                        in env { vals = Map.insert id' evalRes (vals env) } }
+                                        _                   -> liftIO $ putStr ""
+                                        ) stmts
         else
             liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" <> file <> "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
     GetType expr        -> do
         st <- lift get
         let (TypeEnv env) = defCtx $ ctx st
-            res           = runParser (evalStateT (expression <* eof) (op st)) "interactive" (Text.pack expr)
+            res           = runParser (parseExpression <* eof) "interactive" (Text.pack expr)
 
         case res of
             Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right e   -> do
-                let t = inferExpr (ctx st) e
-                case t of
+                let res1 = runSugar (do { accumulateOnExpression e
+                                        ; desugarExpression "interactive" e } ) (op st)
+                case res1 of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right (Scheme _ type') -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType type') >> setSGR [Reset] >> hFlush stdout
+                    Right (e, _) -> do
+                        let t = inferExpr (ctx st) e
+                        case t of
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right (Scheme _ type') -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pExpression e)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pType (type' :- Nothing)) >> setSGR [Reset] >> hFlush stdout
 
     GetKind typeExpr    -> do
         st <- lift get
         let env = typeDeclCtx $ ctx st
-            res = tiType <$> runParser (evalStateT (type' <* eof) (op st)) "interactive" (Text.pack typeExpr)
+            res = runParser (type' <* eof) "interactive" (Text.pack typeExpr)
 
         case res of
             Left err  -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
             Right t   -> do
-                let k = runExcept (evalStateT (checkKI $ kindInference env t) (ctx st))
-                case k of
-                    Left err   -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right kind -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pType t)) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pKind kind) >> setSGR [Reset] >> hFlush stdout
+                let res1 = runSugar (desugarType "interactive" t) (op st)
+                case res1 of
+                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                    Right (t, _) -> do
+                        let t1 = tiType t
+                        let k = runExcept (evalStateT (checkKI $ kindInference env t1) (ctx st))
+                        case k of
+                            Left err   -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right kind -> liftIO $ replSetColor Vivid Yellow >> putStr (show (pType (t1 :- Nothing))) >> setSGR [Reset] >> putStr " :: " >> replSetColor Vivid Cyan >> print (pKind kind) >> setSGR [Reset] >> hFlush stdout
         
     Code stat           -> do
         st <- lift get
-        let res = runParser (runStateT (((Right <$> try (expression <* eof)) <|> (Left <$> statement)) <* eof) (op st)) "interactive" (Text.pack stat)
+        let res = runParser (((Right <$> try (parseExpression <* eof)) <|> (Left <$> parseStatement)) <* eof) "interactive" (Text.pack stat)
         
         case res of
             Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right (s, state) -> do
-                lift . modify $ \st -> st { op = ParseState { operators = operators state
-                                                    , currentIndent = mkPos 1 } }
-
+            Right s ->
                 case s of
                     Right e -> do
+                        let env = defCtx $ ctx st
+
+                        let res1 = runSugar ( do { accumulateOnExpression e
+                                                 ; desugarExpression "interactive" e } ) (op st)
+                        case res1 of
+                            Left err -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                            Right (e, _) -> do
+                                let t   = inferExpr (ctx st) e
+                                case t of
+                                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                    Right _ -> do
+                                        res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
+                                        case res of
+                                            Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                                            Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+
+                    Left s  -> do
+                        let res1 = runSugar (runDesugarer "interactive" ([s] :- Nothing)) (op st)
+                        case res1 of
+                            Left err -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                            Right (s'@(Program [s] :- _), state') -> do
+                                lift . modify $ \st -> st { op = state' }
+
+                                case programTypeInference (ctx st) (tiProgram s') of
+                                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                    Right (_, state') -> do
+                                        lift . modify $ \st' -> st' { ctx = state' }
+
+                                        case s of
+                                            Definition id' expr :- _ -> do
+                                                st'   <- lift get
+                                                eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st')
+
+                                                case eval' of
+                                                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                                                    Right evalRes -> lift . modify $ \st' -> st' { values = let env = values st'
+                                                                                                            in env { vals = Map.insert id' evalRes (vals env) }}
+                                            _                   -> pure ()
+
+                                        liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
+                            _ -> pure ()
+    Ast ast            -> do
+        st <- lift get
+        let res = runParser (parseStatement <* eof) "interactive" (Text.pack ast)
+
+        case res of
+            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right s  -> liftIO $ print s
+    Time expr          -> do
+        st <- lift get
+        let e = runParser (try parseExpression <* eof) "interactive" (Text.pack expr)
+        case e of
+            Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
+            Right e -> do
+                let res1 = runSugar ( do { accumulateOnExpression e
+                                         ; desugarExpression "interactive" e } ) (op st)
+                case res1 of
+                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                    Right (e, _) -> do
                         let env = defCtx $ ctx st
                             t   = inferExpr (ctx st) e
                         case t of
                             Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                             Right _ -> do
-                                res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
-                                case res of
-                                    Left err      -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
-                                    Right evalRes -> liftIO $ replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
+                                (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (values st)
+                                liftIO $ case res of
+                                    Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                                    Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
 
-                    Left s  -> case programTypeInference (ctx st) (tiProgram $ Program [s]) of
-                        Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                        Right (_, state') -> do
-                            lift . modify $ \st' -> st' { ctx = state' }
-
-                            case s of
-                                Definition id' expr -> do
-                                    st'   <- lift get
-                                    eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st')
-
-                                    case eval' of
-                                        Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                                        Right evalRes -> lift . modify $ \st' -> st' { values = let env = values st'
-                                                                                                in env { vals = Map.insert id' evalRes (vals env) }}
-                                _                   -> pure ()
-
-                            liftIO $ replSetColor Dull Green >> putStr "" >> setSGR [Reset] >> hFlush stdout
-    Ast ast            -> do
-        st <- lift get
-        let res = runParser (evalStateT (statement <* eof) (op st)) "interactive" (Text.pack ast)
-
-        case res of
-            Left err -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right s  -> liftIO . print $ pStatement s
-    Time expr          -> do
-        st <- lift get
-        let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
-        case e of
-            Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right (e, _) -> do
-                let env = defCtx $ ctx st
-                    t   = inferExpr (ctx st) e
-                case t of
-                    Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right _ -> do
-                        (t, res) <- liftIO . time $ runExceptT $ runReaderT (evaluate e) (values st)
-                        liftIO $ case res of
-                            Left err      -> replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
-                            Right evalRes -> replSetColor Vivid Cyan >> print evalRes >> setSGR [Reset] >> hFlush stdout
-
-                        lift . modify $ \st -> st { lastExecTime = t }
+                                lift . modify $ \st -> st { lastExecTime = t }
     Bench n expr       -> do
         st <- lift get
 
-        let e = runParser (runStateT (try expression <* eof) (op st)) "interactive" (Text.pack expr)
+        let e = runParser (try parseExpression <* eof) "interactive" (Text.pack expr)
         case e of
             Left err     -> liftIO $ replSetColor Vivid Red >> putStr (errorBundlePretty err) >> setSGR [Reset] >> hFlush stdout
-            Right (e, _) -> do
-                let env = defCtx $ ctx st
-                    t   = inferExpr (ctx st) e
-                case t of
+            Right e -> do
+                let res1 = runSugar ( do { accumulateOnExpression e
+                                         ; desugarExpression "interactive" e } ) (op st)
+                case res1 of
                     Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    Right _ -> do
-                        t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
+                    Right (e, _) -> do
+                        let env = defCtx $ ctx st
+                            t   = inferExpr (ctx st) e
+                        case t of
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
+                            Right _ -> do
+                                t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
 
-                        let t   = map (uncurry const) t'
-                            min = minimum t
-                            max = maximum t
-                            avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
-                            tot = List.foldl' (+) 0.0 t
+                                let t   = map (uncurry const) t'
+                                    min = minimum t
+                                    max = maximum t
+                                    avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
+                                    tot = List.foldl' (+) 0.0 t
 
-                        liftIO . putStrLn $ "Results for " <> show n <> " runs:"
-                        liftIO . putStrLn $ "- Minimum: " <> secs min
-                        liftIO . putStrLn $ "- Maximum: " <> secs max
-                        liftIO . putStrLn $ "- Average: " <> secs avg
-                        liftIO . putStrLn $ "-   Total: " <> secs tot
+                                liftIO . putStrLn $ "Results for " <> show n <> " runs:"
+                                liftIO . putStrLn $ "- Minimum: " <> secs min
+                                liftIO . putStrLn $ "- Maximum: " <> secs max
+                                liftIO . putStrLn $ "- Average: " <> secs avg
+                                liftIO . putStrLn $ "-   Total: " <> secs tot
     Env                -> do
         st  <- lift (gets ctx)
         let (t:types)                = Map.toList $ typeDeclCtx st
@@ -254,8 +294,8 @@ replCheck = \case
                                             types
 
             functions                = foldl
-                                            (\acc (k, Scheme _ v) -> acc <$$> text "  " <> text k <> text " :: " <> pType v)
-                                            (text "  " <> text id <> text " :: " <> pType f)
+                                            (\acc (k, Scheme _ v) -> acc <$$> text "  " <> text k <> text " :: " <> pType (v :- Nothing))
+                                            (text "  " <> text id <> text " :: " <> pType (f :- Nothing))
                                             funs'
 
         liftIO . putStrLn $
