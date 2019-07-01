@@ -184,7 +184,7 @@ replCheck = \case
                         let res1 = runSugar ( do { accumulateOnExpression e
                                                  ; desugarExpression "interactive" e } ) (op st)
                         case res1 of
-                            Left err -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                             Right (e, _) -> do
                                 let t   = inferExpr (ctx st) e
                                 case t of
@@ -198,7 +198,7 @@ replCheck = \case
                     Left s  -> do
                         let res1 = runSugar (runDesugarer "interactive" ([s] :- Nothing)) (op st)
                         case res1 of
-                            Left err -> liftIO $ replSetColor Vivid Red >> print err >> setSGR [Reset] >> hFlush stdout
+                            Left err -> liftIO $ replSetColor Vivid Red >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
                             Right (s'@(Program [s] :- _), state') -> do
                                 lift . modify $ \st -> st { op = state' }
 
