@@ -32,7 +32,7 @@ exprNoApp = do
     a <- hole
         <|> lambda'
         <|> match
-        <|> AId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
+        <|> AId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> try (parens (string "") $> "()") <|> typeIdentifier)
         <|> ALit . LDec <$> try float
         <|> ALit . LInt <$> integer
         <|> ALit . LChr <$> char''
