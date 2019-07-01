@@ -1,62 +1,81 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Blob.Parsing.TypeParser 
-( type'
-, atype'
-) where
+module Blob.Parsing.TypeParser where
 
-import Blob.Parsing.Types (Parser, Type(..), Expr(..), Literal(..))
-import Blob.Parsing.Lexer (lexemeN, string, brackets, parens, typeVariable, typeIdentifier, braces, indented, sameOrIndented)
-import Blob.Parsing.ExprParser (expression)
-import Text.Megaparsec (optional, try, some, (<|>), (<?>), hidden, empty)
-import Text.Megaparsec.Char.Lexer (indentLevel)
-import Data.Functor (($>))
+import Blob.Parsing.Types
+import Blob.Parsing.Lexer
+import Text.Megaparsec
+import Blob.Parsing.ExprParser
+import Text.Megaparsec.Char.Lexer
+import Data.Functor
+import Blob.Parsing.Annotation
 
-type' :: Parser Type
+type' :: Parser (Annotated Type)
 type' = lexemeN $ do
+    init <- getSourcePos
+
     pos         <- indentLevel
     firstId     <- (lexemeN . sameOrIndented pos) btype'
     multipleIds <- optional $ do
         pos'    <- indentLevel
-        counter <- sameOrIndented pos $ (Just (ELit . LInt $ 1) <$ try (hidden (string "-o") <|> string "⊸") <?> "rounded arrow")
+        counter <- sameOrIndented pos $ (Just ([(ALit . LInt $ 1) :- Nothing] :- Nothing) <$ try (hidden (string "-o") <|> string "⊸") <?> "rounded arrow")
                                         <|> do
                                                 lexemeN (hidden (string "->") <|> string "→") <?> "arrow"
-                                                optional . try $ braces (lexemeN expression)
+                                                optional . try $ braces (lexemeN parseExpression)
 
         pure (counter, indented pos' type')
 
     case multipleIds of
         Nothing                      -> pure firstId
-        Just (Nothing, type'')       -> TFun firstId <$> type''
-        Just (Just counter', type'') -> TArrow counter' firstId <$> type''
+        Just (Nothing, type'')       -> do
+            t <- type''
+            end <- getSourcePos
 
-btype' :: Parser Type
+            pure $ TFun firstId t :- Just (init, end)
+        Just (Just counter', type'') -> do
+            t <- type''
+            end <- getSourcePos
+
+            pure $ TArrow counter' firstId t :- Just (init, end)
+
+btype' :: Parser (Annotated Type)
 btype' = do
+    init <- getSourcePos
+
     pos   <- indentLevel
     types <- some $ sameOrIndented pos atype'
 
-    pure $ foldl1 TApp types
+    end <- getSourcePos
 
-atype' :: Parser Type
+    pure $ TApp types :- Just (init, end)
+
+atype' :: Parser (Annotated Type)
 atype' = 
     let tuple = do
             pos <- indentLevel
             lexemeN . parens $ do { t1 <- sameOrIndented pos type'
-                                  ; sameOrIndented pos (string ",")
-                                  ; tk <- some $ sameOrIndented pos type'
+                                  ; tk <- some $ do
+                                        sameOrIndented pos (string ",")
+                                        sameOrIndented pos type'
                                   ; pure $ TTuple (t1 : tk) }
         list = do
             pos <- indentLevel
-            lexemeN $ (try (brackets (string "")) $> TId "[]")
-                    <|> brackets (do
-                        t <- sameOrIndented pos type'
-                        pure $ TApp (TId "[]") t)
-    in
-        gtycon'
-        <|> TVar <$> lexemeN typeVariable
-        <|> try tuple
-        <|> list
-        <|> parens type'
+            lexemeN . brackets $ (string "" $> TList [])
+                                 <|> do { t1 <- sameOrIndented pos type'
+                                        ; ts <- many $ do
+                                            sameOrIndented pos (string ",")
+                                            sameOrIndented pos type'
+                                        ; pure $ TList (t1 : ts) }
+    in do
+        init <- getSourcePos
+        t <- gtycon'
+            <|> TVar <$> lexemeN typeVariable
+            <|> try tuple
+            <|> list
+            <|> getAnnotated <$> parens type'
+        end <- getSourcePos
+
+        pure $ t :- Just (init, end)
 
 
 gtycon' :: Parser Type

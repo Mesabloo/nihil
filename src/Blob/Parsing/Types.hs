@@ -1,99 +1,76 @@
 module Blob.Parsing.Types where
 
-import qualified Data.MultiMap                 as MMap
-                                                ( MultiMap )
-import qualified Data.Map                      as Map
-                                                ( Map )
-import qualified Text.Megaparsec               as Mega
-                                                ( Pos
-                                                , Parsec
-                                                )
-import           Data.Text                      ( Text )
-import           Data.Void                      ( Void )
-import           Control.Monad.State            ( StateT )
+import qualified Text.Megaparsec as Mega
+import Data.Void
+import Data.Text
+import qualified Data.Map as Map
+import Blob.Parsing.Annotation
 
----------------------------------------------------------------------------------------------
-{- Global -}
+type Parser = Mega.Parsec Void Text
 
-type Parser = StateT ParseState (Mega.Parsec Void Text)
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
-data ParseState = ParseState
-    { operators :: MMap.MultiMap Integer (Operator Parser Expr)
-    , currentIndent :: Mega.Pos }
+type Program = [Annotated Statement]
 
----------------------------------------------------------------------------------------------
-{- Expressions -}
-
-data Expr = EId String
-          | ELit Literal
-          | ELam String Expr
-          | EApp Expr Expr
-          | ETuple [Expr]
-          | EMatch Expr [(Pattern, Expr)]
-          | EHole
+data Statement
+    = Declaration String (Annotated Type)
+    | Definition String [String] (Annotated Expr)
+    | OpFixity String (Annotated Fixity)
+    | TypeDeclaration String [String] (Annotated CustomType)
+    | Empty
     deriving (Show, Eq, Ord)
 
-data Pattern = Wildcard               -- _
-             | PId String             -- a basic value like `a`
-             | PInt Integer           -- a basic value like `0`
-             | PDec Double            -- a basic value like `0.0`
-             | PChr Char              -- a basic value like `'a'`
-             | PTuple [Pattern]       -- a basic value like `(a, b)`
-             | PCtor String [Pattern] -- a basic value like `Just a`
+type Expr = [Annotated Atom]
+
+data Atom
+    = ALit Literal
+    | AId String
+    | AOperator String
+    | AList [Annotated Expr]
+    | ATuple [Annotated Expr]
+    | AHole
+    | ALambda [String] (Annotated Expr)
+    | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]
+    | AParens (Annotated Expr)
+    | AApp (Annotated Atom) (Annotated Atom)
+    deriving (Show, Ord, Eq)
+
+data Pattern
+    = PId String
+    | PLit Literal
+    | PCtor String [[Annotated Pattern]]
+    | PTuple [[Annotated Pattern]]
+    | PList [[Annotated Pattern]]
+    | PHole
+    | PParens [Annotated Pattern]
+    | POperator String
+    deriving (Show, Ord, Eq)
+
+data Literal
+    = LInt Integer
+    | LChr Char
+    | LDec Double
+    | LStr String
+    deriving (Show, Ord, Eq)
+
+data Fixity
+    = Infix Associativity Integer String
     deriving (Show, Eq, Ord)
 
-data Literal = LInt Integer
-             | LDec Double
-             | LChr Char
+data Associativity = L | R | N
     deriving (Show, Eq, Ord)
 
-data Associativity = L
-                   | R
-                   | N
+data Type
+    = TId String            -- Type
+    | TTuple [Annotated Type]         -- (a, b, ...)
+    | TList [Annotated Type]          -- [a, b, ...]
+    | TArrow (Annotated Expr) (Annotated Type) (Annotated Type) -- a ->{n} b ...
+    | TFun (Annotated Type) (Annotated Type)        -- a -o b ...
+    | TVar String           -- a...
+    | TApp [Annotated Type]        -- Type a...
     deriving (Show, Eq, Ord)
 
-data Fixity = Infix' Associativity Integer
-            | Prefix' Integer
-            | Postfix' Integer
+data CustomType = TSum (Map.Map String [Annotated Type]) | TAlias (Annotated Type)
     deriving (Show, Eq, Ord)
-
-data CustomOperator = CustomOperator { name :: Text
-                                     , fixity :: Fixity }
-    deriving (Show, Eq, Ord)
-
-data Operator m a = InfixN  (m (a -> a -> a)) -- ^ Non-associative infix
-                  | InfixL  (m (a -> a -> a)) -- ^ Left-associative infix
-                  | InfixR  (m (a -> a -> a)) -- ^ Right-associative infix
-                  | Prefix  (m (a -> a))      -- ^ Prefix
-                  | Postfix (m (a -> a))      -- ^ Postfix
-
-
----------------------------------------------------------------------------------------------
-{- AST -}
-
-newtype Program = Program [Statement]
-    deriving (Eq, Ord, Show)
-
-data Statement = Declaration String Type
-               | Definition String Expr
-               | OpDeclaration String Fixity
-               | TypeDeclaration String [String] CustomType
-               | Empty -- Just a placeholder, when a line is a comment, for example.
-    deriving (Eq, Ord, Show)
-
----------------------------------------------------------------------------------------------
-{- Types -}
-
-data Scheme = Scheme [String] Type
-    deriving (Eq, Ord, Show)
-
-data Type = TId String            -- Type
-          | TTuple [Type]         -- (a, ...)
-          | TArrow Expr Type Type -- a ->{n} b -o ...
-          | TFun Type Type
-          | TVar String           -- a...
-          | TApp Type Type        -- Type a...
-    deriving (Eq, Ord, Show)
-
-data CustomType = TSum (Map.Map String Scheme) | TAlias Type
-    deriving (Eq, Ord, Show)

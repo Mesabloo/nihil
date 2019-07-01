@@ -3,11 +3,12 @@ module Blob.TypeChecking.Errors where
 import Text.PrettyPrint.Leijen
 import Blob.TypeChecking.Types
 import Blob.Pretty.Inference
+import Blob.Parsing.Annotation
 
 makeUnifyError :: Type -> Type -> TIError
-makeUnifyError t1 t2 = text "Could not match type “" <> pType t1 <> text "” with “" <> pType t2 <> text "”" <> dot <> linebreak
+makeUnifyError t1 t2 = text "Could not match type “" <> pType (t1 :- Nothing) <> text "” with “" <> pType (t2 :- Nothing) <> text "”" <> dot <> linebreak
 makeOccurError :: TVar -> Type -> TIError
-makeOccurError (TV s) t1 = text "Occur check fails: cannot construct the infinite type “" <> text s <> text " ~ " <> pType t1 <> text "”" <> dot <> linebreak
+makeOccurError (TV s) t1 = text "Occur check fails: cannot construct the infinite type “" <> text s <> text " ~ " <> pType (t1 :- Nothing) <> text "”" <> dot <> linebreak
 makeUnboundVarError :: String -> TIError
 makeUnboundVarError s = text "Unbound symbol “" <> text s <> text "”" <> dot <> linebreak
 makeRedeclaredError :: String -> TIError
@@ -17,4 +18,4 @@ makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already defi
 makeBindLackError :: String -> TIError
 makeBindLackError id' = text "“" <> text id' <> text "” lacks an accompanying definition" <> dot <> linebreak
 makeHoleError :: Type -> TIError
-makeHoleError t1 = text "Found hole: _ :: " <> pType t1 <> dot <> linebreak
+makeHoleError t1 = text "Found hole: _ :: " <> pType (t1 :- Nothing) <> dot <> linebreak

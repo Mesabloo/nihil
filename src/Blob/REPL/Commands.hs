@@ -3,10 +3,7 @@
 module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
-import Blob.REPL.Types (Command(..), EvalEnv(..), Value(..), Scope(..), EvalState(..))
 import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN)
-import Blob.Parsing.Parser (statement, program)
-import Blob.Parsing.ExprParser (expression)
 import qualified Data.Map as Map
 import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill, lookAhead)
 import Data.String.Utils (rstrip)
@@ -23,6 +20,7 @@ import Control.Monad (join, zipWithM)
 import Control.Applicative (empty)
 import Data.List.Extra
 import Debug.Trace
+import Blob.REPL.Types
 
 
 commands :: [String]
@@ -167,48 +165,6 @@ exitCommand :: IO ()
 exitCommand =
     setSGR [SetColor Foreground Vivid Green] >> putStrLn "See you soon!" >> setSGR [Reset]
         >> exitSuccess
-
-evaluate :: Expr -> EvalEnv Value
-evaluate (ELit (LInt v))    = pure $ VInt v
-evaluate (ELit (LDec v))    = pure $ VDec v
-evaluate (ELit (LChr v))    = pure $ VChr v
-evaluate (EId id')          = do
-                                    isNotCtor <- isJust . Map.lookup id' <$> asks vals
-
-                                    if isNotCtor
-                                    then fromJust . Map.lookup id' <$> asks vals
-                                    else pure $ VCon id' []
-evaluate (ETuple es)        = VTuple <$> mapM evaluate es
-evaluate (ELam x e)         = VLam x e <$> asks vals
-evaluate (EApp f x)         = do
-    x' <- evaluate x
-    f' <- evaluate f
-    case f' of
-        VLam x e c -> local (\env -> env { vals = Map.insert x x' . Map.union c $ vals env }) (evaluate e)
-        HLam f''   -> f'' x'
-        VCon id' e -> pure $ VCon id' (snoc e x')
-        v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, `HLam` or `VCon` ; got `" <> show v <> "`.\nPlease report the issue."
--- evaluate (EList es)         = VList <$> mapM evaluate es
-evaluate (EMatch expr pats) = join $ foldr ((<|>) . uncurry evalBranch) (pure makeMatchError) pats
-  where evalBranch pat branch = do
-            e <- evaluate expr
-            s <- unpackPattern e pat
-            pure (local (\env -> env { vals = s <> vals env }) (evaluate branch))
-
-        unpackPattern :: Value -> Pattern -> EvalEnv (Scope Value)
-        unpackPattern = curry $ \case
-            (_, Wildcard)               -> pure mempty
-            (VInt n, PInt n') | n == n' -> pure mempty
-            (VDec d, PDec d') | d == d' -> pure mempty
-            (v, PId id')                -> pure $ Map.singleton id' v
-            (VCon id' v, PCtor id'' v')
-                | id' == id''           -> mconcat <$> zipWithM unpackPattern v v'
-            _                           -> empty
-
-        makeMatchError :: EvalEnv Value
-        makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot
-evaluate EHole = throwError . text $ "Developer error: type checking failed ; unexpected type hole while executing.\nPlease report the issue."
-
 
 levenshtein :: String -> String -> Int
 levenshtein s1 s2

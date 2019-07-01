@@ -1,114 +1,150 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Blob.Parsing.ExprParser
-( expression
-) where
+module Blob.Parsing.ExprParser where
 
-import Blob.Parsing.Types (Parser, Expr(..), Literal(..), ParseState(..), Pattern(..), Operator(..))
-import qualified Data.MultiMap as MMap (elems)
-import Control.Monad.State (get)
-import Text.Megaparsec ((<?>), hidden, (<|>), try, many, some, optional, eof, empty, choice, option)
-import Text.Megaparsec.Char (eol, char)
-import Text.Megaparsec.Char.Lexer (indentLevel)
-import Text.Megaparsec.Pos (Pos(..))
-import Data.Functor ((<$), ($>))
-import Blob.Parsing.Lexer 
-import Control.Monad (MonadPlus(..))
-import Debug.Trace
+import Blob.Parsing.Types
+import Text.Megaparsec hiding (match)
+import Blob.Parsing.Lexer
+import Text.Megaparsec.Char hiding (string)
+import Data.Functor
+import Text.Megaparsec.Char.Lexer hiding (float, symbol, lexeme)
+import Blob.Parsing.Annotation
 
-expression :: Parser Expr
-expression = lexeme $ do
-    st <- get
-    let op = reverse . MMap.elems . operators $ st
+parseExpression :: Parser (Annotated Expr)
+parseExpression = do
+    init <- getSourcePos
 
-    makeExprParser (lexeme term) op <?> "expression"
+    pos <- indentLevel
+    a <- lexemeN $ some (sameOrIndented pos atom)
 
-term :: Parser Expr
-term = hole
-   <|> lambda'
-   <|> match
-   <|> EId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
-   <|> ELit . LDec <$> try float
-   <|> ELit . LInt <$> integer
-   <|> ELit . LChr <$> char''
-   <|> try tuple
-   <|> list
-   <|> string_
-   <|> hidden (parens expression)
+    end <- getSourcePos
 
-lambda' :: Parser Expr
-lambda' = do
-    params <- (symbol "λ" <|> hidden (symbol "\\")) *> many identifier <* (hidden (symbol "->") <|> symbol "→")
-    expr <- expression
+    pure $ a :- Just (init, end)
 
-    pure $ foldr ELam expr params
+atom :: Parser (Annotated Atom)
+atom = operator <|> expr
+  where
+    expr = try app <|> exprNoApp
 
-tuple :: Parser Expr
-tuple = lexemeN . parens $ do
-    e1 <- expression
-    e2 <- some (lexeme (string ",") *> expression)
-    pure $ ETuple (e1 : e2)
+exprNoApp :: Parser (Annotated Atom)
+exprNoApp = do
+    init <- getSourcePos
+    a <- hole
+        <|> lambda'
+        <|> match
+        <|> AId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> typeIdentifier)
+        <|> ALit . LDec <$> try float
+        <|> ALit . LInt <$> integer
+        <|> ALit . LChr <$> char''
+        <|> try tuple
+        <|> list
+        <|> ALit . LStr <$> string''
+        <|> AParens <$> hidden (parens parseExpression)
+    end <- getSourcePos
 
-list :: Parser Expr
-list = lexemeN $
-    (try (brackets (string "")) $> EId "[]")
-    <|> brackets (do
-        e1 <- expression
-        es <- many (lexeme (string ",") *> expression)
-        pure $ foldr (\exp1 exp2 -> EApp (EApp (EId ":") exp1) exp2) (EId "[]") (e1 : es))
+    pure $ a :- Just (init, end)
 
-string_ :: Parser Expr
-string_ = foldr (\c1 cs -> EApp (EApp (EId ":") (ELit $ LChr c1)) cs) (EId "[]") <$> string''
+app :: Parser (Annotated Atom)
+app = do
+    init <- getSourcePos
+    pos <- indentLevel
+    a1 <- exprNoApp
+    as <- some . indented pos $ exprNoApp
+    end <- getSourcePos
 
-hole :: Parser Expr
+    pure $ getAnnotated (foldl (\e1 e2 -> AApp e1 e2 :- Nothing) a1 as) :- Just (init, end)
+
+operator :: Parser (Annotated Atom)
+operator = do
+    init <- getSourcePos
+    op <- opSymbol
+    end <- getSourcePos
+
+    pure $ AOperator op :- Just (init, end)
+
+hole :: Parser Atom
 hole = lexemeN $ do
     some (char '_')
-    pure EHole
+    pure AHole
 
-match :: Parser Expr
+lambda' :: Parser Atom
+lambda' = do
+    pos <- indentLevel
+    symbol "λ" <|> hidden (symbol "\\")
+    params <- many $ indented pos identifier
+    pos' <- indentLevel
+    indented pos $ hidden (symbol "->") <|> symbol "→"
+
+    ALambda params <$> indented pos' parseExpression
+
+tuple :: Parser Atom
+tuple = lexemeN . parens $ do
+    e1 <- parseExpression
+    e2 <- some (lexeme (string ",") *> parseExpression)
+    pure $ ATuple (e1 : e2)
+
+list :: Parser Atom
+list = brackets (string "" $> AList []
+                 <|> do
+                        e1 <- parseExpression
+                        es <- many (string "," *> parseExpression)
+                        
+                        pure $ AList (e1 : es))
+
+-- patterns
+
+match :: Parser Atom
 match = do
     pos  <- indentLevel
     same pos $ keyword "match"
-    expr <- sameOrIndented pos expression  
+    expr <- sameOrIndented pos parseExpression  
     sameOrIndented pos $ keyword "with"  
     pats <- parseCases pos
 
-    pure $ EMatch expr pats
+    pure $ AMatch expr pats
   where parseCases pos = some $ indented pos parseCase
         parseCase = do
             p      <- pattern'
             pos1   <- indentLevel
             sameOrIndented pos1 $ hidden (symbol "->") <|> symbol "→"
-            e      <- indented pos1 expression
+            e      <- indented pos1 parseExpression
             pure (p, e)
 
-pattern' :: Parser Pattern
-pattern' = lexeme (makeExprParser patTerm patOps) <?> "pattern"
+pattern' :: Parser [Annotated Pattern]
+pattern' = lexemeN $ some (patTerm <|> try patOperator)
 
-patTerm :: Parser Pattern
-patTerm =   Wildcard <$  hole
-        <|> PDec     <$> try float
-        <|> PInt     <$> integer
-        <|> PChr     <$> char''
-        <|> PId      <$> identifier
-        <|> PCtor    <$> typeIdentifier <*> many pattern'
-        <|>              try patternTuple
-        <|>              patternList
-        <|>              patternString
-        <|>              parens pattern'
+patOperator :: Parser (Annotated Pattern)
+patOperator = do
+    init <- getSourcePos
+    p <- opSymbol
+    end <- getSourcePos
+
+    pure $ POperator p :- Just (init, end)
+
+patTerm :: Parser (Annotated Pattern)
+patTerm = do
+    init <- getSourcePos
+    p <-    PHole       <$  hole
+        <|> PLit . LDec <$> try float
+        <|> PLit . LInt <$> integer
+        <|> PLit . LChr <$> char''
+        <|> PId         <$> identifier
+        <|> PCtor       <$> typeIdentifier <*> many pattern'
+        <|>                 try patternTuple
+        <|>                 patternList
+        <|> PLit . LStr <$> string''
+        <|> PParens     <$> parens pattern'
+    end <- getSourcePos
+
+    pure $ p :- Just (init, end)
   where
     patternList :: Parser Pattern
-    patternList =   (try . brackets) (string "") $> PCtor "[]" []
-                <|> brackets (do { e1 <- pattern'
-                                 ; es <- many (string "," *> pattern')
-                                 ; pure $ foldr (\exp1 exp2 -> PCtor ":" [exp1, exp2]) (PCtor "[]" []) (e1:es) })
+    patternList =   brackets (string "" $> PList []
+                            <|> do
+                                    e1 <- pattern'
+                                    es <- many (string "," *> pattern')
 
-    patternString :: Parser Pattern
-    patternString = do
-        s <- string''
-        if null s
-        then pure $ PCtor "[]" []
-        else pure $ foldr (\c1 cs -> PCtor ":" [PChr c1, cs]) (PCtor "[]" []) s
+                                    pure $ PList (e1 : es))
 
     patternTuple :: Parser Pattern
     patternTuple = parens $ do
@@ -116,66 +152,5 @@ patTerm =   Wildcard <$  hole
         es <- some (string "," *> pattern')
         pure $ PTuple (e1:es)
 
-patOps :: [[Operator Parser Pattern]]
-patOps = [ [ InfixR $ keySymbol ":" $> \e1 e2 -> PCtor ":" [e1, e2] ] ] -- prec == 5
-
----------------------------------------------------------------------------------------------------------
-{- Control.Monad.Combinators.Expr rework for custom indentation -}
-
-makeExprParser :: Parser a -> [[Operator Parser a]] -> Parser a
-makeExprParser = foldl addPrecLevel
-
-addPrecLevel :: Parser a -> [Operator Parser a] -> Parser a
-addPrecLevel term ops = do
-    pos <- indentLevel
-    term' >>= \x -> choice [ras' pos x, las' pos x, nas' pos x, return x]
-    where
-        (ras, las, nas, prefix, postfix) = foldr splitOp ([],[],[],[],[]) ops
-        term'    = pTerm (choice prefix) term (choice postfix)
-        ras' pos = pInfixR pos (choice ras) term'
-        las' pos = pInfixL pos (choice las) term' 
-        nas' pos = pInfixN pos (choice nas) term'
-
-pTerm :: Parser (a -> a) -> Parser a -> Parser (a -> a) -> Parser a
-pTerm prefix term postfix = do
-    pos  <- indentLevel
-    pre  <- option id prefix
-    x    <- sameOrIndented pos (try term)
-    post <- option id (sameOrIndented pos postfix)
-    return . post . pre $ x
-
-pInfixN :: Pos -> Parser (a -> a -> a) -> Parser a -> a -> Parser a
-pInfixN pos op p x = do
-    pos' <- indentLevel 
-    f <- sameOrIndented pos op
-    y <- sameOrIndented pos' (try p)
-    return $ f x y
-
-pInfixL :: Pos -> Parser (a -> a -> a) -> Parser a -> a -> Parser a
-pInfixL pos op p x = do
-    pos' <- indentLevel 
-    f <- sameOrIndented pos op
-    y <- sameOrIndented pos' (try p)
-    let r = f x y
-    pInfixL pos' op p r <|> return r
-
-pInfixR :: Pos -> Parser (a -> a -> a) -> Parser a -> a -> Parser a
-pInfixR pos op p x = do
-    pos' <- indentLevel
-    f <- sameOrIndented pos op
-    y <- sameOrIndented pos' (try p) >>= \r -> pInfixR pos' op p r <|> return r
-    return $ f x y
-
-type Batch a =
-    ( [Parser (a -> a -> a)]
-    , [Parser (a -> a -> a)]
-    , [Parser (a -> a -> a)]
-    , [Parser (a -> a)]
-    , [Parser (a -> a)] )
-
-splitOp :: Operator Parser a -> Batch a -> Batch a
-splitOp (InfixR  op) (r, l, n, pre, post) = (op : r, l, n, pre, post)
-splitOp (InfixL  op) (r, l, n, pre, post) = (r, op : l, n, pre, post)
-splitOp (InfixN  op) (r, l, n, pre, post) = (r, l, op : n, pre, post)
-splitOp (Prefix  op) (r, l, n, pre, post) = (r, l, n, op : pre, post)
-splitOp (Postfix op) (r, l, n, pre, post) = (r, l, n, pre, op : post)
+-- patOps :: [[Operator Parser Pattern]]
+-- patOps = [ [ InfixR $ keySymbol ":" $> \e1 e2 -> PCtor ":" [e1, e2] ] ] -- prec == 5
