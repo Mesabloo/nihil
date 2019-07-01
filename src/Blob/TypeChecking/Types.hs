@@ -25,7 +25,7 @@ import Data.Bifunctor
 newtype TVar = TV String
     deriving (Eq, Ord, Show)
 
-data Type = TVar TVar
+data Type = TVar TVar | TRigid TVar
           | TInt | TFloat | TChar
           | TFun Type Type
           | TTuple [Type]

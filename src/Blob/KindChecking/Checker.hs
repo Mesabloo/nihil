@@ -92,8 +92,8 @@ kiType (TId n)       = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
 kiType (TVar (TV n)) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
--- kiType (TRigidVar n) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
---     where err = throwError (makeUndefinedTypeError n)
+kiType (TRigid (TV n)) = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
+    where err = throwError (makeUndefinedTypeError n)
 kiType (TTuple []) = pure (mempty, KType)
 kiType (TTuple (t:ts)) = do
     (s1, k) <- kiType t

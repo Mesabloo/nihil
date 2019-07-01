@@ -89,11 +89,22 @@ instantiate :: Scheme -> Infer Type
 instantiate (Scheme as t) = do
     as' <- mapM (const $ fresh "i") as
     let s = Map.fromList $ zip as as'
-    pure $ apply s t
+    pure $ apply s (relax t)
 
 generalize :: TypeEnv -> Type -> Scheme
 generalize env t  = Scheme as t
     where as = Set.toList $ ftv t `Set.difference` ftv env
+
+rigidify :: Type -> Type
+rigidify t = let subst = Map.fromList . Set.toList $ Set.map (\v -> (v, TRigid v)) (ftv t)
+             in apply subst t
+
+relax :: Type -> Type
+relax (TRigid n)    = TVar n
+relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
+relax (TTuple ts)   = TTuple (map relax ts)
+relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
+relax t = t
 
 infer :: Annotated Expr -> Infer (Type, [Constraint])
 infer (e :- _) = case e of
@@ -101,7 +112,7 @@ infer (e :- _) = case e of
     ELit (LDec _) -> pure (TFloat, [])
     ELit (LChr _) -> pure (TChar, [])
     EHole -> do
-        tv <- fresh "h"
+        tv <- fresh "_"
         tv' <- fresh "a"
         pure (tv, [(tv, tv')])
     EId x -> do
@@ -118,7 +129,7 @@ infer (e :- _) = case e of
         pure (tv, c1 <> c2 <> [(t1, t2 `TFun` tv)])
     ETuple es -> do
         ts <- mapM infer es
-        pure (TTuple $ map fst ts, foldl (\acc c -> acc <> snd c) [] ts)
+        pure (TTuple $ map fst ts, foldMap snd ts)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
         let (pats, branches) = unzip cases
@@ -195,7 +206,7 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     fv (TVar a)   = [a]
     fv (TFun a b) = fv a <> fv b
     fv (TApp a b) = fv a <> fv b
-    fv (TTuple e) = foldl (\acc t -> acc <> fv t) [] e
+    fv (TTuple e) = foldMap fv e
     fv _          = []
 
     normtype (TFun a b)       = TFun (normtype a) (normtype b)
@@ -203,9 +214,9 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     normtype (TTuple e)       = TTuple (map normtype e)
     normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
-            Just x -> TVar x
+            Just x -> TRigid x
             Nothing -> error $ "The type variable “" <> x' <> "” has not been declared in type, but wants to be used.\n"
-                                <> "This error should never happen. If you see it, please report it to one of the maintainer of Blob."
+                                <> "This error should never happen. If you see it, please report it."
     normtype t          = t
 
 -- | Run the constraint solver
@@ -246,9 +257,9 @@ unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
                 let sub = Map.fromList (zipWith (\k v -> (TV k, v)) tvs args)
                 in unifies (apply sub t) t3
             Just _ -> throwError $ makeUnifyError a t3
-            Nothing -> undefined -- case handled by kind checking
-        go t args = undefined -- incorrectly kinded applications are reported by kind checking
-unifyCustom _ _ = undefined -- never happening
+            Nothing -> undefined -- ? case handled by kind checking
+        go t args = throwError $ makeUnifyError a t3
+unifyCustom _ _ = undefined -- ! never happening
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
@@ -260,7 +271,7 @@ solver (su, cs) = case cs of
 
 bind :: TVar -> Type -> Solve Subst
 bind a t | t == TVar a     = case a of
-                                TV id' -> if head id' == 'h'
+                                TV id' -> if head id' == '_'
                                           then throwError $ makeHoleError t
                                           else pure nullSubst
          | occursCheck a t = throwError $ makeOccurError a t
@@ -273,7 +284,7 @@ occursCheck a t = a `Set.member` ftv t
 -- type hole solver
 runHoleInspect :: Subst -> Either TIError ()
 runHoleInspect subst =
-    let map' = Map.filterWithKey (\(TV k) _ -> head k == 'h') subst
+    let map' = Map.filterWithKey (\(TV k) _ -> head k == '-') subst
     in if null map'
         then pure ()
         else throwError $ Map.foldl (\acc t -> acc <> makeHoleError t) empty map'
@@ -287,7 +298,7 @@ tiType (TP.TId id' :- _)        = TId id'
 tiType (TP.TArrow _ t1 t2 :- _) = TFun (tiType t1) (tiType t2)
 tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
-tiType (TP.TVar id' :- _)       = TVar (TV id')
+tiType (TP.TVar id' :- _)       = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
 
 tiScheme :: TP.Scheme -> Scheme
@@ -315,7 +326,8 @@ handleStatement :: String -> These (Annotated Expr) (Annotated TP.Type) -> Check
 handleStatement name (This def)      = do
     e <- get
     let res = runInfer e $ do { var <- fresh "a"
-                              ; inEnv (name, Scheme [] var) $ infer def }
+                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def 
+                              ; pure (t, c ++ [(t, var)]) }
 
     case res of
         Left err -> throwError err
@@ -333,12 +345,13 @@ handleStatement name (These def typ) = do
     env <- gets typeDeclCtx
 
     let ti     = tiType typ
-    let gen'ed = closeOver ti
+    let gen'ed = closeOver (relax ti)
     checkKI $ kiScheme gen'ed
 
     e <- get
     let res = runInfer e $ do { var <- fresh "a"
-                              ; inEnv (name, Scheme [] var) $ infer def }
+                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def 
+                              ; pure (t, c ++ [(t, var)]) }
 
     case res of
         Left err -> throwError err

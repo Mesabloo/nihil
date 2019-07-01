@@ -13,6 +13,7 @@ import Blob.Parsing.Annotation
 pType :: Annotated Type -> Doc
 pType (t :- _) = case t of
     TVar (TV i) -> text i
+    TRigid (TV i) -> text i
     TId i -> text i
     TInt -> text "Integer"
     TFloat -> text "Double"
