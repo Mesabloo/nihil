@@ -33,6 +33,8 @@ data REPLState = REPLState { ctx :: GlobalEnv
                            , lastExecTime :: Double
                            , op :: SugarState }
 
-type REPL a = InputT (StateT REPLState (ExceptT REPLError IO)) a
+type REPL = InputT (StateT REPLState (ExceptT REPLError IO))
 
 type REPLError = Doc
+
+data REPLOptions = REPLOptions { preload :: [FilePath] }

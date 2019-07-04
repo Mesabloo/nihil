@@ -2,15 +2,17 @@
 
 module Blob.REPL.REPL
 ( runREPL
+, customRunREPL
 , replLoop
 , REPLError
+, REPLOptions(..)
 ) where
 
 import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException(..), RunIO(..), defaultSettings, withInterrupt, handleInterrupt)
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
 import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
 import Control.Monad.Reader (runReaderT)
-import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..))
+import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), REPLOptions(..))
 import Blob.Interpreter.Types (Value(..), EvalState(..))
 import Blob.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
 import Blob.Desugaring.Types (Program(..), Statement(..), SugarState(..))
@@ -34,11 +36,11 @@ import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErr
 import Text.Megaparsec (runParser, PosState(..), (<|>), eof, try)
 import Text.Megaparsec.Pos (SourcePos(..), unPos, mkPos)
 import System.IO (hFlush, stdout)
-import Control.Monad (forever, void, forM, replicateM)
-import System.Directory (doesFileExist, getCurrentDirectory)
+import Control.Monad (forever, void, forM, replicateM, guard, forM_)
+import System.Directory (doesFileExist, getCurrentDirectory, canonicalizePath)
 import Data.List.NonEmpty (toList)
 import Data.List.Utils (split)
-import Data.String.Utils (rstrip)
+import Data.String.Utils (rstrip, strip)
 import Data.Char (toUpper)
 import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchmark)
 import Criterion.Measurement.Types (whnf, Measured(..))
@@ -48,45 +50,61 @@ import Text.PrettyPrint.Leijen (text, (<$$>), empty)
 import Blob.Desugaring.Defaults
 import Blob.Desugaring.Desugarer
 import Blob.Parsing.Annotation
+import System.FilePath.Posix ((</>))
+import Blob.REPL.Defaults
 
-runREPL :: REPL a -> IO ()
-runREPL r = do
-    initializeTime 
-    liftIO $ do
-        replSetColor Vivid White >> putStr "Blob v0.0.1\nType " >> setSGR [Reset]
-        setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "“:?”" >> setSGR [Reset]
-        replSetColor Vivid White >> putStrLn " for a list of commands." >> setSGR [Reset]
-        hFlush stdout
+runREPL :: ([FilePath] -> REPL a) -> IO ()
+runREPL = flip customRunREPL (REPLOptions [])
 
-    handleInterrupt exitCommand . void $ runExceptT (evalStateT (runInputT defaultSettings (withInterrupt r)) initREPLState)
-  where initREPLState = REPLState { ctx = initGlobalEnv
-                                  , values = initEvalState
-                                  , lastExecTime = 0.0
-                                  , op = initSugarState }
+customRunREPL :: ([FilePath] -> REPL a) -> REPLOptions -> IO ()
+customRunREPL r opts = do
+    initREPL
 
-replLoop :: REPL ()
-replLoop = forever $ do
+    let fs = preload opts
+    void $ runExceptT (runStateT (runInputT defaultSettings (withInterrupt $ handledAction fs)) initREPLState)
+  where handledAction = handleInterrupt (handledAction []) . r
 
-    time <- lift (gets lastExecTime)
-    let str = if time /= 0.0
-              then secs time <> " "
-              else ""
+replLoop :: [FilePath] -> REPL ()
+replLoop fs = do
+    if null fs
+    then liftIO $ putStr ""
+    else liftIO $ putStrLn ""
 
-    liftIO $ setSGR [SetColor Foreground Dull Blue]
-    input <- getInputLine $ str <> "⮞ β ⮞ "
-    liftIO $ setSGR [Reset]
-
-    lift . modify $ \st -> st { lastExecTime = 0.0 }
+    let check i f = do
+            currentDir <- liftIO getCurrentDirectory
+            path <- liftIO $ canonicalizePath (currentDir </> f)
+            liftIO $ replSetColor Vivid Green >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Compiling file “" <> path <> "”.") >> setSGR [Reset] >> hFlush stdout
+    forM_ (zip [1..] fs) $ \(i, f) -> check i f *> replCheck (Load f)
     
-    case input of
-        Nothing     -> liftIO $ putStr ""
-        Just input' -> do
-            env <- lift get
-            let res = runParser command "" (Text.pack input')
+    if null fs
+    then liftIO $ putStr ""
+    else liftIO $ putStrLn ""
 
-            case res of
-                Left err     -> liftIO $ replSetColor Vivid Red >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err) >> setSGR [Reset] >> hFlush stdout
-                Right output -> replCheck output
+    forever $ do
+        time <- lift (gets lastExecTime)
+        let str = if time /= 0.0
+                then secs time <> " "
+                else ""
+
+        liftIO $ setSGR [SetColor Foreground Dull Blue]
+        input <- getInputLine $ str <> "⮞ β ⮞ "
+        liftIO $ setSGR [Reset]
+
+        lift . modify $ \st -> st { lastExecTime = 0.0 }
+        
+        case input of
+            Nothing     -> liftIO exitCommand
+            Just input' -> do
+                env <- lift get
+
+                let res = runParser command "" (Text.pack input')
+
+                case res of
+                    Left err     -> liftIO $
+                        if strip input' /= ""
+                        then replSetColor Vivid Red >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err) >> setSGR [Reset] >> hFlush stdout
+                        else putStr ""
+                    Right output -> replCheck output
     
 replCheck :: Command -> REPL ()
 replCheck = \case
@@ -278,7 +296,8 @@ replCheck = \case
                                 liftIO . putStrLn $ "- Minimum: " <> secs min
                                 liftIO . putStrLn $ "- Maximum: " <> secs max
                                 liftIO . putStrLn $ "- Average: " <> secs avg
-                                liftIO . putStrLn $ "-   Total: " <> secs tot
+
+                                lift . modify $ \st -> st { lastExecTime = tot }
     Env                -> do
         st  <- lift (gets ctx)
         let (t:types)                = Map.toList $ typeDeclCtx st
