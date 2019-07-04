@@ -35,6 +35,8 @@ dependencies:
 - hashable
 - deepseq
 - QuickCheck
+- optparse-applicative
+- filepath
 name: Blob
 version: 0.1.0.0
 extra-source-files:
