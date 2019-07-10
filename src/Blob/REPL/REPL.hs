@@ -151,7 +151,7 @@ replCheck = \case
                                         _                   -> liftIO $ putStr ""
                                         ) stmts
         else
-            liftIO $ replSetColor Vivid Red >> putStrLn ("Unknown file `" <> file <> "`. Does it exist?") >> setSGR [Reset] >> hFlush stdout
+            liftIO $ replSetColor Vivid Red >> putStrLn ("File “" <> file <> "” not found.") >> setSGR [Reset] >> hFlush stdout
     GetType expr        -> do
         st <- lift get
         let (TypeEnv env) = defCtx $ ctx st
