@@ -62,7 +62,7 @@ ack m n =
 
 - [ ] Implementing a fully working λ language inside the REPL.
     The goal is basically to replicate a small Haskell.
-- [ ] Making a VM using the Linear Abstract Machine scheme.
+- [ ] Making a VM using the Linear Abstract Machine scheme. (check it [here](https://github.com/mesabloo/jellyvm))
 - [ ] Making a full compiler targetting NASM.
 
 </details>
