@@ -4,7 +4,7 @@ module Blob.Parsing.Parser where
 
 import Blob.Parsing.Types
 import Blob.Parsing.Lexer
-import Text.Megaparsec as Mega
+import Text.Megaparsec as Mega hiding (eof)
 import Text.Megaparsec.Char hiding (string)
 import qualified Data.Map as Map
 import Data.Functor

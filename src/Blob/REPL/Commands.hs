@@ -31,7 +31,6 @@ commands = [  ":help", ":h", ":?"
            ,  ":kind", ":k"
            ,  ":eval", ":ev"
            , ":reset", ":r"
-           ,   ":ast"
            ,  ":time"
            , ":bench"
            ,   ":env" ]
@@ -77,15 +76,6 @@ getKind = do
         Right _ -> fail "Missing argument “[type]”"
         Left _  -> GetKind <$> (anySingle `someTill` eof)
 
-ast :: Parser Command
-ast = do
-    space' *> (try . hidden . lexemeN) (keyword "ast") <?> "߷"
-
-    end <- observing . lookAhead $ eof
-    case end of
-        Right _ -> fail "Missing argument “[code]”"
-        Left _  -> Ast <$> (anySingle `someTill` eof)
-
 time :: Parser Command
 time = do
     space' *> (try . hidden . lexemeN) (keyword "time") <?> "߷"
@@ -114,7 +104,7 @@ env = space' *> (try . hidden . lexemeN) (keyword "env") $> Env <?> "߷"
 
 command :: Parser Command
 command = do { space' *> symbol ":"
-             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, ast, bench, env] <* eof
+             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env] <* eof
              ; case cmd of
                 Left err ->
                     if "߷" `isInfixOf` parseErrorTextPretty err
@@ -130,41 +120,7 @@ makeCommandError = do
     cmd <- space' *> manyTill anySingle (space1' <|> eof)
     pure $ "Unknown command `" <> cmd <> "`\n" <> maybeYouWanted (':':cmd) commands
 
-helpCommand :: IO ()
-helpCommand = do
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:help” ”:h” “:?”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show this menu." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:quit” “:q”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": exit the REPL." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:load [file]” “:l [file]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the type of an expression." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the kind of a type." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset” “:r”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:ast”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show the AST representation of some code." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:bench [n] [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
-
-    setSGR [SetColor Foreground Dull White] >> putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
-
-exitCommand :: IO ()
-exitCommand =
-    setSGR [SetColor Foreground Vivid Green] >> putStrLn "See you soon!" >> setSGR [Reset]
-        >> exitSuccess
 
 levenshtein :: String -> String -> Int
 levenshtein s1 s2
@@ -179,16 +135,20 @@ levenshtein s1 s2
                                       , 1 + levenshtein (init s1) (init s2) ]
 
 maybeYouWanted :: String -> [String] -> String
-maybeYouWanted source choices = let s = intercalate ", " $
-                                        filter (/= "")
-                                        (map
-                                            (\item -> if levenshtein source item > 3
-                                                then ""
-                                                else intercalate item ["“", "”"]
-                                            )
-                                            choices
-                                        )
-                                in
-                                    if s /= ""
-                                    then "Perhaps you meant " <> s <> "?"
-                                    else ""
+maybeYouWanted source choices = 
+    let s = intercalate ", "
+            . takeMax 3
+            . filter (/= "")
+            . map (\item ->
+                if levenshtein source item > 3
+                then ""
+                else intercalate item ["“", "”"])
+            $ choices
+                                        
+    in
+        if s /= ""
+        then "Perhaps you meant " <> s <> "?"
+        else ""
+  where takeMax :: Int -> [a] -> [a]
+        takeMax n xs | n > length xs = xs
+                     | otherwise     = take n xs

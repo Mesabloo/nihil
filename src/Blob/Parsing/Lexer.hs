@@ -11,6 +11,9 @@ import Data.Text (Text, pack, unpack)
 import Control.Monad.State (get, lift, modify, gets, void)
 import Data.Functor (($>))
 
+eof :: Parser ()
+eof = Text.Megaparsec.eof
+
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
