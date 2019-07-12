@@ -3,9 +3,9 @@
 module Blob.REPL.Commands where
 
 import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
-import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN)
+import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN, identifier, opSymbol)
 import qualified Data.Map as Map
-import Text.Megaparsec (try, hidden, eof, observing, (<|>), someTill, (<?>), anySingle, parseErrorTextPretty, choice, manyTill, lookAhead)
+import Text.Megaparsec 
 import Data.String.Utils (rstrip)
 import Control.Monad.Reader (local, asks, ask)
 import Control.Monad.Except (throwError)
@@ -56,7 +56,7 @@ code :: Parser Command
 code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
 reset :: Parser Command
-reset = space' *> (try . hidden . lexemeN) (keyword "reset" <|> keyword "r") $> Reload <?> "߷"
+reset = (space' *> (try . hidden . lexemeN) (keyword "reset" <|> keyword "r") <?> "߷") >> (ResetEnv <$> many (identifier <|> opSymbol))
 
 getType :: Parser Command
 getType = do

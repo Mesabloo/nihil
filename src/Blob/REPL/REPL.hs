@@ -123,16 +123,14 @@ replCheck :: Command -> REPL ()
 replCheck = \case
     Help                -> liftIO helpCommand
     Exit                -> liftIO exitCommand
-    Reload              ->
-        lift . modify $ \st -> st { ctx = initGlobalEnv
-                                    , values = initEvalState }
+    ResetEnv ids        -> resetEnv ids
     Load file           -> loadFile file
     GetType expr        -> getType expr
     GetKind typeExpr    -> getKind typeExpr
     Code stat           -> execCode stat
-    Time expr          -> execTime expr
-    Bench n expr       -> execBench n expr
-    Env                -> getEnv
+    Time expr           -> execTime expr
+    Bench n expr        -> execBench n expr
+    Env                 -> getEnv
 
 
 

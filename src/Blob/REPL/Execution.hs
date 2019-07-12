@@ -35,6 +35,8 @@ import Blob.KindChecking.Checker
 import Text.Megaparsec (try)
 import Criterion.Measurement (secs, getTime)
 import qualified Data.List as List
+import Blob.Interpreter.Types
+import Blob.Prelude
 
 helpCommand :: IO ()
 helpCommand = do
@@ -53,8 +55,8 @@ helpCommand = do
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the kind of a type." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset” “:r”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state." >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset {symbols}” “:r {symbols}”" >> setSGR [Reset]
+        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
         >> setSGR [SetColor Foreground Dull White] >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
@@ -298,6 +300,23 @@ getEnv = do
     liftIO . putStrLn $
         "Types:\n" <> show kinds <> "\n"
         <> "Functions:\n" <> show functions
+
+resetEnv :: [String] -> REPL ()
+resetEnv [] = lift . modify $ \st -> st { ctx = initGlobalEnv
+                                        , values = initEvalState }
+resetEnv [x] = resetOne x
+resetEnv (x:xs) = resetOne x *> resetEnv xs
+
+resetOne :: String -> REPL ()
+resetOne x = lift . modify $
+    \st -> st { ctx = let env = ctx st
+                          newDefs = Map.delete x (getMap $ defCtx env)
+                      in GlobalEnv (typeDeclCtx env) (typeDefCtx env) (TypeEnv newDefs) (ctorCtx env)
+              , values = let env = values st
+                             newEvals = Map.delete x (vals env)
+                         in EvalState newEvals (ctors env) }
+
+
 
 
 time :: IO a -> IO (Double, a)

@@ -19,7 +19,7 @@ data Command = GetType String
              | Code String
              | Load String
              | Exit
-             | Reload
+             | ResetEnv [String]
              | Ast String
              | Time String
              | Bench Integer String
