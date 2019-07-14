@@ -76,7 +76,7 @@ loadFile file = do
     fileExists <- liftIO     $ doesFileExist file
 
     if not fileExists
-    then lift $ throwError (text "File “" <> text file <> text "” not found.")
+    then lift $ throwError (text "File “" <> text file <> text "” not found" <> dot <> linebreak)
     else do
 
         content <- liftIO $ Text.readFile file
