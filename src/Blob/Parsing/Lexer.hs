@@ -106,7 +106,7 @@ opSymbol = (lexemeN . try) (some p <* notFollowedBy p) >>= check <?> "operator"
   where check x | x `elem` symbols = fail $ "Already existing operator “" <> x <> "”"
                 -- | head x == ':'    = fail "An operator cannot start with “:” unless it is a type constructor"
                 | otherwise        = pure x
-        p = C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String)
+        p = C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)
 
 ctorSymbol :: Parser String
 ctorSymbol = (lexemeN . try) p >>= check <?> "constructor"
@@ -116,7 +116,7 @@ ctorSymbol = (lexemeN . try) p >>= check <?> "constructor"
         
         p = do
             c1 <- C.char ':'
-            cs <- many $ C.symbolChar <|> oneOf ("!#$%&.,<=>?^~|@*/-:" :: String)
+            cs <- many $ C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)
             pure (c1:cs)
 
 indentGuard :: Ordering -> Pos -> Parser Pos
@@ -162,7 +162,8 @@ symbols =
         , "-o" , "⊸"
         , "\\"
         , "="
-        , "::" , "∷" ]
+        , "::" , "∷"
+        , "," ]
 
 builtins :: [String]
 builtins =

@@ -84,12 +84,10 @@ tuple = lexemeN . parens $ do
     pure $ ATuple (e1 : e2)
 
 list :: Parser Atom
-list = brackets (string "" $> AList []
-                 <|> do
-                        e1 <- parseExpression
-                        es <- many (string "," *> parseExpression)
-                        
-                        pure $ AList (e1 : es))
+list = brackets $ do { e1 <- parseExpression
+                     ; es <- many (string "," *> parseExpression)
+                     ; pure $ AList (e1 : es) }
+                  <|> (string "" $> AList [])
 
 -- patterns
 
