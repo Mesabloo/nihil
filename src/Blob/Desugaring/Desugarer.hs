@@ -86,10 +86,10 @@ desugarType fileName (P.TTuple ts :- p) = do
 
     pure (D.TTuple ts' :- p)
 desugarType fileName (P.TList ts :- p) =
-    flip (:-) p . getAnnotated <$> foldrM (\t acc -> do
+    flip (:-) p . getAnnotated <$> foldlM (\acc t -> do
         t' <- desugarType fileName t
 
-        pure (D.TApp (D.TApp (D.TId ":" :- Nothing) t' :- Nothing) acc :- Nothing) ) (D.TId "[]" :- Nothing) ts
+        pure (D.TApp acc t' :- Nothing) ) (D.TId "[]" :- Nothing) ts
 
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
 desugarExpression fileName expr = do

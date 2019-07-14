@@ -60,12 +60,12 @@ atype' =
                                   ; pure $ TTuple (t1 : tk) }
         list = do
             pos <- indentLevel
-            lexemeN . brackets $ (string "" $> TList [])
-                                 <|> do { t1 <- sameOrIndented pos type'
+            lexemeN . brackets $ do { t1 <- sameOrIndented pos type'
                                         ; ts <- many $ do
                                             sameOrIndented pos (string ",")
                                             sameOrIndented pos type'
                                         ; pure $ TList (t1 : ts) }
+                                 <|> (string "" $> TList [])
     in do
         init <- getSourcePos
         t <- gtycon'
