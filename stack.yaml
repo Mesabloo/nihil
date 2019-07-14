@@ -37,7 +37,10 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
-extra-deps: [ "wl-pprint-1.2.1@sha256:aea676cff4a062d7d912149d270e33f5bb0c01b68a9db46ff13b438141ff4b7c" ]
+extra-deps: 
+- wl-pprint-1.2.1
+- github: mesabloo/jellyvm
+  commit: 1acdb6e2155a036941c2cdf97f2f121ce1e61419
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

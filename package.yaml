@@ -38,6 +38,7 @@ dependencies:
 - optparse-applicative
 - filepath
 - insert-ordered-containers
+- JellyVM
 name: Blob
 version: 0.1.0.0
 extra-source-files:
