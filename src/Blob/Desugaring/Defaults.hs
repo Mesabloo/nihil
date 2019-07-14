@@ -18,9 +18,3 @@ initSugarState =
                                          , ("+", P.Infix P.L 6 "+")
                                          , ("-", P.Infix P.L 6 "-")
                                          , (":", P.Infix P.R 5 ":") ] }
-
-initSYState :: Map.Map String P.Fixity -> SYState
-initSYState opFix = SYState { operators = [], output = [], opFixities = opFix }
-
-initSYPatState :: Map.Map String P.Fixity -> SYPatState
-initSYPatState opFix = SYPatState { operatorsP = [], outputP = [], opFixitiesP = opFix }

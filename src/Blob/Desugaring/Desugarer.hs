@@ -93,15 +93,10 @@ desugarType fileName (P.TList ts :- p) =
 
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
 desugarExpression fileName expr = do
-    ops' <- gets D.fixities
-
     let (e :- p) = expr
 
-    let expr' = runExcept $ runStateT (syExpr e) (initSYState ops')
+    syExpr e [] []
 
-    case expr' of
-        Left err -> throwError err
-        Right (_, state') -> pure (head $ D.output state')
 
 -- operators accumulator
 

@@ -73,15 +73,3 @@ data CustomType = TSum (Map.Map String Scheme) | TAlias (Annotated Type)
 type Sugar = StateT SugarState (Except Doc)
 
 newtype SugarState = SugarState { fixities :: Map.Map String P.Fixity }
-
-type SY = StateT SYState (Except Doc)
-
-data SYState = SYState { operators :: [String]
-                       , output :: [Annotated Expr]
-                       , opFixities :: Map.Map String P.Fixity }
-
-type SYPat = StateT SYPatState (Except Doc)
-
-data SYPatState = SYPatState { operatorsP :: [String]
-                             , outputP :: [Annotated Pattern]
-                             , opFixitiesP :: Map.Map String P.Fixity }
