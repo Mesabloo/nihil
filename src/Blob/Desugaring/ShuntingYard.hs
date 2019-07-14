@@ -171,7 +171,7 @@ syPat [] = do
                 if length out < 2
                 then throwError $ makeUnexpectedOperatorError o
                 else let (e1:e2:es) = out
-                     in modify $ \st -> st { D.outputP = (D.PCtor o [e1, e2] :- Nothing) : es }
+                     in modify $ \st -> st { D.outputP = (D.PCtor o [e2, e1] :- Nothing) : es }
 syPat ((P.POperator o :- p):xs) = do
     handleOperator o
 
@@ -195,7 +195,7 @@ syPat ((P.POperator o :- p):xs) = do
                         then throwError $ makeUnexpectedOperatorError o1
                         else do
                             let (e1:e2:es') = es
-                            modify $ \st -> st { D.outputP = (D.PCtor o1 [e1, e2] :- Nothing) : es'
+                            modify $ \st -> st { D.outputP = (D.PCtor o1 [e2, e1] :- Nothing) : es'
                                                 , D.operatorsP = os }
                             handleOperator o
                     else modify $ \st -> st { D.operatorsP = o : D.operatorsP st }
@@ -208,62 +208,31 @@ syPat ((x :- p):xs) = do
         P.PLit (P.LInt i) -> pure $ D.PInt i
         P.PLit (P.LDec d) -> pure $ D.PDec d
         P.PCtor id' pats -> do
-            mapM_ syPat pats
-
-            out <- gets D.outputP
-            let ps = reverse $ take (length pats) out
-
-            modify $ \st -> st { D.outputP = drop (length pats) out }
-
-            pure $ D.PCtor id' ps
+            ops' <- gets D.opFixitiesP
+            let r = forM pats $ \pat -> runExcept $ runStateT (syPat pat) (initSYPatState ops')
+            case r of
+                Left err -> throwError err
+                Right result -> pure . D.PCtor id' $ map (head . D.outputP . snd) result
         P.PTuple pats -> do
-            mapM_ syPat pats
-
-            out <- gets D.outputP
-            let ps = reverse $ take (length pats) out
-
-            modify $ \st -> st { D.outputP = drop (length pats) out }
-
-            pure $ D.PTuple ps
+            ops' <- gets D.opFixitiesP
+            let r = forM pats $ \pat -> runExcept $ runStateT (syPat pat) (initSYPatState ops')
+            case r of
+                Left err -> throwError err
+                Right result -> pure . D.PTuple $ map (head . D.outputP . snd) result
         P.PParens pat -> do
-            modify $ \st -> st { D.operatorsP = "(" : D.operatorsP st }
-
-            syPat pat
-
-            handleParensOperators
-
-            es <- gets D.outputP
-            let (e1:es') = es
-
-            modify $ \st -> st { D.outputP = es' }
-
-            pure $ getAnnotated e1
-          where handleParensOperators :: D.SYPat ()
-                handleParensOperators = do
-                    ops <- gets D.operatorsP
-                    let (o1:os) = ops
-
-                    if o1 == "("
-                    then modify $ \st -> st { D.operatorsP = os }
-                    else do
-                        es <- gets D.outputP
-
-                        if length es < 2
-                        then throwError $ makeUnexpectedOperatorError o1
-                        else do
-                            let (e1:e2:es') = es
-                            modify $ \st -> st { D.outputP = (D.PCtor o1 [e2, e1] :- Nothing) : es'
-                                                , D.operatorsP = os }
-                            handleParensOperators
+            ops' <- gets D.opFixitiesP
+            let r = runExcept $ runStateT (syPat pat) (initSYPatState ops')
+            case r of
+                Left err -> throwError err
+                Right (_, result) -> pure . getAnnotated . head . D.outputP $ result
         P.PList es -> do
-            mapM_ syPat es
-
-            es'' <- gets D.outputP
-            let es''' = reverse $ take (length es) es''
-
-            modify $ \st -> st { D.outputP = drop (length es) es'' }
-
-            pure $ getAnnotated (foldr (\t acc -> D.PCtor ":" [t, acc] :- Nothing) (D.PCtor "[]" [] :- Nothing) es''')
+            ops' <- gets D.opFixitiesP
+            let r = forM es $ \pat -> runExcept $ runStateT (syPat pat) (initSYPatState ops')
+            case r of
+                Left err -> throwError err
+                Right result ->
+                    let es = map (head . D.outputP . snd) result
+                    in pure $ getAnnotated (foldr (\t acc -> D.PCtor ":" [t, acc] :- Nothing) (D.PCtor "[]" [] :- Nothing) es)
         P.POperator _ -> undefined -- ! Should never happen
 
     modify $ \st -> st { D.outputP = (pat :- p) : D.outputP st }
