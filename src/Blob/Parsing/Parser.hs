@@ -295,7 +295,15 @@ match = do
             pure (p, e)
 
 pattern' :: Parser [Annotated Pattern]
-pattern' = lexemeN $ some (patTerm <|> try patOperator)
+pattern' = do
+    init <- getSourcePos
+    pats <- lexemeN $ some (patTerm <|> try patOperator)
+    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
+    end <- getSourcePos
+
+    case t of
+        Nothing -> pure pats
+        Just ty -> pure [PAnn pats ty :- Just(init, end)]
 
 patOperator :: Parser (Annotated Pattern)
 patOperator = do

@@ -306,6 +306,11 @@ syPat ((x :- p):xs) out ops = do
         P.PList pats -> do
             ps <- forM pats $ \p -> syPat p [] []
             pure . getAnnotated $ foldr (\t acc -> D.PCtor ":" [t, acc] :- Nothing) (D.PCtor "[]" [] :- Nothing) ps
+        P.PAnn p t -> do
+            p' <- syPat p [] []
+            t' <- desugarType "" t
+
+            pure $ D.PAnn p' t'
         P.POperator _ -> undefined -- ! Should never happen
 
     syPat xs ((pat :- p) : out) ops

@@ -47,6 +47,7 @@ data Pattern
     | PHole
     | PParens [Annotated Pattern]
     | POperator String
+    | PAnn [Annotated Pattern] (Annotated Type)
     deriving (Show, Ord, Eq)
 
 data Literal

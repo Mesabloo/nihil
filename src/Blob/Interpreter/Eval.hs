@@ -49,6 +49,7 @@ evaluate (EMatch expr pats :- _) = join $ foldr ((<|>) . uncurry evalBranch) (pu
             (v, PId id' :- _)                -> pure $ Map.singleton id' v
             (VCon id' v, PCtor id'' v' :- _)
                 | id' == id''                -> mconcat <$> zipWithM unpackPattern v v'
+            (val, PAnn p _ :- _)             -> unpackPattern val p
             _                                -> empty
 
         makeMatchError :: EvalEnv Value

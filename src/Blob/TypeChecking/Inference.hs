@@ -162,6 +162,9 @@ infer (e :- _) = case e of
                     pats <- mapM inferPattern exp
                     let (ts, cs, envs) = unzip3 pats
                     pure (TTuple ts, mconcat cs, mconcat envs)
+                PAnn p t -> do
+                    (t', cs, env) <- inferPattern p
+                    pure (t', (tiType t, t') : cs, env)
                 PCtor id' args -> do
                     ctor <- instantiate =<< lookupCtor id'
                     let (ts, r) = unfoldParams ctor

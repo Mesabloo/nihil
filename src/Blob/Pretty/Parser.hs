@@ -78,6 +78,7 @@ pPattern (PChr c :- _) = text (show c)
 pPattern (PId i :- _) = text i
 pPattern (Wildcard :- _) = text "_"
 pPattern (PTuple pats :- _) = parens . mconcat $ intersperse (text ", ") (map pPattern pats)
+pPattern (PAnn p t :- _) = parens $ pPattern p <+> text "∷" <+> pType t
 pPattern (PCtor name args :- _) =
     let parenthesized = foldr ((<+>) . parenthesizeIfNeeded) empty args
     in text name <+> parenthesized

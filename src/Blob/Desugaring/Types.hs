@@ -30,6 +30,7 @@ data Pattern = Wildcard               -- _
              | PChr Char              -- a basic value like `'a'`
              | PTuple [Annotated Pattern]       -- a basic value like `(a, b)`
              | PCtor String [Annotated Pattern] -- a basic value like `Just a`
+             | PAnn (Annotated Pattern) (Annotated Type)
     deriving (Show, Eq, Ord)
 
 data Literal = LInt Integer
