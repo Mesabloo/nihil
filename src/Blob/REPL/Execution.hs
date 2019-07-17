@@ -27,9 +27,7 @@ import Blob.TypeChecking.Types
 import System.IO
 import Blob.Pretty.Parser hiding (pType)
 import Blob.Pretty.Inference
-import Blob.Parsing.ExprParser
 import Blob.Parsing.Lexer
-import Blob.Parsing.TypeParser
 import Blob.KindChecking.Types
 import Blob.KindChecking.Checker
 import Text.Megaparsec (try)

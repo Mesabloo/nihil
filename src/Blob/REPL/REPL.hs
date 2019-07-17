@@ -21,8 +21,6 @@ import Blob.Interpreter.Eval (evaluate)
 import Blob.REPL.Commands (command)
 import Blob.REPL.Execution
 import Blob.Parsing.Parser (parseProgram, parseStatement)
-import Blob.Parsing.ExprParser (parseExpression)
-import Blob.Parsing.TypeParser (type')
 import Blob.TypeChecking.Inference
 import Blob.KindChecking.Checker (kiType, checkKI, kindInference)
 import Blob.Pretty.Parser (pExpression, pStatement, pProgram)
