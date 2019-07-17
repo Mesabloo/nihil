@@ -54,3 +54,4 @@ evaluate (EMatch expr pats :- _) = join $ foldr ((<|>) . uncurry evalBranch) (pu
         makeMatchError :: EvalEnv Value
         makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot
 evaluate (EHole :- _) = throwError . text $ "Developer error: type checking failed ; unexpected type hole while executing.\nPlease report the issue."
+evaluate (EAnn e _ :- _) = evaluate e

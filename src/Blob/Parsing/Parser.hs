@@ -198,10 +198,14 @@ parseExpression = do
 
     pos <- indentLevel
     a <- lexemeN $ some (sameOrIndented pos atom)
+    end' <- getSourcePos
+    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
 
     end <- getSourcePos
 
-    pure $ a :- Just (init, end)
+    case t of
+        Nothing -> pure $ a :- Just (init, end)
+        Just ty -> pure $ [AAnn (a :- Just (init, end')) ty :- Just (init, end)] :- Just (init, end)
 
 atom :: Parser (Annotated Atom)
 atom = operator <|> expr

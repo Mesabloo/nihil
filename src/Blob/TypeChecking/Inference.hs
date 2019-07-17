@@ -130,6 +130,9 @@ infer (e :- _) = case e of
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldMap snd ts)
+    EAnn e t -> do
+        (t', c) <- infer e
+        pure (t', (tiType t, t') : c)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
         let (pats, branches) = unzip cases

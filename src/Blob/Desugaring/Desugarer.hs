@@ -240,6 +240,11 @@ syExpr ((x :- p):xs) out ops = do
                 e1 <- syExpr branch [] []
 
                 pure (p', e1)
+        P.AAnn (e :- p1) t -> do
+            e' <- syExpr e [] []
+            t' <- desugarType "" t
+
+            pure $ D.EAnn e' t' :- p
         P.AOperator _ -> undefined -- ! should never happen
 
     syExpr xs (e:out) ops

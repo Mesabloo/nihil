@@ -35,6 +35,7 @@ data Atom
     | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]
     | AParens (Annotated Expr)
     | AApp (Annotated Atom) (Annotated Atom)
+    | AAnn (Annotated Expr) (Annotated Type)
     deriving (Show, Ord, Eq)
 
 data Pattern
