@@ -298,12 +298,9 @@ pattern' :: Parser [Annotated Pattern]
 pattern' = do
     init <- getSourcePos
     pats <- lexemeN $ some (patTerm <|> try patOperator)
-    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
     end <- getSourcePos
 
-    case t of
-        Nothing -> pure pats
-        Just ty -> pure [PAnn pats ty :- Just(init, end)]
+    pure pats
 
 patOperator :: Parser (Annotated Pattern)
 patOperator = do
@@ -321,22 +318,26 @@ patTerm = do
         <|> PLit . LInt <$> integer
         <|> PLit . LChr <$> char''
         <|> PId         <$> identifier
-        <|> PCtor       <$> typeIdentifier <*> many pattern'
+        <|> PCtor       <$> typeIdentifier <*> (fmap (: []) <$> many patTerm)
         <|>                 try patternTuple
         <|>                 patternList
         <|> PLit . LStr <$> string''
         <|> PParens     <$> parens pattern'
+    end' <- getSourcePos
+    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
     end <- getSourcePos
 
-    pure $ p :- Just (init, end)
+    case t of
+        Nothing -> pure (p :- Just (init, end))
+        Just ty -> pure (PAnn [p :- Just (init, end')] ty :- Just (init, end))
   where
     patternList :: Parser Pattern
-    patternList =   brackets (string "" $> PList []
-                            <|> do
+    patternList =   brackets (do
                                     e1 <- pattern'
                                     es <- many (string "," *> pattern')
 
-                                    pure $ PList (e1 : es))
+                                    pure $ PList (e1 : es)
+                            <|> string "" $> PList [])
 
     patternTuple :: Parser Pattern
     patternTuple = parens $ do
