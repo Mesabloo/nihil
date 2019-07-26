@@ -1,8 +1,8 @@
 module Blob.REPL.Types where
 
-import Blob.Desugaring.Types (Expr, SugarState)
-import Blob.TypeChecking.Types (GlobalEnv)
-import Blob.Pretty.Parser (pExpression)
+import Blob.Language.Desugaring.Types (Expr, SugarState)
+import Blob.Language.TypeChecking.Types (GlobalEnv)
+import Blob.Language.Pretty.Parser (pExpression)
 import Text.PrettyPrint.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad.State (StateT)
@@ -10,7 +10,7 @@ import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (Except, ExceptT)
 import System.Console.Haskeline (InputT)
 import Data.List (intercalate)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 import Blob.Interpreter.Types
 
 data Command = GetType String
@@ -20,7 +20,6 @@ data Command = GetType String
              | Load String
              | Exit
              | ResetEnv [String]
-             | Ast String
              | Time String
              | Bench Integer String
              | Env

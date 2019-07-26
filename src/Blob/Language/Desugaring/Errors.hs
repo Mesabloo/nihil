@@ -1,4 +1,4 @@
-module Blob.Desugaring.Errors where
+module Blob.Language.Desugaring.Errors where
 
 import Text.PrettyPrint.Leijen
 

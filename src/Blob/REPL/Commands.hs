@@ -2,8 +2,8 @@
 
 module Blob.REPL.Commands where
 
-import Blob.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
-import Blob.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN, identifier, opSymbol)
+import Blob.Language.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
+import Blob.Language.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN, identifier, opSymbol)
 import qualified Data.Map as Map
 import Text.Megaparsec 
 import Data.String.Utils (rstrip)

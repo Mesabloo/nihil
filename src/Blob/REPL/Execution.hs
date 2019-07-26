@@ -7,29 +7,27 @@ import System.Console.ANSI
 import System.Exit
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
-import Blob.Desugaring.Types hiding (Scheme(..))
-import Blob.Parsing.Annotation
+import Blob.Language.Desugaring.Types hiding (Scheme(..))
+import Blob.Language.Parsing.Annotation
 import qualified Data.Map as Map
-import Blob.TypeChecking.Inference
-import Blob.Interpreter.Types
+import Blob.Language.TypeChecking.Inference
 import System.Directory
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Except
 import Text.PrettyPrint.Leijen hiding ((<$>))
-import Blob.Desugaring.Desugarer
-import Blob.Parsing.Parser
+import Blob.Language.Desugaring.Desugarer
+import Blob.Language.Parsing.Parser
 import Control.Applicative
 import Text.Megaparsec.Error (errorBundlePretty)
 import Control.Monad.Reader
 import Blob.Interpreter.Eval
-import Blob.TypeChecking.Types
+import Blob.Language.TypeChecking.Types
 import System.IO
-import Blob.Pretty.Parser hiding (pType)
-import Blob.Pretty.Inference
-import Blob.Parsing.Lexer
-import Blob.KindChecking.Types
-import Blob.KindChecking.Checker
+import Blob.Language.Pretty.Parser hiding (pType)
+import Blob.Language.Pretty.Inference
+import Blob.Language.Parsing.Lexer
+import Blob.Language.KindChecking.Checker
 import Text.Megaparsec (try)
 import Criterion.Measurement (secs, getTime)
 import qualified Data.List as List

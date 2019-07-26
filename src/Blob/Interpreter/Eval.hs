@@ -2,7 +2,7 @@
 
 module Blob.Interpreter.Eval where
 
-import Blob.Desugaring.Types (Expr(..), Literal(..), Pattern(..))
+import Blob.Language.Desugaring.Types (Expr(..), Literal(..), Pattern(..))
 import qualified Data.Map as Map
 import Blob.Interpreter.Types
 import Control.Monad.Reader
@@ -12,7 +12,7 @@ import Control.Applicative
 import Text.PrettyPrint.Leijen hiding ((<$>), empty)
 import Data.Maybe
 import Data.List.Extra (snoc)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 
 evaluate :: Annotated Expr -> EvalEnv Value
 evaluate (ELit (LInt v) :- _)    = pure $ VInt v

@@ -1,10 +1,10 @@
-module Blob.Parsing.Types where
+module Blob.Language.Parsing.Types where
 
 import qualified Text.Megaparsec as Mega
 import Data.Void
 import Data.Text
 import qualified Data.Map as Map
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 
 type Parser = Mega.Parsec Void Text
 

@@ -1,14 +1,14 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Blob.Pretty.Inference
+module Blob.Language.Pretty.Inference
 ( pType
 , pKind
 ) where
 
 import Text.PrettyPrint.Leijen (text, parens, Doc, brackets, empty, (<+>))
-import Blob.TypeChecking.Types (TVar(..), Type(..), Kind(..))
+import Blob.Language.TypeChecking.Types (TVar(..), Type(..), Kind(..))
 import Data.List (intersperse)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 
 pType :: Annotated Type -> Doc
 pType (t :- _) = case t of

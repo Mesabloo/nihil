@@ -14,17 +14,17 @@ import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, 
 import Control.Monad.Reader (runReaderT)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), REPLOptions(..))
 import Blob.Interpreter.Types (Value(..), EvalState(..))
-import Blob.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
-import Blob.Desugaring.Types (Program(..), Statement(..), SugarState(..))
+import Blob.Language.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
+import Blob.Language.Desugaring.Types (Program(..), Statement(..), SugarState(..))
 import Blob.Prelude (defaultEnv, initGlobalEnv, initEvalState)
 import Blob.Interpreter.Eval (evaluate)
 import Blob.REPL.Commands (command)
 import Blob.REPL.Execution
-import Blob.Parsing.Parser (parseProgram, parseStatement)
-import Blob.TypeChecking.Inference
-import Blob.KindChecking.Checker (kiType, checkKI, kindInference)
-import Blob.Pretty.Parser (pExpression, pStatement, pProgram)
-import Blob.Pretty.Inference (pType, pKind)
+import Blob.Language.Parsing.Parser (parseProgram, parseStatement)
+import Blob.Language.TypeChecking.Inference
+import Blob.Language.KindChecking.Checker (kiType, checkKI, kindInference)
+import Blob.Language.Pretty.Parser (pExpression, pStatement, pProgram)
+import Blob.Language.Pretty.Inference (pType, pKind)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Void (Void)
@@ -46,11 +46,12 @@ import Criterion.Measurement.Types (whnf, Measured(..))
 import Debug.Trace
 import System.IO.Unsafe (unsafePerformIO)
 import Text.PrettyPrint.Leijen (text, (<$$>), empty)
-import Blob.Desugaring.Defaults
-import Blob.Desugaring.Desugarer
-import Blob.Parsing.Annotation
+import Blob.Language.Desugaring.Defaults
+import Blob.Language.Desugaring.Desugarer
+import Blob.Language.Parsing.Annotation
 import System.FilePath.Posix ((</>))
 import Blob.REPL.Defaults
+import Blob.REPL.Logger
 
 runREPL :: ([FilePath] -> REPL a) -> IO ()
 runREPL = flip customRunREPL (REPLOptions [])
@@ -63,8 +64,7 @@ customRunREPL r opts = do
     e <- runExceptT (runStateT (runInputT defaultSettings (r fs)) initREPLState)
 
     case e of
-        Left err -> setSGR [SetColor Foreground Vivid Red] >> putStr (show err) >> setSGR [Reset] >> hFlush stdout
-                    >> customRunREPL r opts
+        Left err -> logError err >> customRunREPL r opts
         Right _ -> pure ()
 
 replLoop :: [FilePath] -> REPL ()
@@ -111,10 +111,7 @@ replLoop fs = do
                                 >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err)
                                 >> setSGR [Reset] >> hFlush stdout
                         else putStr ""
-                    Right output -> catchError (replCheck output)
-                                    (\e -> liftIO $ setSGR [SetColor Foreground Vivid Red]
-                                                    >> putStr (show e)
-                                                    >> setSGR [Reset] >> hFlush stdout)
+                    Right output -> catchError (replCheck output) (liftIO . logError)
 
     
 replCheck :: Command -> REPL ()

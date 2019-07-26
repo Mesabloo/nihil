@@ -1,13 +1,13 @@
 module Blob.Interpreter.Types where
 
-import Blob.Desugaring.Types
-import Blob.Parsing.Annotation
+import Blob.Language.Desugaring.Types
+import Blob.Language.Parsing.Annotation
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen
-import Blob.Pretty.Parser (pExpression)
+import Blob.Language.Pretty.Parser (pExpression)
 import Data.List (intercalate)
 
 data Value = VInt Integer

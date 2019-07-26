@@ -4,7 +4,7 @@ import Blob.REPL.Types
 import System.Console.ANSI
 import System.IO
 import Blob.Prelude
-import Blob.Desugaring.Defaults
+import Blob.Language.Desugaring.Defaults
 import Control.Monad.State (liftIO)
 
 initREPLState :: REPLState

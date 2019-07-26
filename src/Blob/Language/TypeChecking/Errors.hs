@@ -1,9 +1,9 @@
-module Blob.TypeChecking.Errors where
+module Blob.Language.TypeChecking.Errors where
 
 import Text.PrettyPrint.Leijen
-import Blob.TypeChecking.Types
-import Blob.Pretty.Inference
-import Blob.Parsing.Annotation
+import Blob.Language.TypeChecking.Types
+import Blob.Language.Pretty.Inference
+import Blob.Language.Parsing.Annotation
 
 makeUnifyError :: Type -> Type -> TIError
 makeUnifyError t1 t2 = text "Could not match type “" <> pType (t1 :- Nothing) <> text "” with “" <> pType (t2 :- Nothing) <> text "”" <> dot <> linebreak

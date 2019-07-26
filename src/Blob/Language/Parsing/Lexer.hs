@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 
-module Blob.Parsing.Lexer where
+module Blob.Language.Parsing.Lexer where
 
 import Text.Megaparsec (hidden, some, many, skipMany, skipSome, oneOf, try, (<?>), (<|>), between, manyTill, notFollowedBy, eof, empty)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Megaparsec.Pos (Pos, unPos)
-import Blob.Parsing.Types (Parser)
+import Blob.Language.Parsing.Types (Parser)
 import Data.Text (Text, pack, unpack)
 import Control.Monad.State (get, lift, modify, gets, void)
 import Data.Functor (($>))

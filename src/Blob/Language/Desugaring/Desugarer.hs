@@ -1,9 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Blob.Desugaring.Desugarer where
+module Blob.Language.Desugaring.Desugarer where
 
-import qualified Blob.Desugaring.Types as D
-import qualified Blob.Parsing.Types as P
+import qualified Blob.Language.Desugaring.Types as D
+import qualified Blob.Language.Parsing.Types as P
 import qualified Data.Map as Map
 import Control.Applicative
 import Control.Monad.State
@@ -11,16 +11,16 @@ import Control.Monad.Except
 import Text.PrettyPrint.Leijen (text, dot, linebreak, Doc)
 import qualified Data.Set as Set
 import qualified Data.MultiMap as MMap
-import Blob.Desugaring.Defaults
+import Blob.Language.Desugaring.Defaults
 import Text.Megaparsec
 import Control.Monad.Combinators.Expr
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 import Data.List (sortBy)
 import Data.Foldable (foldrM, foldlM)
 import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 import Data.Functor ((<&>))
-import Blob.Desugaring.Errors
+import Blob.Language.Desugaring.Errors
 
 desugarProgram :: String -> Annotated P.Program -> D.Sugar (Annotated D.Program)
 desugarProgram fileName (s :- p)= do

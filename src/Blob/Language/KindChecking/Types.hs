@@ -1,4 +1,4 @@
-module Blob.KindChecking.Types where
+module Blob.Language.KindChecking.Types where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -7,7 +7,7 @@ import Control.Monad.State (State)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (ExceptT)
 import Data.Maybe (fromMaybe)
-import Blob.TypeChecking.Types (CustomTypeEnv, Kind(..), KindEnv)
+import Blob.Language.TypeChecking.Types (CustomTypeEnv, Kind(..), KindEnv)
 
 type KIError = Doc
 

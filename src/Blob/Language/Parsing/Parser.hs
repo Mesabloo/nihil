@@ -1,15 +1,15 @@
 {-# LANGUAGE LambdaCase, OverloadedStrings #-}
 
-module Blob.Parsing.Parser where
+module Blob.Language.Parsing.Parser where
 
-import Blob.Parsing.Types
-import Blob.Parsing.Lexer
+import Blob.Language.Parsing.Types
+import Blob.Language.Parsing.Lexer
 import Text.Megaparsec as Mega hiding (eof, match)
 import Text.Megaparsec.Char hiding (string)
 import qualified Data.Map as Map
 import Data.Functor
 import Text.Megaparsec.Char.Lexer hiding (lexeme, nonIndented, symbol, float)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 import Debug.Trace
 
 parseProgram :: Parser Program

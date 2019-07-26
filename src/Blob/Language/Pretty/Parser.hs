@@ -1,19 +1,19 @@
 {-# LANGUAGE BlockArguments, LambdaCase #-}
 
-module Blob.Pretty.Parser
+module Blob.Language.Pretty.Parser
 ( pProgram
 , pStatement
 , pExpression
 , pType
 ) where
 
-import Blob.Desugaring.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Pattern(..), Scheme(..), CustomType(..))
-import Blob.Parsing.Types (Associativity(..), Fixity(..))
+import Blob.Language.Desugaring.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Pattern(..), Scheme(..), CustomType(..))
+import Blob.Language.Parsing.Types (Associativity(..), Fixity(..))
 import Text.PrettyPrint.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import Data.List (intersperse)
 import qualified Data.Map as Map (toList, map, foldr)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 
 indentLevel :: Int
 indentLevel = 4

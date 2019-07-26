@@ -3,7 +3,7 @@
 module Blob.Prelude where
 
 import Blob.Interpreter.Types (Value(..), Scope, EvalState(..))
-import Blob.TypeChecking.Types
+import Blob.Language.TypeChecking.Types
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen (text)
 import Control.Monad.Except (throwError)

@@ -1,4 +1,4 @@
-module Blob.Parsing.Annotation where
+module Blob.Language.Parsing.Annotation where
 
 import qualified Text.Megaparsec as Mega
 import Text.Megaparsec.Pos (unPos)

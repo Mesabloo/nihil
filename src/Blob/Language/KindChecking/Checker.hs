@@ -1,11 +1,11 @@
 {-# LANGUAGE TupleSections, LambdaCase #-}
 
-module Blob.KindChecking.Checker where
+module Blob.Language.KindChecking.Checker where
 
-import Blob.TypeChecking.Types
-import qualified Blob.Parsing.Types as PT
-import Blob.KindChecking.Types
-import Blob.Pretty.Inference (pType, pKind)
+import Blob.Language.TypeChecking.Types
+import qualified Blob.Language.Parsing.Types as PT
+import Blob.Language.KindChecking.Types
+import Blob.Language.Pretty.Inference (pType, pKind)
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

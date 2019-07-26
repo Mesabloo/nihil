@@ -1,15 +1,15 @@
 {-# LANGUAGE LambdaCase, BlockArguments #-}
 
-module Blob.TypeChecking.Inference where
+module Blob.Language.TypeChecking.Inference where
 
-import Blob.TypeChecking.Types
+import Blob.Language.TypeChecking.Types
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.Set as Set
-import Blob.TypeChecking.Errors
+import Blob.Language.TypeChecking.Errors
 import qualified Data.Map as Map
-import Blob.Desugaring.Types hiding (Type(..), Scheme, CustomType(..))
-import qualified Blob.Desugaring.Types as TP (Type(..), Scheme(..), CustomType(..))
+import Blob.Language.Desugaring.Types hiding (Type(..), Scheme, CustomType(..))
+import qualified Blob.Language.Desugaring.Types as TP (Type(..), Scheme(..), CustomType(..))
 import Control.Monad.RWS
 import Control.Monad.Identity
 import Data.List (nub)
@@ -21,10 +21,10 @@ import Data.Bifunctor (first, second, bimap)
 import Debug.Trace
 import Data.These
 import qualified Data.Map.Unordered as UMap
-import Blob.KindChecking.Checker
-import Blob.KindChecking.Types
+import Blob.Language.KindChecking.Checker
+import Blob.Language.KindChecking.Types
 import Data.Align.Key (alignWithKey)
-import Blob.Parsing.Annotation
+import Blob.Language.Parsing.Annotation
 import Data.Functor.Invariant (invmap)
 
 -- | Run the inference monad
