@@ -39,6 +39,7 @@ dependencies:
 - filepath
 - insert-ordered-containers
 - JellyVM
+- invariant
 name: Blob
 version: 0.1.0.0
 extra-source-files:

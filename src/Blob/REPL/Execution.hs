@@ -35,6 +35,7 @@ import Criterion.Measurement (secs, getTime)
 import qualified Data.List as List
 import Blob.Interpreter.Types
 import Blob.Prelude
+import Debug.Trace
 
 helpCommand :: IO ()
 helpCommand = do

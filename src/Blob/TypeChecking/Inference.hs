@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, TupleSections, BlockArguments #-}
+{-# LANGUAGE LambdaCase, BlockArguments #-}
 
 module Blob.TypeChecking.Inference where
 
@@ -17,17 +17,15 @@ import Text.PrettyPrint.Leijen (text, dot, linebreak, empty)
 import Control.Monad.Reader
 import MonadUtils (mapAndUnzip3M)
 import Control.Applicative ((<|>), liftA2)
-import Data.Bifunctor (first, second)
+import Data.Bifunctor (first, second, bimap)
 import Debug.Trace
 import Data.These
 import qualified Data.Map.Unordered as UMap
-import Data.Bifunctor (bimap)
 import Blob.KindChecking.Checker
 import Blob.KindChecking.Types
 import Data.Align.Key (alignWithKey)
-import Data.Either (fromRight)
-import Data.Maybe (isNothing, catMaybes, fromJust)
 import Blob.Parsing.Annotation
+import Data.Functor.Invariant (invmap)
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -172,7 +170,7 @@ infer (e :- _) = case e of
                     guard (length args == length ts)
                         <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor “" <> text id' <> text "”, but got " <> text (show $ length args) <> dot <> linebreak)
 
-                    (ts', cons, env) <- third mconcat <$> mapAndUnzip3M inferPattern args
+                    (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
 
                     let cons' = zip ts ts'
 
@@ -187,9 +185,6 @@ infer (e :- _) = case e of
                         unfoldParams :: Type -> ([Type], Type)
                         unfoldParams (TFun a b) = first (a:) (unfoldParams b)
                         unfoldParams t = ([], t)
-
-            third :: (c -> d) -> (a, b, c) -> (a, b, d)
-            third f (a, b, c) = (a, b, f c)
 
             zipFrom :: a -> [b] -> [(a, b)]
             zipFrom = zip . repeat
