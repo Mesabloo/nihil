@@ -1,12 +1,45 @@
+{-# LANGUAGE TypeFamilies, RecordWildCards, FlexibleInstances #-}
+
 module Blob.Language.Parsing.Types where
 
-import qualified Text.Megaparsec as Mega
-import Data.Void
-import Data.Text
 import qualified Data.Map as Map
 import Blob.Language.Parsing.Annotation
+import Control.Monad.State
+import Control.Monad.Except
+import Text.PrettyPrint.Leijen hiding ((<$>))
+import Blob.Language.Lexing.Types (SourceSpan, Lexeme)
+import Text.Megaparsec
+import Data.Proxy
+import Data.Void
 
-type Parser = Mega.Parsec Void Text
+type Parser = Parsec Void [TokenL]
+
+type TokenL = (Int, SourceSpan, Lexeme)
+
+instance Stream [TokenL] where
+    type Token [TokenL] = TokenL
+    type Tokens [TokenL] = [TokenL]
+
+    tokensToChunk Proxy = id
+    chunkToTokens Proxy = id
+    chunkLength Proxy = length
+    chunkEmpty Proxy = null 
+    take1_ [] = Nothing
+    take1_ (x:xs) = Just (x, xs)
+    takeN_ n s | n <= 0 = Nothing
+               | n > length s = Just (s, [])
+               | otherwise = Just (splitAt n s)
+    takeWhile_ = span
+    showTokens Proxy = concatMap show
+    reachOffset n p | n <= 0 = (pstateSourcePos p, "placeholder, will not be shown.", p)
+                    | otherwise = reachOffset (n - 1) (f p)
+      where f ps = PosState (if null (pstateInput ps) then [] else let _:xs = pstateInput ps in xs)
+                            (pstateOffset ps + fromEnum (null (pstateInput ps)))
+                            (increaseSourcePos (pstateSourcePos ps) (fromEnum . null $ pstateInput ps))
+                            (pstateTabWidth ps)
+                            (pstateLinePrefix ps)
+
+            increaseSourcePos sp n' = SourcePos (sourceName sp) (sourceLine sp) (mkPos $ unPos (sourceColumn sp) + n')
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -74,5 +107,5 @@ data Type
     | TApp [Annotated Type]        -- Type a...
     deriving (Show, Eq, Ord)
 
-data CustomType = TSum (Map.Map String [Annotated Type]) | TAlias (Annotated Type)
+data CustomType = TSum (Map.Map String [Annotated Type]) | TAlias (Annotated Type) | TGADT (Map.Map String (Annotated Type))
     deriving (Show, Eq, Ord)

@@ -1,346 +1,437 @@
-{-# LANGUAGE LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, TupleSections #-}
 
 module Blob.Language.Parsing.Parser where
 
+import Blob.Language.Lexing.Types hiding (Parser)
 import Blob.Language.Parsing.Types
-import Blob.Language.Parsing.Lexer
-import Text.Megaparsec as Mega hiding (eof, match)
-import Text.Megaparsec.Char hiding (string)
-import qualified Data.Map as Map
-import Data.Functor
-import Text.Megaparsec.Char.Lexer hiding (lexeme, nonIndented, symbol, float)
 import Blob.Language.Parsing.Annotation
+import Text.PrettyPrint.Leijen (Doc, text, linebreak)
+import qualified Data.Map as Map
+import Control.Monad
+import Data.Functor
+import Control.Monad.Except
+import Data.Maybe
+import Control.Monad.State
+import qualified Data.Text as Text
+import qualified Data.Char as Ch
+import Text.Megaparsec hiding (Token, match)
+import Control.Applicative (empty, liftA2)
+import Data.Void
 import Debug.Trace
 
-parseProgram :: Parser Program
-parseProgram = (lexemeN eof $> []) 
-    <|> do
-        s <- parseStatement
-        ss <- many parseStatement <* eof
+program :: Parser Program
+program = "statements" <??> many statement <* (eof <?> "EOF")
 
-        pure (s:ss)
+statement :: Parser (Annotated Statement)
+statement = nonIndented (choice [ customOp <?> "custom operator definition"
+                                , customDataType <?> "custom data type declaration"
+                                , typeAlias <?> "type alias declaration"
+                                , try declaration <?> "function declaration"
+                                , definition <?> "function definition" ])
 
-parseStatement :: Parser (Annotated Statement)
-parseStatement = lexemeN . nonIndented $ parseOpDecl <|> parseSumType <|> parseTypeAlias <|> try parseDecl <|> parseDef
+customOp :: Parser (Annotated Statement)
+customOp = do
+    (pInit, pEnd, op) <- getPositionInSource $ do
+        iPos <- getPositionAndIndent
+        f <- fixity
+        prec <- sameLineOrIndented iPos integer <?> "operator precedence"
+        guard (prec <= 9) <|> fail "Operator precedence should be < 10 and > 0"
+        op <- sameLineOrIndented iPos (opSymbol <|> parens opSymbol) <?> "operator"
 
-parseOpDecl :: Parser (Annotated Statement)
-parseOpDecl = do
-    init <- getSourcePos
+        pure $ OpFixity op (f prec op :- Nothing)
 
-    pos <- indentLevel
-    fixity <- parseFix
-    pos' <- indentLevel
-    prec <- indented pos integer
-    name <- indented pos' $ opSymbol <|> parens opSymbol
+    pure (op :- Just (SourceSpan pInit pEnd))
+  where
+    fixity = Infix <$> choice [ keyword "infix"  $> N
+                              , keyword "infixl" $> L
+                              , keyword "infixr" $> R ]
 
-    end <- getSourcePos
+customDataType :: Parser (Annotated Statement)
+customDataType = do
+    (pInit, pEnd, dataType) <- getPositionInSource $ do
+        keyword "data"
+        iPos <- getPositionAndIndent
+        name <- sameLineOrIndented iPos typeIdentifier
+        tvs <- many $ sameLineOrIndented iPos identifier
 
-    pure $ OpFixity name (fixity prec name :- Just (init, end)) :- Just (init, end)
-  where parseFix =     keyword "infixr" $> Infix R
-                   <|> keyword "infixl" $> Infix L
-                   <|> keyword "infix"  $> Infix N
+        TypeDeclaration name tvs <$> choice [ sameLineOrIndented iPos (symbol "=") *> adtDeclaration iPos
+                                            , sameLineOrIndented iPos (keyword "where") *> gadtDeclaration iPos ]
 
-parseDecl :: Parser (Annotated Statement)
-parseDecl = do
-    init <- getSourcePos
+    pure (dataType :- Just (SourceSpan pInit pEnd))
+  where
+    adtDeclaration iPos = do
+        (pInit, pEnd, cType) <- getPositionInSource $ do
+            let ctor = (,) <$> typeIdentifier <*> many (sameLineOrIndented iPos atype)
+            ctor1 <- sameLineOrIndented iPos ctor
+            ctors <- many (sameLineOrIndented iPos (symbol "|") *> sameLineOrIndented iPos ctor)
+            pure (TSum $ Map.fromList (ctor1:ctors))
+        pure (cType :- Just (SourceSpan pInit pEnd))
 
-    pos <- indentLevel
-    name <- lexemeN $ identifier <|> parens opSymbol
-    indented pos $ hidden (string "::") <|> string "∷"
-    t <- indented pos type'
+    gadtDeclaration iPos = do
+        (pInit, pEnd, cType) <- getPositionInSource $ do
+            let ctor =
+                    (,) <$> typeIdentifier
+                        <*> (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type')
+            ctor1 <- sameLineOrIndented iPos ctor
+            ctors <- many (sameLineOrIndented iPos (symbol "|") *> sameLineOrIndented iPos ctor)
+            pure (TGADT $ Map.fromList (ctor1:ctors))
+        pure (cType :- Just (SourceSpan pInit pEnd))
 
-    end <- getSourcePos
+typeAlias :: Parser (Annotated Statement)
+typeAlias = do
+    (pInit, pEnd, alias) <- getPositionInSource $ do
+        iPos <- getPositionAndIndent
+        keyword "type"
+        name <- sameLineOrIndented iPos typeIdentifier
+        tvs <- many $ sameLineOrIndented iPos identifier
+        sameLineOrIndented iPos (symbol "=")
+        (pInit, pEnd, alias) <- getPositionInSource $ sameLineOrIndented iPos type'
 
-    pure $ Declaration name t :- Just (init, end)
+        pure (TypeDeclaration name tvs (TAlias alias :- Just (SourceSpan pInit pEnd)))
+    
+    pure (alias :- Just (SourceSpan pInit pEnd))
 
-parseDef :: Parser (Annotated Statement)
-parseDef = do
-    init <- getSourcePos
+declaration :: Parser (Annotated Statement)
+declaration = do
+    (pInit, pEnd, decl) <- getPositionInSource $ do
+        iPos <- getPositionAndIndent
+        name <- identifier <|> parens opSymbol
+        sameLineOrIndented iPos (symbol "::")
+        t <- sameLineOrIndented iPos type'
 
-    pos <- indentLevel
-    name <- lexemeN $ identifier <|> parens opSymbol
-    args <- lexemeN . many $ indented pos identifier
-    indented pos $ string "="
-    e <- indented pos parseExpression
+        pure (Declaration name t)
+    pure (decl :- Just (SourceSpan pInit pEnd))
 
-    end <- getSourcePos
+definition :: Parser (Annotated Statement)
+definition = do
+    (pInit, pEnd, def) <- getPositionInSource $ do
+        iPos <- getPositionAndIndent
+        name <- identifier <|> parens opSymbol
+        args <- many $ sameLineOrIndented iPos identifier
+        sameLineOrIndented iPos (symbol "=")
+        v <- sameLineOrIndented iPos expression
 
-    pure $ Definition name args e :- Just (init, end)
+        pure (Definition name args v)
+    pure (def :- Just (SourceSpan pInit pEnd))
 
-parseSumType :: Parser (Annotated Statement)
-parseSumType = flip (<?>) "sum type" $ do
-    init <- getSourcePos
+------------------------------------------------------------------------------------------
 
-    pos   <- indentLevel
-    keyword "data"
-    pos'  <- indentLevel
-    name  <- indented pos typeIdentifier
-    ts    <- (many . sameOrIndented pos') typeVariable
-    sameOrIndented pos' $ string "="
+getPositionInSource :: Parser a -> Parser (SourcePos, SourcePos, a)
+getPositionInSource p = do
+    (_, SourceSpan pInit _) <- getPositionAndIndent
+    stream <- stateInput <$> getParserState
+    res <- p
+    let f (i, pos, _) = (i, pos)
+    (_, SourceSpan _ pEnd) <- (eof $> f (last stream)) <|> getPositionAndIndent
 
-    ctorsInit <- getSourcePos
-    ctor1 <- indented pos $ constructor name ts
-    ctors <- many . indented pos $ string "|" *> constructor name ts
+    pure (pInit, pEnd, res)
 
-    end <- getSourcePos
+sameLineOrIndented :: (Int, SourceSpan) -> Parser a -> Parser a
+sameLineOrIndented (indent, SourceSpan beg end) p = do
+    (i, SourceSpan b _) <- try getPositionAndIndent
+    if sourceLine beg == sourceLine b
+    then p
+    else do
+        guard (i > indent)
+            <|> fail ("Possible incorrect indentation (should be greater than " <> show indent <> ")")
+        p
 
-    pure $ TypeDeclaration name ts (TSum (Map.fromList (ctor1:ctors)) :- Just (ctorsInit, end)) :- Just (init, end)
-  where constructor name ts = flip (<?>) "type constructor" $ lexemeN $ do
-            pos   <- indentLevel
-            name' <- typeIdentifier -- <|> parens ctorSymbol
-            (optional . many) (indented pos atype')
-                >>= \case
-                    Nothing -> pure (name', [])
-                    Just cs -> pure (name', cs)
+sameIndented :: (Int, SourceSpan) -> Parser a -> Parser a
+sameIndented (indent, _) p = do
+    (i, _) <- try getPositionAndIndent
+    guard (i > indent)
+        <|> fail ("Possible incorrect indentation (should be greater than " <> show indent <> ")")
+    p
 
-parseTypeAlias :: Parser (Annotated Statement)
-parseTypeAlias = flip (<?>) "type alias" $ do
-    init <- getSourcePos
+nonIndented :: Parser a -> Parser a
+nonIndented p = do
+    (i, _) <- try getPositionAndIndent
+    guard (i == 0)
+        <|> fail "Possible incorrect indentation (should equal 0)"
+    p
 
-    pos <- indentLevel
-    keyword "type"
-    pos' <- indentLevel
-    name <- indented pos typeIdentifier
-    ts <- (many . sameOrIndented pos') typeVariable
-    sameOrIndented pos' $ string "="
-    t <- indented pos type'
+getPositionAndIndent :: Parser (Int, SourceSpan)
+getPositionAndIndent =
+    "any token" <??> try (lookAhead anySingle)
+        >>= \(i, p, t) -> pure (i, p)
 
-    end <- getSourcePos
+keyword :: String -> Parser TokenL
+keyword s = ("keyword “" <> s <> "”") <??> satisfy (\(_, _, t) -> case t of
+    LKeyword kw | s == Text.unpack kw -> True
+    _ -> False)
 
-    pure $ TypeDeclaration name ts (TAlias t :- getSpan t) :- Just (init, end)
+symbol :: String -> Parser TokenL
+symbol s = ("symbol “" <> s <> "”") <??> satisfy (\(_, _, t) -> case t of
+    LSymbol sb | s == Text.unpack sb -> True
+    _ -> False)
 
-runParser :: (Stream s, Show a) => Parsec e s a -> String -> s -> Either (ParseErrorBundle s e) a
-runParser = Mega.runParser 
+identifier :: Parser String
+identifier = "identifier" <??> sat >>= \(_, _, LLowIdentifier i) -> pure (Text.unpack i)
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LLowIdentifier i -> True 
+            _ -> False
 
-----------------------------------------------------------------------------------------------------------
-{- Types parsing -}
+typeIdentifier :: Parser String
+typeIdentifier = "type identifier" <??> sat >>= \(_, _, LUpIdentifier i) -> pure (Text.unpack i)
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LUpIdentifier i -> True
+            _ -> False
+
+opSymbol :: Parser String
+opSymbol = "operator" <??> sat >>= \(_, _, LSymbol s) -> pure (Text.unpack s) >>= check
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LSymbol s | isOperator s -> True
+            _ -> False
+  
+        isOperator :: Text.Text -> Bool
+        isOperator = Text.all (liftA2 (||) Ch.isSymbol (`elem` "!#$%&.<=>?^~|@*/-:"))
+
+        check :: String -> Parser String
+        check x | x `elem` rOps = fail ("Reserved operator “" <> x <> "”")
+                | otherwise = pure x
+
+parens :: Parser a -> Parser a
+parens p = symbol "(" *> p <* symbol ")"
+
+brackets :: Parser a -> Parser a
+brackets p = symbol "[" *> p <* symbol "]"
+
+integer :: Parser Integer
+integer = "integer" <??> sat >>= \(_, _, LInteger i) -> pure i
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LInteger lit -> True
+            _ -> False
+
+float :: Parser Double
+float = "floaing point number" <??> sat >>= \(_, _, LFloat f) -> pure f
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LFloat lit -> True
+            _ -> False
+
+char :: Parser Char
+char = "character" <??> sat >>= \(_, _, LChar c) -> pure c
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LChar lit -> True
+            _ -> False
+
+string :: Parser String
+string = "string" <??> sat >>= \(_, _, LString s) -> pure (Text.unpack s)
+  where sat = satisfy $ \(_, _, t) -> case t of
+            LString lit -> True
+            _ -> False
+
+------------------------------------------------------------------------------------------
+
+nothing :: Parser ()
+nothing = pure ()
+
+(<??>) :: String -> Parser a -> Parser a
+(<??>) = flip (<?>)
+infix 0 <??>
+
+-------------------------------------------------------------------------------------------
 
 type' :: Parser (Annotated Type)
-type' = lexemeN $ do
-    init <- getSourcePos
+type' = do
+    iPos <- getPositionAndIndent
+    (pInit, pEnd, (ty, optTy)) <- getPositionInSource $ do
+        ft <- btype
+        ot <- optional $ do
+            usage <- sameLineOrIndented iPos $
+                choice [ Just ([ALit (LInt 1) :- Nothing] :- Nothing) <$ symbol "-o"
+                       , Nothing <$ symbol "->" ]
+            (usage,) <$> sameLineOrIndented iPos type'
+        pure (ft, ot)
 
-    pos         <- indentLevel
-    firstId     <- (lexemeN . sameOrIndented pos) btype'
-    multipleIds <- optional $ do
-        pos'    <- indentLevel
-        counter <- sameOrIndented pos $ (Just ([(ALit . LInt $ 1) :- Nothing] :- Nothing) <$ try (hidden (string "-o") <|> string "⊸") <?> "rounded arrow")
-                                        <|> do
-                                                lexemeN (hidden (string "->") <|> string "→") <?> "arrow"
-                                                optional . try $ braces (lexemeN parseExpression)
+    case optTy of
+        Nothing -> pure ty
+        Just (Nothing, ty') -> pure (TFun ty ty' :- Just (SourceSpan pInit pEnd))
+        Just (Just count, ty') -> pure (TArrow count ty ty' :- Just (SourceSpan pInit pEnd))
 
-        pure (counter, indented pos' type')
+btype :: Parser (Annotated Type)
+btype = do
+    iPos <- getPositionAndIndent
+    (pInit, pEnd, ts) <- getPositionInSource $ 
+        some (sameLineOrIndented iPos atype)
+    pure (TApp ts :- Just (SourceSpan pInit pEnd))
 
-    case multipleIds of
-        Nothing                      -> pure firstId
-        Just (Nothing, type'')       -> do
-            t <- type''
-            end <- getSourcePos
+atype :: Parser (Annotated Type)
+atype = do
+    (pInit, pEnd, at) <- getPositionInSource $
+        choice [ gtycon, try tTuple, tList, TVar <$> identifier, getAnnotated <$> parens type' ]
+    pure (at :- Just (SourceSpan pInit pEnd))
+  where
+    tTuple = do
+        iPos <- getPositionAndIndent
+        parens $ do
+            t1 <- sameLineOrIndented iPos type'
+            ts <- some $ sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos type'
+            pure $ TTuple (t1:ts)
 
-            pure $ TFun firstId t :- Just (init, end)
-        Just (Just counter', type'') -> do
-            t <- type''
-            end <- getSourcePos
+    tList = do
+        iPos <- getPositionAndIndent
+        brackets $ choice [ do { e1 <- sameLineOrIndented iPos type'
+                               ; es <- many $ sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos type'
+                               ; pure $ TList (e1:es) }
+                          , nothing $> TList [] ]
 
-            pure $ TArrow counter' firstId t :- Just (init, end)
+gtycon :: Parser Type
+gtycon = choice [ conid
+                , try (symbol "()") $> TTuple [] ]
 
-btype' :: Parser (Annotated Type)
-btype' = do
-    init <- getSourcePos
+conid :: Parser Type
+conid = TId <$> typeIdentifier
 
-    pos   <- indentLevel
-    types <- some $ sameOrIndented pos atype'
+-------------------------------------------------------------------------------------------
 
-    end <- getSourcePos
+expression :: Parser (Annotated Expr)
+expression = do
+    iPos <- getPositionAndIndent
+    (pInit, pEnd, (a, ty)) <- getPositionInSource $ do
+        as <- some (sameLineOrIndented iPos atom)
+        optional (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type') <&> (as,)
 
-    pure $ TApp types :- Just (init, end)
-
-atype' :: Parser (Annotated Type)
-atype' = 
-    let tuple = do
-            pos <- indentLevel
-            lexemeN . parens $ do { t1 <- sameOrIndented pos type'
-                                  ; tk <- some $ do
-                                        sameOrIndented pos (string ",")
-                                        sameOrIndented pos type'
-                                  ; pure $ TTuple (t1 : tk) }
-        list = do
-            pos <- indentLevel
-            lexemeN . brackets $ do { t1 <- sameOrIndented pos type'
-                                        ; ts <- many $ do
-                                            sameOrIndented pos (string ",")
-                                            sameOrIndented pos type'
-                                        ; pure $ TList (t1 : ts) }
-                                 <|> (string "" $> TList [])
-    in do
-        init <- getSourcePos
-        t <- gtycon'
-            <|> TVar <$> lexemeN typeVariable
-            <|> try tuple
-            <|> list
-            <|> getAnnotated <$> parens type'
-        end <- getSourcePos
-
-        pure $ t :- Just (init, end)
-
-
-gtycon' :: Parser Type
-gtycon' = conid' <|> (try (string "()") $> TTuple [])
-
-conid' :: Parser Type
-conid' = TId <$> typeIdentifier
-
------------------------------------------------------------------------------------------------------------------------------
-{- Exprs parsing -}
-
-parseExpression :: Parser (Annotated Expr)
-parseExpression = do
-    init <- getSourcePos
-
-    pos <- indentLevel
-    a <- lexemeN $ some (sameOrIndented pos atom)
-    end' <- getSourcePos
-    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
-
-    end <- getSourcePos
-
-    case t of
-        Nothing -> pure $ a :- Just (init, end)
-        Just ty -> pure $ [AAnn (a :- Just (init, end')) ty :- Just (init, end)] :- Just (init, end)
+    case ty of
+        Nothing -> pure (a :- Just (SourceSpan pInit pEnd))
+        Just t  -> pure $ [AAnn (a :- Just (SourceSpan pInit pEnd)) t :- Just (SourceSpan pInit pEnd)] :- Just (SourceSpan pInit pEnd)
 
 atom :: Parser (Annotated Atom)
-atom = operator <|> expr
-  where
-    expr = try app <|> exprNoApp
+atom = try operator <|> expr
+  where expr = try app <|> exprNoApp
 
 exprNoApp :: Parser (Annotated Atom)
 exprNoApp = do
-    init <- getSourcePos
-    a <- hole
-        <|> lambda'
-        <|> match
-        <|> AId <$> (identifier <|> try (parens opSymbol <?> "operator") <|> (try (parens (string "")) $> "()") <|> typeIdentifier)
-        <|> ALit . LDec <$> try float
-        <|> ALit . LInt <$> integer
-        <|> ALit . LChr <$> char''
-        <|> try tuple
-        <|> list
-        <|> ALit . LStr <$> string''
-        <|> AParens <$> hidden (parens parseExpression)
-    end <- getSourcePos
-
-    pure $ a :- Just (init, end)
+    (pInit, pEnd, a) <- getPositionInSource $
+        choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match", try tuple <?> "tuple", list <?> "list"
+               , AId <$> choice [ identifier, try (parens opSymbol), try (parens nothing) $> "()", typeIdentifier ] <?> "identifier"
+               , ALit . LDec <$> try float <?> "floating point number"
+               , ALit . LInt <$> integer <?> "integer"
+               , ALit . LChr <$> char <?> "character"
+               , ALit . LStr <$> string <?> "string"
+               , AParens <$> parens expression <?> "parenthesized expression" ]
+    pure (a :- Just (SourceSpan pInit pEnd))
 
 app :: Parser (Annotated Atom)
 app = do
-    init <- getSourcePos
-    pos <- indentLevel
-    a1 <- exprNoApp
-    as <- some . indented pos $ exprNoApp
-    end <- getSourcePos
-
-    pure $ getAnnotated (foldl (\e1 e2 -> AApp e1 e2 :- Nothing) a1 as) :- Just (init, end)
+    (_, _, a) <- getPositionInSource $ do
+        iPos <- getPositionAndIndent
+        (:) <$> exprNoApp <*> some (sameLineOrIndented iPos exprNoApp)
+    pure $ foldl1 f a
+  where
+    f a1 a2 = let begin' = begin <$> getSpan a1
+                  end'   = end <$> getSpan a2
+              in if isNothing begin' || isNothing end'
+                 then AApp a1 a2 :- Nothing
+                 else AApp a1 a2 :- Just (SourceSpan (fromJust begin') (fromJust end'))
 
 operator :: Parser (Annotated Atom)
 operator = do
-    init <- getSourcePos
-    op <- opSymbol
-    end <- getSourcePos
-
-    pure $ AOperator op :- Just (init, end)
+    (pInit, pEnd, op) <- getPositionInSource
+        opSymbol
+    pure (AOperator op :- Just (SourceSpan pInit pEnd))
 
 hole :: Parser Atom
-hole = lexemeN $ do
-    some (char '_')
-    pure AHole
+hole = AHole <$ satisfy (\(_, _, l) -> l == LWildcard)
 
-lambda' :: Parser Atom
-lambda' = do
-    pos <- indentLevel
-    symbol "λ" <|> hidden (symbol "\\")
-    params <- many $ indented pos identifier
-    pos' <- indentLevel
-    indented pos $ hidden (symbol "->") <|> symbol "→"
-
-    ALambda params <$> indented pos' parseExpression
+lambda :: Parser Atom
+lambda = do
+    iPos <- getPositionAndIndent
+    symbol "\\"
+    params <- some (sameLineOrIndented iPos identifier)
+    sameLineOrIndented iPos (symbol "->")
+    ALambda params <$> sameLineOrIndented iPos expression
 
 tuple :: Parser Atom
-tuple = lexemeN . parens $ do
-    e1 <- parseExpression
-    e2 <- some (lexeme (string ",") *> parseExpression)
-    pure $ ATuple (e1 : e2)
-
+tuple = do
+    iPos <- getPositionAndIndent
+    parens $ do
+        e1 <- sameLineOrIndented iPos expression
+        es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos expression)
+        pure $ ATuple (e1:es)
+    
 list :: Parser Atom
-list = brackets $ do { e1 <- parseExpression
-                     ; es <- many (string "," *> parseExpression)
-                     ; pure $ AList (e1 : es) }
-                  <|> (string "" $> AList [])
-
--- patterns
+list = do
+    iPos <- getPositionAndIndent
+    brackets $ choice [ do { e1 <- sameLineOrIndented iPos expression
+                           ; es <- many (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos expression)
+                           ; pure (AList (e1:es)) }
+                      , nothing $> AList [] ]
 
 match :: Parser Atom
 match = do
-    pos  <- indentLevel
-    same pos $ keyword "match"
-    expr <- sameOrIndented pos parseExpression  
-    sameOrIndented pos $ keyword "with"  
-    pats <- parseCases pos
+    iPos <- getPositionAndIndent
+    keyword "match"
+    expr <- sameLineOrIndented iPos expression
+    sameLineOrIndented iPos (keyword "with")
+    pats <- parseCases iPos
 
-    pure $ AMatch expr pats
-  where parseCases pos = some $ indented pos parseCase
-        parseCase = do
-            p      <- pattern'
-            pos1   <- indentLevel
-            sameOrIndented pos1 $ hidden (symbol "->") <|> symbol "→"
-            e      <- indented pos1 parseExpression
-            pure (p, e)
+    pure (AMatch expr pats)
+  where
+    parseCases iPos = some $ sameLineOrIndented iPos parseCase
+    parseCase = do
+        iPos <- getPositionAndIndent
+        p <- pattern'
+        sameLineOrIndented iPos (symbol "->")
+        (p,) <$> sameLineOrIndented iPos expression
 
 pattern' :: Parser [Annotated Pattern]
-pattern' = do
-    init <- getSourcePos
-    pats <- lexemeN $ some (patTerm <|> try patOperator)
-    end <- getSourcePos
-
-    pure pats
-
+pattern' = some (try patOperator <|> patTerm)
+    
 patOperator :: Parser (Annotated Pattern)
 patOperator = do
-    init <- getSourcePos
-    p <- opSymbol
-    end <- getSourcePos
-
-    pure $ POperator p :- Just (init, end)
+    (pInit, pEnd, op) <- getPositionInSource $
+        POperator <$> opSymbol
+    pure (op :- Just (SourceSpan pInit pEnd))
 
 patTerm :: Parser (Annotated Pattern)
 patTerm = do
-    init <- getSourcePos
-    p <-    PHole       <$  hole
-        <|> PLit . LDec <$> try float
-        <|> PLit . LInt <$> integer
-        <|> PLit . LChr <$> char''
-        <|> PId         <$> identifier
-        <|> PCtor       <$> typeIdentifier <*> (fmap (: []) <$> many patTerm)
-        <|>                 try patternTuple
-        <|>                 patternList
-        <|> PLit . LStr <$> string''
-        <|> PParens     <$> parens pattern'
-    end' <- getSourcePos
-    t <- optional $ (hidden (string "::") <|> string "∷") *> type'
-    end <- getSourcePos
+    iPos <- getPositionAndIndent
+    (pInit, pEnd, (term, ty)) <- getPositionInSource $ do
+        p <- choice [ PHole       <$ hole
+                    , PLit . LDec <$> try float
+                    , PLit . LInt <$> integer
+                    , PLit . LChr <$> char
+                    , PId         <$> identifier
+                    , PCtor       <$> typeIdentifier <*> (fmap (: []) <$> many (sameLineOrIndented iPos patTerm))
+                    ,                 try patTuple
+                    ,                 patList
+                    , PLit . LStr <$> string
+                    , PParens     <$> parens pattern' ]
+        optional (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type') <&> (p,)
 
-    case t of
-        Nothing -> pure (p :- Just (init, end))
-        Just ty -> pure (PAnn [p :- Just (init, end')] ty :- Just (init, end))
+    case ty of
+        Nothing -> pure (term :- Just (SourceSpan pInit pEnd))
+        Just t  -> pure (PAnn [term :- Just (SourceSpan pInit pEnd)] t :- Just (SourceSpan pInit pEnd))
   where
-    patternList :: Parser Pattern
-    patternList =   brackets (do
-                                    e1 <- pattern'
-                                    es <- many (string "," *> pattern')
+    patList :: Parser Pattern
+    patList = 
+        getPositionAndIndent
+        >>= \iPos -> brackets $ choice [ do { e1 <- sameLineOrIndented iPos pattern'
+                                            ; es <- many (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos pattern')
+                                            ; pure $ PList (e1:es) }
+                                       , nothing $> PList [] ]
 
-                                    pure $ PList (e1 : es)
-                            <|> string "" $> PList [])
+    patTuple :: Parser Pattern
+    patTuple =
+        getPositionAndIndent
+        >>= \iPos -> parens $ do
+            e1 <- sameLineOrIndented iPos pattern'
+            es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos pattern')
+            pure $ PTuple (e1:es)
 
-    patternTuple :: Parser Pattern
-    patternTuple = parens $ do
-        e1 <- pattern'
-        es <- some (string "," *> pattern')
-        pure $ PTuple (e1:es)
+--------------------------------------------------------------------------------------------------------------
+
+runParser :: [Token] -> String -> Either (ParseErrorBundle [TokenL] Void) Program
+runParser tks fileName = Text.Megaparsec.runParser program fileName (mapMaybe f tks)
+  where f (_, _, Nothing) = Nothing
+        f (indent, spos, Just x) = Just (indent, spos, x)
+
+runParser' :: Parser a -> [Token] -> String -> Either (ParseErrorBundle [TokenL] Void) a
+runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks)
+  where f (_, _, Nothing) = Nothing
+        f (indent, spos, Just x) = Just (indent, spos, x)
+
+-------------------------------------------------------------------------------------------------------------
+
+rOps :: [String]
+rOps = [ "=", "::", "\\", "->", "-o", "," ]

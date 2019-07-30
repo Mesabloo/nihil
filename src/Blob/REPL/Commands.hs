@@ -1,9 +1,7 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase, TypeFamilies, BlockArguments #-}
 
 module Blob.REPL.Commands where
 
-import Blob.Language.Parsing.Types (Parser, Expr(..), Literal(..), Pattern(..))
-import Blob.Language.Parsing.Lexer (string', space', space1', symbol, integer, keyword, lexemeN, identifier, opSymbol)
 import qualified Data.Map as Map
 import Text.Megaparsec 
 import Data.String.Utils (rstrip)
@@ -17,11 +15,14 @@ import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..
 import Data.Functor (($>))
 import Data.Char (isUpper)
 import Control.Monad (join, zipWithM)
-import Control.Applicative (empty)
+import Control.Applicative (empty, liftA2)
 import Data.List.Extra
 import Debug.Trace
 import Blob.REPL.Types
-
+import qualified Data.Text as Text
+import qualified Data.Char as Ch
+import qualified Text.Megaparsec.Char as C
+import qualified Text.Megaparsec.Char.Lexer as L
 
 commands :: [String]
 commands = [  ":help", ":h", ":?"
@@ -36,14 +37,14 @@ commands = [  ":help", ":h", ":?"
            ,   ":env" ]
 
 help :: Parser Command
-help = space' *> (try . hidden . lexemeN) (keyword "?" <|> keyword "help" <|> keyword "h") $> Help <?> "߷"
+help = C.space *> (try . hidden) (keyword "?" <|> keyword "help" <|> keyword "h") <* C.space $> Help <?> "߷"
 
 exit :: Parser Command
-exit = space' *> (try . hidden . lexemeN) (keyword "quit" <|> keyword "q") $> Exit <?> "߷"
+exit = C.space *> (try . hidden) (keyword "quit" <|> keyword "q") <* C.space $> Exit <?> "߷"
 
 load :: Parser Command
 load = do
-    space' *> (try . hidden . lexemeN) (keyword "load" <|> keyword "l") <?> "߷"
+    C.space *> (try . hidden) (keyword "load" <|> keyword "l") <* C.space <?> "߷"
 
     end <- observing . lookAhead $ eof
     case end of
@@ -56,11 +57,11 @@ code :: Parser Command
 code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
 reset :: Parser Command
-reset = (space' *> (try . hidden . lexemeN) (keyword "reset" <|> keyword "r") <?> "߷") >> (ResetEnv <$> many (identifier <|> opSymbol))
+reset = (C.space *> (try . hidden) (keyword "reset" <|> keyword "r") <* C.space <?> "߷") *> (ResetEnv <$> many (C.space *> (identifier <|> opSymbol) <* C.space))
 
 getType :: Parser Command
 getType = do
-    space' *> (try . hidden . lexemeN) (keyword "type" <|> keyword "t") <?> "߷"
+    C.space *> (try . hidden) (keyword "type" <|> keyword "t") <* C.space <?> "߷"
 
     end <- observing . lookAhead $  eof
     case end of
@@ -69,7 +70,7 @@ getType = do
 
 getKind :: Parser Command
 getKind = do
-    space' *> (try . hidden . lexemeN) (keyword "kind" <|> keyword "k") <?> "߷"
+    C.space *> (try . hidden) (keyword "kind" <|> keyword "k") <* C.space <?> "߷"
 
     end <- observing . lookAhead $ eof
     case end of
@@ -78,7 +79,7 @@ getKind = do
 
 time :: Parser Command
 time = do
-    space' *> (try . hidden . lexemeN) (keyword "time") <?> "߷"
+    C.space *> (try . hidden) (keyword "time") <* C.space <?> "߷"
 
     end <- observing . lookAhead $ eof
     case end of
@@ -87,23 +88,23 @@ time = do
 
 bench :: Parser Command
 bench = do
-    space' *> (try . hidden . lexemeN) (keyword "bench") <?> "߷"
+    C.space *> (try . hidden) (keyword "bench") <* C.space <?> "߷"
 
     end <- observing . lookAhead $ eof
     case end of
         Right _ -> fail "Missing arguments “[n] [expr]”"
         Left _  -> do
-            n    <- integer
+            n    <- L.decimal
             end' <- observing . lookAhead $ eof
             case end' of
                 Right _ -> fail "Missing argument “[expr]”"
                 Left _  -> Bench n <$> (anySingle `someTill` eof)
 
 env :: Parser Command
-env = space' *> (try . hidden . lexemeN) (keyword "env") $> Env <?> "߷"
+env = C.space *> (try . hidden) (keyword "env") <* C.space $> Env <?> "߷"
 
 command :: Parser Command
-command = do { space' *> symbol ":"
+command = do { try (C.space *> C.string ":")
              ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env] <* eof
              ; case cmd of
                 Left err ->
@@ -113,11 +114,11 @@ command = do { space' *> symbol ":"
                         fail msg
                     else fail $ parseErrorTextPretty err
                 Right x  -> pure x
-             } <|> code
+             } <|> C.space *> code
 
 makeCommandError :: Parser String
 makeCommandError = do
-    cmd <- space' *> manyTill anySingle (space1' <|> eof)
+    cmd <- C.space *> manyTill anySingle (C.space1 <|> eof)
     pure $ "Unknown command `" <> cmd <> "`\n" <> maybeYouWanted (':':cmd) commands
 
 
@@ -152,3 +153,16 @@ maybeYouWanted source choices =
   where takeMax :: Int -> [a] -> [a]
         takeMax n xs | n > length xs = xs
                      | otherwise     = take n xs
+
+-------------------------------------------------------------------------------------------------------------
+
+keyword :: String -> Parser String
+keyword s = C.string s <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace))
+
+identifier :: Parser String
+identifier = (:) <$> C.lowerChar <*> many (C.alphaNumChar <|> satisfy (liftA2 (||) (== '_') (== '\'')))
+
+opSymbol :: Parser String
+opSymbol = parens p <|> p
+  where p = some $ C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)
+        parens p = C.char '(' *> C.space *> p <* C.space <* C.char ')'

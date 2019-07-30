@@ -12,6 +12,10 @@ import System.Console.Haskeline (InputT)
 import Data.List (intercalate)
 import Blob.Language.Parsing.Annotation
 import Blob.Interpreter.Types
+import Data.Void
+import Text.Megaparsec (Parsec(..))
+
+type Parser = Parsec Void String
 
 data Command = GetType String
              | GetKind String

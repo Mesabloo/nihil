@@ -21,6 +21,7 @@ import Data.Maybe (fromJust)
 import Data.Composition ((.:))
 import Data.Functor ((<&>))
 import Blob.Language.Desugaring.Errors
+import Blob.Language.Lexing.Types (SourceSpan(..))
 
 desugarProgram :: String -> Annotated P.Program -> D.Sugar (Annotated D.Program)
 desugarProgram fileName (s :- p)= do
@@ -57,6 +58,13 @@ desugarCustomType fileName (name, tvs, ct :- p) = case ct of
         m' <- sequence m
 
         pure (D.TSum m' :- p)
+    P.TGADT s -> do
+        let m = Map.map (\c -> do
+                c' <- desugarType fileName c
+                pure (D.Scheme tvs c')) s
+        m' <- sequence m
+
+        pure (D.TSum m' :- p)
 
 desugarType :: String -> Annotated P.Type -> D.Sugar (Annotated D.Type)
 desugarType fileName (P.TId name :- p) = pure (D.TId name :- p)
@@ -66,10 +74,10 @@ desugarType fileName (P.TApp (t:ts) :- p) = do
 
     foldlM (\acc t' -> do
         t2 <- desugarType fileName t'
-        let Just (beg, _) = getSpan acc
-            Just (_, end) = getSpan t2
+        let Just (SourceSpan beg _) = getSpan acc
+            Just (SourceSpan _ end) = getSpan t2
 
-        pure (D.TApp acc t2 :- Just (beg, end)) ) t1 ts
+        pure (D.TApp acc t2 :- Just (SourceSpan beg end)) ) t1 ts
 desugarType fileName (P.TVar name :- p) = pure (D.TVar name :- p)
 desugarType fileName (P.TFun t1 t2 :- p) = do
     t1' <- desugarType fileName t1

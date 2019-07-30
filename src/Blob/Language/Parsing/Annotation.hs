@@ -2,8 +2,7 @@ module Blob.Language.Parsing.Annotation where
 
 import qualified Text.Megaparsec as Mega
 import Text.Megaparsec.Pos (unPos)
-
-type SourceSpan = (Mega.SourcePos, Mega.SourcePos)
+import Blob.Language.Lexing.Types (SourceSpan(..))
 
 data Annotated a = a :- Maybe SourceSpan
 
@@ -21,15 +20,10 @@ instance Ord a => Ord (Annotated a) where
 
 instance Show a => Show (Annotated a) where
     show (a :- Nothing) = show a
-    show (a :- Just (pos, _)) = 
+    show (a :- Just (SourceSpan pos _)) = 
         let col = Mega.sourceColumn pos
             line = Mega.sourceLine pos
         in "{" <> show (unPos line) <> ";" <> show (unPos col) <> "} " <> show a
 
 instance Functor Annotated where
     fmap f (a :- p) = f a :- p
-
-concat :: Annotated a -> Annotated a -> Annotated [a]
-concat (a :- Nothing) (b :- _) = [a, b] :- Nothing
-concat (a :- _) (b :- Nothing) = [a, b] :- Nothing
-concat (a :- Just (beg, _)) (b :- Just (_, end)) = [a, b] :- Just (beg, end)

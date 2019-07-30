@@ -20,10 +20,8 @@ import Blob.Prelude (defaultEnv, initGlobalEnv, initEvalState)
 import Blob.Interpreter.Eval (evaluate)
 import Blob.REPL.Commands (command)
 import Blob.REPL.Execution
-import Blob.Language.Parsing.Parser (parseProgram, parseStatement)
 import Blob.Language.TypeChecking.Inference
 import Blob.Language.KindChecking.Checker (kiType, checkKI, kindInference)
-import Blob.Language.Pretty.Parser (pExpression, pStatement, pProgram)
 import Blob.Language.Pretty.Inference (pType, pKind)
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -102,7 +100,7 @@ replLoop fs = do
             Just input' -> do
                 env <- lift get
 
-                let res = runParser command "" (Text.pack input')
+                let res = runParser command "" input'
 
                 case res of
                     Left err     -> liftIO $
