@@ -2,13 +2,15 @@ library:
   source-dirs: src
   ghc-options:
   - -Wall
-  - -O6
+  - -O2
   - -optc-O3
   - -fasm
   cpp-options:
   - -DNDEBUG
-  - -O4
+  - -O3
+
 copyright: 2019 Mesabloo
+
 dependencies:
 - text
 - base >= 4.7 && < 5
@@ -40,6 +42,8 @@ dependencies:
 - insert-ordered-containers
 - JellyVM
 - invariant
+- umap
+
 name: Blob
 version: 0.1.0.0
 extra-source-files:
@@ -47,6 +51,7 @@ extra-source-files:
 author: Mesabloo
 github: mesabloo/Blob
 license: GPL-3.0
+
 executables:
   Blob-exe:
     source-dirs: app
@@ -56,12 +61,15 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
-    - -O6
+    - -O2
     - -optc-O3
     - -fasm
+    # - -prof
+    # - -fprof-auto
     cpp-options:
     - -DNDEBUG
-    - -O4
+    - -O3
     dependencies:
     - Blob
+
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
