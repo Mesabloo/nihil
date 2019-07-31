@@ -39,30 +39,33 @@ import Debug.Trace
 helpCommand :: IO ()
 helpCommand = do
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:help” ”:h” “:?”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": show this menu." >> setSGR [Reset]
+        >> putStrLn ": show this menu." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:quit” “:q”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": exit the REPL." >> setSGR [Reset]
+        >> putStrLn ": exit the REPL." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:load [file]” “:l [file]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
+        >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the type of an expression." >> setSGR [Reset]
+        >> putStrLn ": get the type of an expression." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": get the kind of a type." >> setSGR [Reset]
+        >> putStrLn ": get the kind of a type." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset {symbols}” “:r {symbols}”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols." >> setSGR [Reset]
+        >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
+        >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
 
     setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:bench [n] [expr]”" >> setSGR [Reset]
-        >> setSGR [SetColor Foreground Dull White] >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
+        >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Dull White] >> putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:env”" >> setSGR [Reset]
+        >> putStrLn ": print the whole current environment" >> setSGR [Reset]
+
+    putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
 
 exitCommand :: IO ()
 exitCommand =
