@@ -1,6 +1,6 @@
 ## iBlob
 
-*iBlob* is the REPL (Read-Eval-Print-Loop) for blob.
+*iBlob* is a REPL (Read-Eval-Print-Loop) for blob.
 It allows anyone to write/execute some blob code, imports libraries (WIP), load files, and get insights like the type of a function, the kind of a type, etc.
 
 ### List of commands
@@ -28,6 +28,9 @@ git clone https://github.com/mesabloo/blob.git
 # If you just cloned the repo:
 stack setup # this will download everything needed by stack
 
+# If you didn't build it
+stack build
+
 # Run iblob
 stack run -- repl
 ```
@@ -44,4 +47,19 @@ Usage: Blob-exe repl [FILES...] [-v|--version]
 Available options:
   -v,--version             Print the version
   -h,--help                Show this help text
+```
+
+### Customization
+
+iBlob is customizable. All you need to do is to create a file named `.iblob` in your home directory.
+
+These are the current options which can be modified and that will be recognized by the REPL:
+| Option name | Default value | Description 
+|:-----------:|:-------------:|-------------
+| `prompt`    | `">"`         | Modify the REPL prompt symbol
+
+Here is an example sample:
+```haskell
+prompt = "\ESC[1;38;5;69;1mβ> \ESC[0m"
+-- Sets a custom prompt in iBlob.
 ```
