@@ -374,15 +374,31 @@ analyseTypeDecl k v = do
         subst1     <- mguKind (applyKind subst var) (applyKind subst t)
         pure $ applyKind (subst1 `composeKindSubst` subst) var
 
-    let (CustomScheme _ t) = v
+    let (CustomScheme tvs t) = v
     schemes <- case t of
-        TSum ctors -> pure ctors
+        TSum ctors -> do
+            let typeDef = foldl (\acc t -> acc `TApp` TVar (TV t)) (TId k) tvs
+
+            void . flip Map.traverseWithKey ctors $ \ctorName (Scheme _ c) -> do
+                let (_, r) = unfoldParams c
+
+                e <- get
+
+                case runSolve e [(typeDef, r)] of
+                    Left err -> throwError $ makeGADTWrongReturnTypeError ctorName r typeDef
+                    Right x -> pure ()
+
+            pure ctors
         _          -> pure $ Map.fromList []
 
     modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
                        , typeDeclCtx = Map.insert k kind (typeDeclCtx st)
                        , ctorCtx     = let (TypeEnv env) = ctorCtx st
                                        in TypeEnv (schemes `Map.union` env) }
+
+unfoldParams :: Type -> ([Type], Type)
+unfoldParams (TFun a b) = first (a:) (unfoldParams b)
+unfoldParams t = ([], t)
 
 tiProgram :: Annotated Program -> Check ()
 tiProgram (Program stmts :- _) = do

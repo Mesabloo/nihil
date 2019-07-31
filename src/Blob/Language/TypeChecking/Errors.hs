@@ -19,3 +19,7 @@ makeBindLackError :: String -> TIError
 makeBindLackError id' = text "“" <> text id' <> text "” lacks an accompanying definition" <> dot <> linebreak
 makeHoleError :: Type -> TIError
 makeHoleError t1 = text "Found hole: _ :: " <> pType (t1 :- Nothing) <> dot <> linebreak
+makeGADTWrongReturnTypeError :: String -> Type -> Type -> TIError
+makeGADTWrongReturnTypeError ctorName actualType expectedType =
+    text ("GADT constructor “" <> ctorName <> "” does not return right type: expected type “") <> pType (expectedType :- Nothing)
+    <> text "”, got type “" <> pType (actualType :- Nothing) <> text "”" <> dot <> linebreak
