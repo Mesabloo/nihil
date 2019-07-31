@@ -140,7 +140,7 @@ sameIndented :: (Int, SourceSpan) -> Parser a -> Parser a
 sameIndented (indent, _) p = do
     (i, _) <- try getPositionAndIndent
     guard (i > indent)
-        <|> fail ("Possible incorrect indentation (should be greater than " <> show indent <> ")")
+        <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
     p
 
 nonIndented :: Parser a -> Parser a
