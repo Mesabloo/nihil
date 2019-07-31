@@ -54,6 +54,7 @@ Available options:
 iBlob is customizable. All you need to do is to create a file named `.iblob` in your home directory.
 
 These are the current options which can be modified and that will be recognized by the REPL:
+
 | Option name | Default value | Description 
 |:-----------:|:-------------:|-------------
 | `prompt`    | `">"`         | Modify the REPL prompt symbol
