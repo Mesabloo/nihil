@@ -6,5 +6,5 @@ import System.Console.ANSI
 logError :: Show a => a -> IO ()
 logError a = do
     setSGR [SetColor Foreground Vivid Red]
-    print a
+    putStr (show a)
     setSGR [Reset]

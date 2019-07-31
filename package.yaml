@@ -43,6 +43,7 @@ dependencies:
 - JellyVM
 - invariant
 - umap
+- conf
 
 name: Blob
 version: 0.1.0.0

@@ -33,8 +33,8 @@ data Command = GetType String
 
 data REPLState = REPLState { ctx :: GlobalEnv
                            , values :: EvalState
-                           , lastExecTime :: Double
-                           , op :: SugarState }
+                           , op :: SugarState
+                           , prompt :: String }
 
 type REPL = InputT (StateT REPLState (ExceptT REPLError IO))
 

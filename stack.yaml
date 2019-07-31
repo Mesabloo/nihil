@@ -42,6 +42,7 @@ extra-deps:
 - wl-pprint-1.2.1
 - github: mesabloo/jellyvm
   commit: 1acdb6e2155a036941c2cdf97f2f121ce1e61419
+- conf-0.1.1.0@sha256:b244120277e2afa5861ff5146db1f918a84e046bef28c685e585243f48b3710f
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
@@ -66,3 +67,5 @@ extra-deps:
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
+
+allow-newer: true

@@ -260,12 +260,16 @@ execTime expr = do
                                     (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (values st)
                                     case res of
                                         Left err      -> lift $ throwError err
-                                        Right evalRes -> liftIO $ setSGR [SetColor Foreground Vivid Cyan]
-                                                                >> print evalRes
-                                                                >> setSGR [Reset]
-                                                                >> hFlush stdout
+                                        Right evalRes ->
+                                            liftIO $ setSGR [SetColor Foreground Vivid Cyan]
+                                                >> print evalRes
+                                                >> setSGR [Reset]
+                                                >> hFlush stdout
 
-                                    lift . modify $ \st -> st { lastExecTime = t }
+                                    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
+                                        >> putStrLn ("Time taken: " <> secs t)
+                                        >> setSGR [Reset]
+                                        >> hFlush stdout
 
 execBench :: Integer -> String -> REPL ()
 execBench n expr = do
@@ -297,12 +301,14 @@ execBench n expr = do
                                         avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
                                         tot = List.foldl' (+) 0.0 t
 
-                                    liftIO . putStrLn $ "Results for " <> show n <> " runs:"
-                                    liftIO . putStrLn $ "- Minimum: " <> secs min
-                                    liftIO . putStrLn $ "- Maximum: " <> secs max
-                                    liftIO . putStrLn $ "- Average: " <> secs avg
-
-                                    lift . modify $ \st -> st { lastExecTime = tot }
+                                    liftIO $ do
+                                        setSGR [SetColor Foreground Vivid Yellow]
+                                        putStrLn $ "Results for " <> show n <> " runs:"
+                                        putStrLn $ "- Minimum: " <> secs min
+                                        putStrLn $ "- Maximum: " <> secs max
+                                        putStrLn $ "- Average: " <> secs avg
+                                        setSGR [Reset]
+                                        hFlush stdout
 
 getEnv :: REPL ()
 getEnv = do

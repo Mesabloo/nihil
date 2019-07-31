@@ -26,7 +26,7 @@ import Blob.Language.Pretty.Inference (pType, pKind)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Void (Void)
-import qualified Data.Text as Text (Text, pack)
+import qualified Data.Text as Text (Text, pack, unpack)
 import qualified Data.Text.IO as Text (readFile)
 import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..), ConsoleIntensity(..))
 import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErrors, parseErrorTextPretty)
@@ -50,6 +50,9 @@ import Blob.Language.Parsing.Annotation
 import System.FilePath.Posix ((</>))
 import Blob.REPL.Defaults
 import Blob.REPL.Logger
+import System.Directory
+import Data.Conf
+import Data.Maybe
 
 runREPL :: ([FilePath] -> REPL a) -> IO ()
 runREPL = flip customRunREPL (REPLOptions [])
@@ -59,41 +62,42 @@ customRunREPL r opts = do
     initREPL
 
     let fs = preload opts
-    e <- runExceptT (runStateT (runInputT defaultSettings (r fs)) initREPLState)
+    let s = initREPLState
+    replState <- configState s
+
+    e <- runExceptT (runStateT (runInputT defaultSettings (r fs)) replState)
 
     case e of
         Left err -> logError err >> customRunREPL r opts
         Right _ -> pure ()
+  where
+    configState :: REPLState -> IO REPLState
+    configState s = do
+        home <- getHomeDirectory
+        fe <- doesFileExist (home <> "/.iblob")
+        if not fe
+        then pure s
+        else do
+            config <- readConf (home <> "/.iblob")
+            setSGR [SetColor Foreground Vivid Green]
+                >> putStrLn ("Loaded iBlob configuration from “" <> (home <> "/.iblob") <> "”")
+                >> setSGR [Reset]
+                >> hFlush stdout
+            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe ">" (getConf "prompt" config))
 
 replLoop :: [FilePath] -> REPL ()
 replLoop fs = do
-    if null fs
-    then liftIO $ putStr ""
-    else liftIO $ putStrLn ""
-
     let check i f = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
-            liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Compiling file “" <> path <> "”.") >> setSGR [Reset] >> hFlush stdout
+            liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file “" <> path <> "”.") >> setSGR [Reset] >> hFlush stdout
     forM_ (zip [1..] fs) $ \(i, f) -> check i f *> replCheck (Load f)
-    
-    if null fs
-    then liftIO $ putStr ""
-    else liftIO $ putStrLn ""
 
     forever $ withInterrupt (handleInterrupt run run)
   where
     run = do
-        time <- lift (gets lastExecTime)
-        let str = if time /= 0.0
-                then secs time <> " "
-                else ""
-
-        liftIO $ setSGR [SetColor Foreground Dull Blue]
-        input <- getInputLine $ str <> "⮞ β ⮞ "
-        liftIO $ setSGR [Reset]
-
-        lift . modify $ \st -> st { lastExecTime = 0.0 }
+        p <- lift (gets prompt)
+        input <- getInputLine p
 
         case input of
             Nothing     -> liftIO exitCommand
@@ -124,20 +128,6 @@ replCheck = \case
     Time expr           -> execTime expr
     Bench n expr        -> execBench n expr
     Env                 -> getEnv
-
-
-
-replErrorPretty :: ParseErrorBundle Text.Text Void -> IO ()
-replErrorPretty bundle = do
-    let (PosState _ _ state _ _) = bundlePosState bundle
-        errors = map (, state) (toList $ bundleErrors bundle)
-        texts  = flip List.map errors $ \(e, pos) -> do let (SourcePos name line col) = pos
-                                                        "at <“" <> name <> "”:" <> show (unPos line) <> ":" <> show (unPos col) <> ">\n" <> parseErrorTextPretty e
-        lines_ = List.map (split "\n") texts
-        lines' = List.map (filter (/= "")) lines_
-        errs   = List.map (List.map (capitalize . rstrip . flip (<>) ".")) lines'
-        errs'  = List.map (List.intercalate "\n") errs
-    mapM_ putStr errs' >> putStr "\n"
 
 
 capitalize :: String -> String
