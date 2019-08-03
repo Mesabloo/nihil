@@ -59,7 +59,7 @@ makeKindOccurError s k1 = text "Occur check fails: kind " <> text s <> text " vs
 makeUndefinedTypeError :: String -> KIError
 makeUndefinedTypeError s = text "Undefined kind of type “" <> text s <> text "”" <> dot <> linebreak
 makeRedeclaredTypeError :: String -> KIError
-makeRedeclaredTypeError id' = text "Type “" <> text id' <> text "” already declared" <> dot <> linebreak
+makeRedeclaredTypeError id' = text "Type “" <> text id' <> text "” has already been declared" <> dot <> linebreak
 
 kiCustomScheme :: CustomScheme -> KI (KindSubst, Kind)
 kiCustomScheme (CustomScheme tvs t) = do
