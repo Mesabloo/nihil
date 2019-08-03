@@ -71,7 +71,7 @@ customDataType = do
         (pInit, pEnd, cType) <- getPositionInSource $ do
             let ctor =
                     (,) <$> typeIdentifier
-                        <*> (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type')
+                        <*> (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type')
             ctor1 <- sameLineOrIndented iPos ctor
             ctors <- many (sameLineOrIndented iPos (symbol "|") *> sameLineOrIndented iPos ctor)
             pure (TGADT $ Map.fromList (ctor1:ctors))
@@ -96,7 +96,7 @@ declaration = do
     (pInit, pEnd, decl) <- getPositionInSource $ do
         iPos <- getPositionAndIndent
         name <- identifier <|> parens opSymbol
-        sameLineOrIndented iPos (symbol "::")
+        sameLineOrIndented iPos (symbol "::" <|> symbol "∷")
         t <- sameLineOrIndented iPos type'
 
         pure (Declaration name t)
@@ -238,8 +238,8 @@ type' = do
         ft <- btype
         ot <- optional $ do
             usage <- sameLineOrIndented iPos $
-                choice [ Just ([ALit (LInt 1) :- Nothing] :- Nothing) <$ symbol "-o"
-                       , Nothing <$ symbol "->" ]
+                choice [ Just ([ALit (LInt 1) :- Nothing] :- Nothing) <$ (symbol "-o" <|> symbol "⊸")
+                       , Nothing <$ (symbol "->" <|> symbol "→") ]
             (usage,) <$> sameLineOrIndented iPos type'
         pure (ft, ot)
 
@@ -277,7 +277,7 @@ atype = do
 
 gtycon :: Parser Type
 gtycon = choice [ conid
-                , try (symbol "()") $> TTuple [] ]
+                , try (parens nothing) $> TTuple [] ]
 
 conid :: Parser Type
 conid = TId <$> typeIdentifier
@@ -289,7 +289,7 @@ expression = do
     iPos <- getPositionAndIndent
     (pInit, pEnd, (a, ty)) <- getPositionInSource $ do
         as <- some (sameLineOrIndented iPos atom)
-        optional (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type') <&> (as,)
+        optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (as,)
 
     case ty of
         Nothing -> pure (a :- Just (SourceSpan pInit pEnd))
@@ -336,9 +336,9 @@ hole = AHole <$ satisfy (\(_, _, l) -> l == LWildcard)
 lambda :: Parser Atom
 lambda = do
     iPos <- getPositionAndIndent
-    symbol "\\"
+    symbol "\\" <|> symbol "λ"
     params <- some (sameLineOrIndented iPos identifier)
-    sameLineOrIndented iPos (symbol "->")
+    sameLineOrIndented iPos (symbol "->" <|> symbol "→")
     ALambda params <$> sameLineOrIndented iPos expression
 
 tuple :: Parser Atom
@@ -371,7 +371,7 @@ match = do
     parseCase = do
         iPos <- getPositionAndIndent
         p <- pattern'
-        sameLineOrIndented iPos (symbol "->")
+        sameLineOrIndented iPos (symbol "->" <|> symbol "→")
         (p,) <$> sameLineOrIndented iPos expression
 
 pattern' :: Parser [Annotated Pattern]
@@ -397,7 +397,7 @@ patTerm = do
                     ,                 patList
                     , PLit . LStr <$> string
                     , PParens     <$> parens pattern' ]
-        optional (sameLineOrIndented iPos (symbol "::") *> sameLineOrIndented iPos type') <&> (p,)
+        optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (p,)
 
     case ty of
         Nothing -> pure (term :- Just (SourceSpan pInit pEnd))
@@ -434,4 +434,4 @@ runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks
 -------------------------------------------------------------------------------------------------------------
 
 rOps :: [String]
-rOps = [ "=", "::", "\\", "->", "-o", "," ]
+rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒" ]
