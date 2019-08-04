@@ -285,7 +285,7 @@ occursCheck a t = a `Set.member` ftv t
 -- type hole solver
 runHoleInspect :: Subst -> Either TIError ()
 runHoleInspect subst =
-    let map' = Map.filterWithKey (\(TV k) _ -> head k == '-') subst
+    let map' = Map.filterWithKey (\(TV k) _ -> head k == '_') subst
     in if null map'
         then pure ()
         else throwError $ Map.foldl (\acc t -> acc <> makeHoleError t) empty map'
