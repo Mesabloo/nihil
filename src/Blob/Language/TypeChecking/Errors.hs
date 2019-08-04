@@ -6,20 +6,40 @@ import Blob.Language.Pretty.Inference
 import Blob.Language.Parsing.Annotation
 
 makeUnifyError :: Type -> Type -> TIError
-makeUnifyError t1 t2 = text "Could not match type “" <> pType (t1 :- Nothing) <> text "” with “" <> pType (t2 :- Nothing) <> text "”" <> dot <> linebreak
+makeUnifyError t1 t2 = 
+    text "• Type mismatch" <> linebreak
+    <> text "  ‣ Expected type: " <> pType (t1 :- Nothing) <> linebreak
+    <> text "  ‣ Actual type:   " <> pType (t2 :- Nothing) <> linebreak
 makeOccurError :: TVar -> Type -> TIError
-makeOccurError (TV s) t1 = text "Occur check fails: cannot construct the infinite type “" <> text s <> text " ~ " <> pType (t1 :- Nothing) <> text "”" <> dot <> linebreak
+makeOccurError (TV s) t1 =
+    text "• Occur check fails" <> linebreak
+    <> text "  ‣ Cannot construct an infinite type" <> linebreak
+    <> text "  ‣ In type: “" <> text s <> text " ~ " <> pType (t1 :- Nothing) <> text "”" <> linebreak
 makeUnboundVarError :: String -> TIError
-makeUnboundVarError s = text "Could not resolve type of symbol “" <> text s <> text "”" <> dot <+> text "Maybe it has not been defined?" <> linebreak
+makeUnboundVarError s = 
+    text "• Unbound symbol “" <> text s <> text "“" <> linebreak
+    <> text "• Probable causes:" <> linebreak
+    <> text "  ‣ The symbol is never defined" <> linebreak
+    <> text "  ‣ The symbol is defined in another module that you didn't import" <> linebreak
 makeRedeclaredError :: String -> TIError
-makeRedeclaredError id' = text "Symbol “" <> text id' <> text "” already has an explicit type declaration" <> dot <> linebreak
+makeRedeclaredError id' =
+    text "• Duplicated type signature" <> linebreak
+    <> text "  ‣ For the symbol: " <> text id' <> linebreak
 makeRedefinedError :: String -> TIError
-makeRedefinedError id' = text "Symbol “" <> text id' <> text "” already has a definition" <> dot <> linebreak
+makeRedefinedError id' =
+    text "• Duplicated symbol definition" <> linebreak
+    <> text "  ‣ For the symbol: " <> text id' <> linebreak
 makeBindLackError :: String -> TIError
-makeBindLackError id' = text "Symbol “" <> text id' <> text "” lacks an accompanying definition" <> dot <> linebreak
+makeBindLackError id' =
+    text "• Missing definition" <> linebreak
+    <> text "  ‣ For the symbol: " <> text id' <> linebreak
 makeHoleError :: Type -> TIError
-makeHoleError t1 = text "Found hole: _ :: " <> pType (t1 :- Nothing) <> dot <> linebreak
+makeHoleError t1 =
+    text "• Found hole:" <> linebreak
+    <> text "  ‣ Fitting type: " <> pType (t1 :- Nothing) <> linebreak
 makeGADTWrongReturnTypeError :: String -> Type -> Type -> TIError
 makeGADTWrongReturnTypeError ctorName actualType expectedType =
-    text ("GADT constructor “" <> ctorName <> "” does not return right type: expected type “") <> pType (expectedType :- Nothing)
-    <> text "”, got type “" <> pType (actualType :- Nothing) <> text "”" <> dot <> linebreak
+    text "• GADT return type mismatch" <> linebreak
+    <> text "  ‣ In constructor: " <> text ctorName <> linebreak
+    <> text "  ‣ Expected type:  " <> pType (expectedType :- Nothing) <> linebreak
+    <> text "  ‣ Actual type:    " <> pType (actualType :- Nothing) <> linebreak
