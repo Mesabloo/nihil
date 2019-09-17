@@ -1,4 +1,5 @@
 -- module Prelude where
+{- This will be enabled later, when we'll have some modules implemented -}
 
 data Maybe a
     = Just a
@@ -9,3 +10,9 @@ data Either a b
     | Right b
 
 type String = [Char]
+
+id :: a -o a
+id x = x
+
+const :: a -o b ->{0} a
+const a b = a
