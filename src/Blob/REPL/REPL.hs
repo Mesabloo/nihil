@@ -68,7 +68,7 @@ customRunREPL r opts = do
     e <- runExceptT (runStateT (runInputT defaultSettings (r fs)) replState)
 
     case e of
-        Left err -> logError err >> customRunREPL r opts
+        Left err -> logError err -- >> customRunREPL r opts
         Right _ -> pure ()
   where
     configState :: REPLState -> IO REPLState
@@ -91,7 +91,7 @@ replLoop fs = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
             liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".") >> setSGR [Reset] >> hFlush stdout
-    forM_ (zip [1..] fs) $ \(i, f) -> check i f *> replCheck (Load f)
+    forM_ (zip [1..] fs) $ \(i, f) -> check i f *> catchError (replCheck (Load f)) (liftIO . logError)
 
     forever $ withInterrupt (handleInterrupt run run)
   where
@@ -115,7 +115,7 @@ replLoop fs = do
                         else putStr ""
                     Right output -> catchError (replCheck output) (liftIO . logError)
 
-    
+
 replCheck :: Command -> REPL ()
 replCheck = \case
     Help                -> liftIO helpCommand
