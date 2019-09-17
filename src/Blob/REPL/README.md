@@ -23,7 +23,7 @@ First make sure that you have [stack](https://docs.haskellstack.org/en/stable/RE
 
 ```bash
 # If you do not have cloned the repo already:
-git clone https://github.com/mesabloo/blob.git
+git clone https://github.com/mesabloo/blob.git && cd blob
 
 # If you just cloned the repo:
 stack setup # this will download everything needed by stack
