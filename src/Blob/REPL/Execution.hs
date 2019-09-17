@@ -315,23 +315,28 @@ execBench n expr = do
 getEnv :: REPL ()
 getEnv = do
     st  <- lift (gets ctx)
-    let (t:types)                = Map.toList $ typeDeclCtx st
-        (TypeEnv funs)           = defCtx st <> ctorCtx st
-        ((id, Scheme _ f):funs') = Map.toList funs
+    let types           = Map.toList $ typeDeclCtx st
+        (TypeEnv funs)  = defCtx st <> ctorCtx st
+        funs'           = Map.toList funs
+        showKinds       =
+            forM_ types $
+                \(name, kind) -> do
+                    putStr "\t"
+                    setSGR [SetColor Foreground Vivid Yellow] *> putStr name
+                    setSGR [Reset] *> putStr " :: "
+                    setSGR [SetColor Foreground Vivid Cyan] *> print (pKind kind)
+                    setSGR [Reset]
+        showFuns        =
+            forM_ funs' $
+                \(name, Scheme _ type') -> do
+                    putStr "\t"
+                    setSGR [SetColor Foreground Vivid Yellow] *> putStr name
+                    setSGR [Reset] *> putStr " :: "
+                    setSGR [SetColor Foreground Vivid Cyan] *> print (pType (type' :- Nothing))
+                    setSGR [Reset]
 
-        kinds                    = foldl
-                                        (\acc (k, v) -> acc <$$> text "  " <> text k <> text " :: " <> pKind v)
-                                        (text "  " <> text (fst t) <> text " :: " <> pKind (snd t))
-                                        types
-
-        functions                = foldl
-                                        (\acc (k, Scheme _ v) -> acc <$$> text "  " <> text k <> text " :: " <> pType (v :- Nothing))
-                                        (text "  " <> text id <> text " :: " <> pType (f :- Nothing))
-                                        funs'
-
-    liftIO . putStrLn $
-        "Types:\n" <> show kinds <> "\n"
-        <> "Functions:\n" <> show functions
+    liftIO $ putStrLn "Types:" *> showKinds *> putStrLn ""
+    liftIO $ putStrLn "Functions:" *> showFuns
 
 resetEnv :: [String] -> REPL () -> REPL ()
 resetEnv [] reload = do
