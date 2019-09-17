@@ -15,7 +15,7 @@ import Text.PrettyPrint.Leijen (Doc)
 import Data.Void
 
 tokens :: Parser [Token]
-tokens = (optional $ lineCmnt <|> blockCmnt) *> lexeme (indent *> many tks <* eof)
+tokens = lexeme (indent *> optional (try blockCmnt <|> lineCmnt) *> many tks) <* eof
   where tks = lexeme $ keyword <|> stringL <|> integerL <|> floatL <|> charL <|> symbol <|> identifier <|> identifier' <|> eolI <|> wildcard
 
 eolI :: Parser Token
