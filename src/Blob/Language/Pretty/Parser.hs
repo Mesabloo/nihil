@@ -27,11 +27,11 @@ pProgram (Program stt) =
 
 pStatement :: Annotated Statement -> Doc
 pStatement (Declaration name t :- _) =
-    text "Declaration:" <$$> indent indentLevel (text "Id = “" <> text name <> text "”" <$$> text "Type = " <> pType t)
+    text "Declaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Type = " <> pType t)
 pStatement (Definition name e :- _) =
-    text "Definition:" <$$> indent indentLevel (text "Id = “" <> text name <> text "”" <$$> text "Value = " <> pExpression e)
+    text "Definition:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Value = " <> pExpression e)
 -- pStatement (OpFixity name fix) =
---     text "OpDeclaration:" <$$> indent indentLevel (text "Id = “" <> text name <> text "”" <$$> text "Fixity = " <> pFixity fix)
+--     text "OpDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Fixity = " <> pFixity fix)
 pStatement (TypeDeclaration name _ custom :- _) =
     let printCustomType = \case
                               TAlias t -> pType t
@@ -40,7 +40,7 @@ pStatement (TypeDeclaration name _ custom :- _) =
         printCustom = \case
                           t@(TAlias _) :- _ -> text "Alias = " <> printCustomType t
                           t@(TSum _) :- _ -> text "Constructors = " <$$> printCustomType t
-    in text "TypeDeclaration:" <$$> indent indentLevel (text "Id = “" <> text name <> text "”" <$$> printCustom custom)
+    in text "TypeDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> printCustom custom)
 pStatement _ = undefined
 
 pFixity :: Fixity -> Doc
@@ -58,10 +58,10 @@ pExpression (ELit l :- _) = pLiteral l
         pLiteral (LChr c) = text (show c)
 pExpression (EId i :- _) = text i
 pExpression (EHole :- _) = text "_"
-pExpression (ELam arg e :- _) = parens $ text "λ" <+> text arg <+> text "→" <+> pExpression e
+pExpression (ELam arg e :- _) = parens $ text "\\" <+> text arg <+> text "->" <+> pExpression e
 pExpression (ETuple e :- _) = parens . mconcat $ intersperse (text ", ") (map pExpression e)
 pExpression (EMatch toMatch cases :- _) =
-    let printCase (pat, expr) = pPattern pat <+> text "→" <+> pExpression expr
+    let printCase (pat, expr) = pPattern pat <+> text "->" <+> pExpression expr
         printCases c = mconcat $ map (flip (<>) linebreak . printCase) c
     in text "Match" <+> pExpression toMatch <+> text "=" <$$> indent indentLevel (printCases cases)
 pExpression (EApp e1 e2 :- _) = pExpression e1 <+> parenthesizeIfNeeded e2
@@ -69,7 +69,7 @@ pExpression (EApp e1 e2 :- _) = pExpression e1 <+> parenthesizeIfNeeded e2
             EApp _ _ -> parens $ pExpression (p :- p_)
             EMatch{} -> parens $ pExpression (p :- p_)
             _ -> pExpression (p :- p_)
-pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "∷" <+> pType t
+pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "::" <+> pType t
 
 pPattern :: Annotated Pattern -> Doc
 pPattern (PInt i :- _) = text (show i)
@@ -78,7 +78,7 @@ pPattern (PChr c :- _) = text (show c)
 pPattern (PId i :- _) = text i
 pPattern (Wildcard :- _) = text "_"
 pPattern (PTuple pats :- _) = parens . mconcat $ intersperse (text ", ") (map pPattern pats)
-pPattern (PAnn p t :- _) = parens $ pPattern p <+> text "∷" <+> pType t
+pPattern (PAnn p t :- _) = parens $ pPattern p <+> text "::" <+> pType t
 pPattern (PCtor name args :- _) =
     let parenthesized = foldr ((<+>) . parenthesizeIfNeeded) empty args
     in text name <+> parenthesized
@@ -92,8 +92,8 @@ pType (t :- _) = case t of
     TVar tv -> text tv
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
     TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
-    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "→{?}" <+> parenthesizeIfNeededF t2
-    TArrow n t1 t2 -> parenthesizeIfNeededF t1 <+> text "→{" <> pExpression n <> text "}" <+> parenthesizeIfNeededF t2
+    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "->{?}" <+> parenthesizeIfNeededF t2
+    TArrow n t1 t2 -> parenthesizeIfNeededF t1 <+> text "->{" <> pExpression n <> text "}" <+> parenthesizeIfNeededF t2
   where parenthesizeIfNeeded (t :- p) = case t of
             TApp _ _ -> parens $ pType (t :- p)
             TFun _ _ -> parens $ pType (t :- p)

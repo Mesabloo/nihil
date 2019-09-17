@@ -27,7 +27,7 @@ statement = nonIndented (choice [ customOp <?> "custom operator definition"
                                 , customDataType <?> "custom data type declaration"
                                 , typeAlias <?> "type alias declaration"
                                 , try declaration <?> "function declaration"
-                                , definition <?> "function definition" ])
+                                , definition <?> "function definition" ]) <* many (symbol ";")
 
 customOp :: Parser (Annotated Statement)
 customOp = do
@@ -156,12 +156,12 @@ getPositionAndIndent =
         >>= \(i, p, t) -> pure (i, p)
 
 keyword :: String -> Parser TokenL
-keyword s = ("keyword “" <> s <> "”") <??> satisfy (\(_, _, t) -> case t of
+keyword s = ("keyword \"" <> s <> "\"") <??> satisfy (\(_, _, t) -> case t of
     LKeyword kw | s == Text.unpack kw -> True
     _ -> False)
 
 symbol :: String -> Parser TokenL
-symbol s = ("symbol “" <> s <> "”") <??> satisfy (\(_, _, t) -> case t of
+symbol s = ("symbol \"" <> s <> "\"") <??> satisfy (\(_, _, t) -> case t of
     LSymbol sb | s == Text.unpack sb -> True
     _ -> False)
 
@@ -187,7 +187,7 @@ opSymbol = "operator" <??> sat >>= \(_, _, LSymbol s) -> pure (Text.unpack s) >>
         isOperator = Text.all (liftA2 (||) Ch.isSymbol (`elem` "!#$%&.<=>?^~|@*/-:"))
 
         check :: String -> Parser String
-        check x | x `elem` rOps = fail ("Reserved operator “" <> x <> "”")
+        check x | x `elem` rOps = fail ("Reserved operator \"" <> x <> "\"")
                 | otherwise = pure x
 
 parens :: Parser a -> Parser a
@@ -367,7 +367,7 @@ match = do
 
     pure (AMatch expr pats)
   where
-    parseCases iPos = some $ sameLineOrIndented iPos parseCase
+    parseCases iPos = some $ sameLineOrIndented iPos parseCase <* many (symbol ";")
     parseCase = do
         iPos <- getPositionAndIndent
         p <- pattern'

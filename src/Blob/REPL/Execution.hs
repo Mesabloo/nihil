@@ -189,7 +189,7 @@ execCode stat = do
     case res of
         Left err -> lift $ throwError (text $ errorBundlePretty err)
         Right x -> do
-            let res' = runParser' ((Right <$> try (expression <* eof)) <|> (Left <$> (statement <* eof))) x "interactive"
+            let res' = runParser' ((Right <$> try (expression <* eof)) <|> (Left <$> (program <* eof))) x "interactive"
             
             case res' of
                 Left err -> lift $ throwError (printParseError err)
@@ -215,19 +215,19 @@ execCode stat = do
                                                                         >> setSGR [Reset]
                                                                         >> hFlush stdout
 
-                        Left s  -> do
-                            let res1 = runSugar (runDesugarer "interactive" ([s] :- Nothing)) (op st)
+                        Left p  -> do
+                            let res1 = runSugar (runDesugarer "interactive" (p :- Nothing)) (op st)
                             case res1 of
                                 Left err -> lift $ throwError err
-                                Right (s'@(Program [s] :- _), state') -> do
+                                Right (p'@(Program ss :- _), state') -> do
                                     lift . modify $ \st -> st { op = state' }
 
-                                    case programTypeInference (ctx st) (tiProgram s') of
+                                    case programTypeInference (ctx st) (tiProgram p') of
                                         Left err -> lift $ throwError err
                                         Right (_, state') -> do
                                             lift . modify $ \st' -> st' { ctx = state' }
 
-                                            case s of
+                                            forM_ ss $ \case
                                                 Definition id' expr :- _ -> do
                                                     st'   <- lift get
                                                     eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st')
@@ -302,7 +302,6 @@ execBench n expr = do
                                         min = minimum t
                                         max = maximum t
                                         avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
-                                        tot = List.foldl' (+) 0.0 t
 
                                     liftIO $ do
                                         setSGR [SetColor Foreground Vivid Yellow]
