@@ -11,12 +11,12 @@ initREPLState :: REPLState
 initREPLState = REPLState { ctx = initGlobalEnv
                           , values = initEvalState
                           , op = initSugarState
-                          , prompt = ">" }
+                          , prompt = "> " }
 
 initREPL :: IO ()
 initREPL = liftIO $ do
         putStr ("iBlob, version " <> version <> "\t") >> setSGR [Reset]
-        setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "“:?”" >> setSGR [Reset]
+        setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "\":?\"" >> setSGR [Reset]
         putStrLn " for help." >> setSGR [Reset]
         hFlush stdout
 

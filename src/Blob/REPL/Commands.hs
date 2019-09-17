@@ -48,7 +48,7 @@ load = do
 
     end <- observing . lookAhead $ eof
     case end of
-        Right _ -> fail "Missing argument “[file]”"
+        Right _ -> fail "Missing argument \"[file]\""
         Left _  -> do
             file <- anySingle `someTill` eof
             pure . Load $ rstrip file
@@ -65,7 +65,7 @@ getType = do
 
     end <- observing . lookAhead $  eof
     case end of
-        Right _ -> fail "Missing argument “[expr]”"
+        Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> GetType <$> (anySingle `someTill` eof)
 
 getKind :: Parser Command
@@ -74,7 +74,7 @@ getKind = do
 
     end <- observing . lookAhead $ eof
     case end of
-        Right _ -> fail "Missing argument “[type]”"
+        Right _ -> fail "Missing argument \"[type]\""
         Left _  -> GetKind <$> (anySingle `someTill` eof)
 
 time :: Parser Command
@@ -83,7 +83,7 @@ time = do
 
     end <- observing . lookAhead $ eof
     case end of
-        Right _ -> fail "Missing argument “[expr]”"
+        Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> Time <$> (anySingle `someTill` eof)
 
 bench :: Parser Command
@@ -92,12 +92,12 @@ bench = do
 
     end <- observing . lookAhead $ eof
     case end of
-        Right _ -> fail "Missing arguments “[n] [expr]”"
+        Right _ -> fail "Missing arguments \"[n] [expr]\""
         Left _  -> do
             n    <- L.decimal
             end' <- observing . lookAhead $ eof
             case end' of
-                Right _ -> fail "Missing argument “[expr]”"
+                Right _ -> fail "Missing argument \"[expr]\""
                 Left _  -> Bench n <$> (anySingle `someTill` eof)
 
 env :: Parser Command

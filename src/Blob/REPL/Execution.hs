@@ -38,31 +38,31 @@ import Debug.Trace
 
 helpCommand :: IO ()
 helpCommand = do
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:help” ”:h” “:?”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":help\" \":h\" \":?\"" >> setSGR [Reset]
         >> putStrLn ": show this menu." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:quit” “:q”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":quit\" \":q\"" >> setSGR [Reset]
         >> putStrLn ": exit the REPL." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:load [file]” “:l [file]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":load [file]\" \":l [file]\"" >> setSGR [Reset]
         >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:type [expr]” “:t [expr]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":type [expr]\" \":t [expr]\"" >> setSGR [Reset]
         >> putStrLn ": get the type of an expression." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:kind [type]” “:k [type]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":kind [type]\" \":k [type]\"" >> setSGR [Reset]
         >> putStrLn ": get the kind of a type." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:reset {symbols}” “:r {symbols}”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":reset {symbols}\" \":r {symbols}\"" >> setSGR [Reset]
         >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:time [expr]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":time [expr]\"" >> setSGR [Reset]
         >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:bench [n] [expr]”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":bench [n] [expr]\"" >> setSGR [Reset]
         >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "“:env”" >> setSGR [Reset]
+    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":env\"" >> setSGR [Reset]
         >> putStrLn ": print the whole current environment" >> setSGR [Reset]
 
     putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
@@ -77,7 +77,7 @@ loadFile file = do
     fileExists <- liftIO     $ doesFileExist file
 
     if not fileExists
-    then lift $ throwError (text "File “" <> text file <> text "” not found" <> dot <> linebreak)
+    then lift $ throwError (text "File \"" <> text file <> text "\" not found" <> dot <> linebreak)
     else do
 
         content <- liftIO $ Text.readFile file
