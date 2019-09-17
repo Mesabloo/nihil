@@ -55,12 +55,15 @@ iBlob is customizable. All you need to do is to create a file named `.iblob` in 
 
 These are the current options which can be modified and that will be recognized by the REPL:
 
-| Option name | Default value | Description 
+| Option name | Default value | Description
 |:-----------:|:-------------:|-------------
 | `prompt`    | `">"`         | Modify the REPL prompt symbol
+| `preload`   | `[""]`        | Add files to preload each time the REPL is launched
 
 Here is an example sample:
 ```haskell
 prompt = "\ESC[1;38;5;69;1mβ> \ESC[0m"
 -- Sets a custom prompt in iBlob.
+preload = ["./std/Prelude.blob"]
+-- list of files to preload
 ```

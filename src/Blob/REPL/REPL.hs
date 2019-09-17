@@ -80,7 +80,7 @@ customRunREPL r opts = do
         else do
             config <- readConf (home <> "/.iblob")
             setSGR [SetColor Foreground Vivid Green]
-                >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\"")
+                >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\".")
                 >> setSGR [Reset]
                 >> hFlush stdout
             pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe fs (getConf "preload" config))
