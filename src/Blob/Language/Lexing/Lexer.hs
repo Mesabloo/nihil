@@ -34,7 +34,7 @@ indent = do
 
 keyword :: Parser Token
 keyword = lexeme $ do
-    i <- gets currentIndent 
+    i <- gets currentIndent
 
     (pInit, pEnd, kw) <- getPositionInSource $
         LKeyword <$> (choice (C.string <$> kwords) <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace)))
@@ -77,7 +77,7 @@ symbol :: Parser Token
 symbol = do
     i <- gets currentIndent
     (pInit, pEnd, s) <- getPositionInSource $
-        (LSymbol <$> lexeme (string "-o" <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace))))
+        (LSymbol <$> lexeme (C.string "-o" <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace))))
         <|> (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→⊸λ⇒∷" :: String)))
         <|> (LSymbol . Text.pack <$> lexeme (some $ C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)) <?> "symbol")
 
@@ -151,5 +151,5 @@ kwords = [ "match", "with", "data", "type", "infixl", "infixr", "infix", "where"
 -----------------------------------------------------------------------------------------------------------
 
 runLexer :: Text.Text -> String -> Either (ParseErrorBundle Text.Text Void) [Token]
-runLexer content fileName = 
+runLexer content fileName =
     evalState (runParserT tokens fileName content) initLexState
