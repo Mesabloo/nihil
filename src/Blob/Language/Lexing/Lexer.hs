@@ -15,7 +15,7 @@ import Text.PrettyPrint.Leijen (Doc)
 import Data.Void
 
 tokens :: Parser [Token]
-tokens = lexeme $ indent *> many tks <* eof
+tokens = (lineCmnt <|> blockCmnt) *> lexeme (indent *> many tks <* eof)
   where tks = lexeme $ keyword <|> stringL <|> integerL <|> floatL <|> charL <|> symbol <|> identifier <|> identifier' <|> eolI <|> wildcard
 
 eolI :: Parser Token
@@ -114,8 +114,12 @@ wildcard = lexeme $ do
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme (L.space (void space1') lineCmnt blockCmnt)
-  where lineCmnt = void $ C.string "--" *> takeWhileP (Just "comment character") (not . isEndOfLine)
-        blockCmnt = empty
+
+lineCmnt :: Parser ()
+lineCmnt = L.skipLineComment "--"
+
+blockCmnt :: Parser ()
+blockCmnt = L.skipBlockComment "{-" "-}"
 
 space' :: Parser [Char]
 space' = many (satisfy isSpace)
