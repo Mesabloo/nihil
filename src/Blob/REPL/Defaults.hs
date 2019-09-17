@@ -15,7 +15,7 @@ initREPLState = REPLState { ctx = initGlobalEnv
 
 initREPL :: IO ()
 initREPL = liftIO $ do
-        putStr ("iBlob, version " <> version <> "\t") >> setSGR [Reset]
+        putStr ("iBlob, version " <> version <> "\t\t") >> setSGR [Reset]
         setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "\":?\"" >> setSGR [Reset]
         putStrLn " for help." >> setSGR [Reset]
         hFlush stdout

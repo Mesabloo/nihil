@@ -53,13 +53,13 @@ mguKind (KArr l r) (KArr l' r') = do
 mguKind k1 k2 = throwError (makeKindUnifyError k1 k2)
 
 makeKindUnifyError :: Kind -> Kind -> KIError
-makeKindUnifyError k1 k2 = text "Could not match kind “" <> pKind k1 <> text "” with “" <> pKind k2 <> text "”" <> dot <> linebreak
+makeKindUnifyError k1 k2 = text "Could not match kind \"" <> pKind k1 <> text "\" with \"" <> pKind k2 <> text "\"" <> dot <> linebreak
 makeKindOccurError :: String -> Kind -> KIError
 makeKindOccurError s k1 = text "Occur check fails: kind " <> text s <> text " vs " <> pKind k1 <> dot <> linebreak
 makeUndefinedTypeError :: String -> KIError
-makeUndefinedTypeError s = text "Undefined kind of type “" <> text s <> text "”" <> dot <> linebreak
+makeUndefinedTypeError s = text "Undefined kind of type \"" <> text s <> text "\"" <> dot <> linebreak
 makeRedeclaredTypeError :: String -> KIError
-makeRedeclaredTypeError id' = text "Type “" <> text id' <> text "” has already been declared" <> dot <> linebreak
+makeRedeclaredTypeError id' = text "Type \"" <> text id' <> text "\" has already been declared" <> dot <> linebreak
 
 kiCustomScheme :: CustomScheme -> KI (KindSubst, Kind)
 kiCustomScheme (CustomScheme tvs t) = do

@@ -80,17 +80,17 @@ customRunREPL r opts = do
         else do
             config <- readConf (home <> "/.iblob")
             setSGR [SetColor Foreground Vivid Green]
-                >> putStrLn ("Loaded iBlob configuration from “" <> (home <> "/.iblob") <> "”")
+                >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\"")
                 >> setSGR [Reset]
                 >> hFlush stdout
-            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe ">" (getConf "prompt" config))
+            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config))
 
 replLoop :: [FilePath] -> REPL ()
 replLoop fs = do
     let check i f = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
-            liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file “" <> path <> "”.") >> setSGR [Reset] >> hFlush stdout
+            liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".") >> setSGR [Reset] >> hFlush stdout
     forM_ (zip [1..] fs) $ \(i, f) -> check i f *> replCheck (Load f)
 
     forever $ withInterrupt (handleInterrupt run run)

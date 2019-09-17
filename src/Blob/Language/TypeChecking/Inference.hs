@@ -168,7 +168,7 @@ infer (e :- _) = case e of
                     let (ts, r) = unfoldParams ctor
 
                     guard (length args == length ts)
-                        <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor “" <> text id' <> text "”, but got " <> text (show $ length args) <> dot <> linebreak)
+                        <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor \"" <> text id' <> text "\", but got " <> text (show $ length args) <> dot <> linebreak)
 
                     (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
 
@@ -216,7 +216,7 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
             Just x -> TRigid x
-            Nothing -> error $ "The type variable “" <> x' <> "” has not been declared in type, but wants to be used.\n"
+            Nothing -> error $ "The type variable \"" <> x' <> "\" has not been declared in type, but wants to be used.\n"
                                 <> "This error should never happen. If you see it, please report it."
     normtype t          = t
 
@@ -310,7 +310,7 @@ tiCustomType (TP.TSum cs :- _)   = TSum (fmap tiScheme cs)
 tiCustomType (TP.TAlias t :- _)  = TAlias (tiType t)
 
 sepStatements :: [Statement] -> Check (UMap.Map String (Annotated Expr), UMap.Map String (Annotated TP.Type))
-sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedeclaredError mempty) (foldDecls makeRedefinedError mempty) . separateDecls
+sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedefinedError mempty) (foldDecls makeRedeclaredError mempty) . separateDecls
   where
     separateDecls []                              = mempty
     separateDecls (Declaration id' type' : stmts) = second ((id', type'):) (separateDecls stmts)

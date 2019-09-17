@@ -143,7 +143,7 @@ maybeYouWanted source choices =
             . map (\item ->
                 if levenshtein source item > 3
                 then ""
-                else intercalate item ["“", "”"])
+                else intercalate item ["\"", "\""])
             $ choices
                                         
     in
