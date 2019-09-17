@@ -54,25 +54,25 @@ import System.Directory
 import Data.Conf
 import Data.Maybe
 
-runREPL :: ([FilePath] -> REPL a) -> IO ()
+runREPL :: REPL a -> IO ()
 runREPL = flip customRunREPL (REPLOptions [])
 
-customRunREPL :: ([FilePath] -> REPL a) -> REPLOptions -> IO ()
+customRunREPL :: REPL a -> REPLOptions -> IO ()
 customRunREPL r opts = do
     initREPL
 
-    let fs = preload opts
+    let fs = preloadFiles opts
     let s = initREPLState
-    replState <- configState s
+    replState <- configState s fs
 
-    e <- runExceptT (runStateT (runInputT defaultSettings (r fs)) replState)
+    e <- runExceptT (runStateT (runInputT defaultSettings r) replState)
 
     case e of
         Left err -> logError err -- >> customRunREPL r opts
         Right _ -> pure ()
   where
-    configState :: REPLState -> IO REPLState
-    configState s = do
+    configState :: REPLState -> [FilePath] -> IO REPLState
+    configState s fs = do
         home <- getHomeDirectory
         fe <- doesFileExist (home <> "/.iblob")
         if not fe
@@ -83,15 +83,20 @@ customRunREPL r opts = do
                 >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\"")
                 >> setSGR [Reset]
                 >> hFlush stdout
-            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config))
+            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe fs (getConf "preload" config))
 
-replLoop :: [FilePath] -> REPL ()
-replLoop fs = do
-    let check i f = do
+loadFiles :: REPL ()
+loadFiles = do
+    let check i f fs = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
             liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".") >> setSGR [Reset] >> hFlush stdout
-    forM_ (zip [1..] fs) $ \(i, f) -> check i f *> catchError (replCheck (Load f)) (liftIO . logError)
+    fs <- lift $ gets preload
+    forM_ (zip [1..] fs) $ \(i, f) -> check i f fs *> catchError (replCheck (Load f)) (liftIO . logError)
+
+replLoop :: REPL ()
+replLoop = do
+    loadFiles
 
     forever $ withInterrupt (handleInterrupt run run)
   where
@@ -120,7 +125,7 @@ replCheck :: Command -> REPL ()
 replCheck = \case
     Help                -> liftIO helpCommand
     Exit                -> liftIO exitCommand
-    ResetEnv ids        -> resetEnv ids
+    ResetEnv ids        -> resetEnv ids loadFiles
     Load file           -> loadFile file
     GetType expr        -> getType expr
     GetKind typeExpr    -> getKind typeExpr

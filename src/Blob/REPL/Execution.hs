@@ -87,7 +87,7 @@ loadFile file = do
             Left err -> lift $ throwError (text $ errorBundlePretty err)
             Right tks -> do
                 let res' = runParser tks file
-                
+
                 case res' of
                     Left err        -> lift $ throwError (printParseError err)
                     Right parseTree -> do
@@ -175,11 +175,11 @@ getKind typeExpr = do
                                 Right kind ->
                                     liftIO $ setSGR [SetColor Foreground Vivid Yellow]
                                             >> putStr (show (pType (t1 :- Nothing)))
-                                            >> setSGR [Reset] 
-                                            >> putStr " :: " 
+                                            >> setSGR [Reset]
+                                            >> putStr " :: "
                                             >> setSGR [SetColor Foreground Vivid Cyan]
-                                            >> print (pKind kind) 
-                                            >> setSGR [Reset] 
+                                            >> print (pKind kind)
+                                            >> setSGR [Reset]
                                             >> hFlush stdout
 
 execCode :: String -> REPL ()
@@ -190,7 +190,7 @@ execCode stat = do
         Left err -> lift $ throwError (text $ errorBundlePretty err)
         Right x -> do
             let res' = runParser' ((Right <$> try (expression <* eof)) <|> (Left <$> (program <* eof))) x "interactive"
-            
+
             case res' of
                 Left err -> lift $ throwError (printParseError err)
                 Right s ->
@@ -333,11 +333,13 @@ getEnv = do
         "Types:\n" <> show kinds <> "\n"
         <> "Functions:\n" <> show functions
 
-resetEnv :: [String] -> REPL ()
-resetEnv [] = lift . modify $ \st -> st { ctx = initGlobalEnv
-                                        , values = initEvalState }
-resetEnv [x] = resetOne x
-resetEnv (x:xs) = resetOne x *> resetEnv xs
+resetEnv :: [String] -> REPL () -> REPL ()
+resetEnv [] reload = do
+    lift . modify $ \st -> st { ctx = initGlobalEnv
+                              , values = initEvalState }
+    reload
+resetEnv [x] _ = resetOne x
+resetEnv (x:xs) r = resetOne x *> resetEnv xs r
 
 resetOne :: String -> REPL ()
 resetOne x = lift . modify $

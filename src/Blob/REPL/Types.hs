@@ -34,10 +34,11 @@ data Command = GetType String
 data REPLState = REPLState { ctx :: GlobalEnv
                            , values :: EvalState
                            , op :: SugarState
-                           , prompt :: String }
+                           , prompt :: String
+                           , preload :: [FilePath] }
 
 type REPL = InputT (StateT REPLState (ExceptT REPLError IO))
 
 type REPLError = Doc
 
-data REPLOptions = REPLOptions { preload :: [FilePath] }
+data REPLOptions = REPLOptions { preloadFiles :: [FilePath] }
