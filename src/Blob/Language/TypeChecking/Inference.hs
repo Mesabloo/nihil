@@ -241,6 +241,8 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
+unifies (TId i) t = unifyAlias i t
+unifies t (TId i) = unifyAlias i t
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
@@ -261,6 +263,14 @@ unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
             Nothing -> undefined -- ? case handled by kind checking
         go t args = throwError $ makeUnifyError a t3
 unifyCustom _ _ = undefined -- ! never happening
+
+unifyAlias :: String -> Type -> Solve Subst
+unifyAlias name t1 =
+    asks (Map.lookup name . typeDefCtx) >>= \case
+        Just (CustomScheme tvs (TAlias t2)) -> unifies t2 t1
+        Just _ -> undefined
+        Nothing -> undefined -- ? Should never happen
+unifyAlias _ _ = undefined -- ! never happening
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
