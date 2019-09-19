@@ -57,10 +57,10 @@ data Scheme = Scheme [String] (Annotated Type)
 
 data Type = TId String            -- Type
           | TTuple [Annotated Type]         -- (a, ...)
-          | TArrow (Annotated Expr) (Annotated Type) (Annotated Type) -- a ->{n} b -o ...
           | TFun (Annotated Type) (Annotated Type)
           | TVar String           -- a...
           | TApp (Annotated Type) (Annotated Type)        -- Type a...
+          | TNonLin (Annotated Type)              -- !a
     deriving (Eq, Ord, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TAlias (Annotated Type)

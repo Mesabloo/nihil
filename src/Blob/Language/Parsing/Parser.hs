@@ -234,15 +234,15 @@ type' = do
         ft <- btype
         ot <- optional $ do
             usage <- sameLineOrIndented iPos $
-                choice [ Just ([ALit (LInt 1) :- Nothing] :- Nothing) <$ (symbol "-o" <|> symbol "⊸")
+                choice [ Just True <$ (symbol "-o" <|> symbol "⊸")
                        , Nothing <$ (symbol "->" <|> symbol "→") ]
             (usage,) <$> sameLineOrIndented iPos type'
         pure (ft, ot)
 
     case optTy of
         Nothing -> pure ty
-        Just (Nothing, ty') -> pure (TFun ty ty' :- Just (SourceSpan pInit pEnd))
-        Just (Just count, ty') -> pure (TArrow count ty ty' :- Just (SourceSpan pInit pEnd))
+        Just (Nothing, ty') -> pure (TFun (TNonLinear ty :- Just (SourceSpan pInit pEnd)) ty' :- Just (SourceSpan pInit pEnd))
+        Just (Just _, ty') -> pure (TFun ty ty' :- Just (SourceSpan pInit pEnd))
 
 btype :: Parser (Annotated Type)
 btype = do
@@ -253,9 +253,12 @@ btype = do
 
 atype :: Parser (Annotated Type)
 atype = do
-    (pInit, pEnd, at) <- getPositionInSource $
-        choice [ gtycon, try tTuple, tList, TVar <$> identifier, getAnnotated <$> parens type' ]
-    pure (at :- Just (SourceSpan pInit pEnd))
+    (pInit, pEnd, at) <- getPositionInSource $ do
+        fun <- try (symbol "!" $> TNonLinear) <|> pure getAnnotated
+        (pInit, pEnd, at) <- getPositionInSource $
+            choice [ gtycon, try tTuple, tList, TVar <$> identifier, getAnnotated <$> parens type' ]
+        pure $ fun (at :- Just (SourceSpan pInit pEnd))
+    pure $ at :- Just (SourceSpan pInit pEnd)
   where
     tTuple = do
         iPos <- getPositionAndIndent
@@ -299,7 +302,7 @@ exprNoApp :: Parser (Annotated Atom)
 exprNoApp = do
     (pInit, pEnd, a) <- getPositionInSource $
         choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match", try tuple <?> "tuple", list <?> "list"
-               , AId <$> choice [ identifier, try (parens opSymbol), try (parens nothing) $> "()", typeIdentifier ] <?> "identifier"
+               , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
                , ALit . LDec <$> try float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
                , ALit . LChr <$> char <?> "character"
@@ -340,10 +343,11 @@ lambda = do
 tuple :: Parser Atom
 tuple = do
     iPos <- getPositionAndIndent
-    parens $ do
+    try (parens $ do
         e1 <- sameLineOrIndented iPos expression
         es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos expression)
         pure $ ATuple (e1:es)
+     ) <|> (try (parens nothing) $> ATuple [])
 
 list :: Parser Atom
 list = do

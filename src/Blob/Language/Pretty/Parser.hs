@@ -91,14 +91,12 @@ pType (t :- _) = case t of
     TVar tv -> text tv
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
     TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
-    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "->{?}" <+> parenthesizeIfNeededF t2
-    TArrow n t1 t2 -> parenthesizeIfNeededF t1 <+> text "->{" <> pExpression n <> text "}" <+> parenthesizeIfNeededF t2
+    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "-o" <+> parenthesizeIfNeededF t2
+    TNonLin t1 -> text "!" <> parenthesizeIfNeeded t1
   where parenthesizeIfNeeded (t :- p) = case t of
             TApp _ _ -> parens $ pType (t :- p)
             TFun _ _ -> parens $ pType (t :- p)
-            TArrow{} -> parens $ pType (t :- p)
             _ -> pType (t :- p)
         parenthesizeIfNeededF (t :- p) = case t of
             TFun _ _ -> parens $ pType (t :- p)
-            TArrow{} -> parens $ pType (t :- p)
             _ -> pType (t :- p)

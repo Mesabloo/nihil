@@ -74,12 +74,6 @@ desugarType fileName (P.TFun t1 t2 :- p) = do
     t1' <- desugarType fileName t1
     t2' <- desugarType fileName t2
     pure (D.TFun t1' t2' :- p)
-desugarType fileName (P.TArrow e t1 t2 :- p) = do
-    e' <- desugarExpression fileName e
-    t1' <- desugarType fileName t1
-    t2' <- desugarType fileName t2
-
-    pure (D.TArrow e' t1' t2' :- p)
 desugarType fileName (P.TTuple ts :- p) = do
     ts' <- mapM (desugarType fileName) ts
 
@@ -89,6 +83,8 @@ desugarType fileName (P.TList ts :- p) =
         t' <- desugarType fileName t
 
         pure (D.TApp acc t' :- Nothing) ) (D.TId "[]" :- Nothing) ts
+desugarType fileName (P.TNonLinear t :- p) =
+    (:- p) . D.TNonLin <$> desugarType fileName t
 
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
 desugarExpression _ expr = do
