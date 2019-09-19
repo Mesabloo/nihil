@@ -25,6 +25,7 @@ import Blob.Language.KindChecking.Types
 import Data.Align.Key (alignWithKey)
 import Blob.Language.Parsing.Annotation
 import Data.Functor.Invariant (invmap)
+import Debug.Trace
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -101,6 +102,7 @@ relax (TRigid n)    = TVar n
 relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
 relax (TTuple ts)   = TTuple (map relax ts)
 relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
+relax (TNonLin t1)  = TNonLin (relax t1)
 relax t = t
 
 infer :: Annotated Expr -> Infer (Type, [Constraint])
@@ -203,15 +205,17 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
   where
     ord = zip (nub $ fv body) (map TV letters)
 
-    fv (TVar a)   = [a]
-    fv (TFun a b) = fv a <> fv b
-    fv (TApp a b) = fv a <> fv b
-    fv (TTuple e) = foldMap fv e
-    fv _          = []
+    fv (TVar a)    = [a]
+    fv (TFun a b)  = fv a <> fv b
+    fv (TApp a b)  = fv a <> fv b
+    fv (TTuple e)  = foldMap fv e
+    fv (TNonLin t) = fv t
+    fv _           = []
 
     normtype (TFun a b)       = TFun (normtype a) (normtype b)
     normtype (TApp a b)       = TApp (normtype a) (normtype b)
     normtype (TTuple e)       = TTuple (map normtype e)
+    normtype (TNonLin t)      = TNonLin (normtype t)
     normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
             Just x -> TRigid x
@@ -240,6 +244,9 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
+unifies (TId i1) (TId i2) | i1 == i2 = pure nullSubst
+unifies (TNonLin _) _ = throwError $ text "Non-linear types are not supported yet!\n"
+unifies _ (TNonLin _) = throwError $ text "Non-linear types are not supported yet!\n"
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TId i) t       = unifyAlias i t
@@ -247,6 +254,7 @@ unifies t       (TId i) = unifyAlias i t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
+-- maybe some more
 unifies a@(TApp _ _) t = unifyCustom a t
 unifies t a@(TApp _ _) = unifyCustom a t
 unifies t1           t2           = throwError $ makeUnifyError t1 t2
@@ -267,7 +275,7 @@ unifyAlias :: String -> Type -> Solve Subst
 unifyAlias name t1 =
     asks (Map.lookup name . typeDefCtx) >>= \case
         Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
-        Just _ -> undefined
+        Just _ -> traceShow t1 $ throwError $ makeUnifyError (TId name) t1
         Nothing -> throwError $ makeUnifyError (TId name) t1 -- ? Should never happen
 unifyAlias _ _ = undefined -- ! never happening
 
@@ -305,11 +313,11 @@ runHoleInspect subst =
 
 tiType :: Annotated TP.Type -> Type
 tiType (TP.TId id' :- _)        = TId id'
-tiType (TP.TArrow _ t1 t2 :- _) = TFun (tiType t1) (tiType t2)
 tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
 tiType (TP.TVar id' :- _)       = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
+tiType (TP.TNonLin t :- _)      = TNonLin (tiType t)
 
 tiScheme :: TP.Scheme -> Scheme
 tiScheme (TP.Scheme tvs t) = Scheme (map TV tvs) (tiType t)

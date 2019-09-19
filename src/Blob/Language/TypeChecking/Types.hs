@@ -23,6 +23,7 @@ data Type = TVar TVar | TRigid TVar
           | TTuple [Type]
           | TApp Type Type
           | TId String
+          | TNonLin Type
     deriving (Eq, Ord, Show)
 
 data Kind = KType | KArr Kind Kind | KVar String
@@ -108,12 +109,14 @@ instance Substitutable Type where
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
+    ftv (TNonLin t1)  = ftv t1
     ftv _             = mempty
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
     apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
+    apply s (TNonLin t1)  = apply s t1
     apply _ t             = t
 
 instance Substitutable Scheme where
