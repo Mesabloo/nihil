@@ -2,24 +2,12 @@
 
 module Blob.REPL.Commands where
 
-import qualified Data.Map as Map
-import Text.Megaparsec 
+import Text.Megaparsec
 import Data.String.Utils (rstrip)
-import Control.Monad.Reader (local, asks, ask)
-import Control.Monad.Except (throwError)
 import Data.List (isInfixOf, intercalate)
-import Data.Maybe (fromJust, isJust)
-import Text.PrettyPrint.Leijen (text, Doc, dot, linebreak)
-import System.Exit (exitSuccess)
-import System.Console.ANSI (setSGR, SGR(..), ConsoleLayer(..), ColorIntensity(..), Color(..), ConsoleIntensity(..))
 import Data.Functor (($>))
-import Data.Char (isUpper)
-import Control.Monad (join, zipWithM)
-import Control.Applicative (empty, liftA2)
-import Data.List.Extra
-import Debug.Trace
+import Control.Applicative (liftA2)
 import Blob.REPL.Types
-import qualified Data.Text as Text
 import qualified Data.Char as Ch
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -27,7 +15,7 @@ import qualified Text.Megaparsec.Char.Lexer as L
 commands :: [String]
 commands = [  ":help", ":h", ":?"
            ,  ":quit", ":q"
-           ,  ":load", ":l" 
+           ,  ":load", ":l"
            ,  ":type", ":t"
            ,  ":kind", ":k"
            ,  ":eval", ":ev"
@@ -136,7 +124,7 @@ levenshtein s1 s2
                                       , 1 + levenshtein (init s1) (init s2) ]
 
 maybeYouWanted :: String -> [String] -> String
-maybeYouWanted source choices = 
+maybeYouWanted source choices =
     let s = intercalate ", "
             . takeMax 3
             . filter (/= "")
@@ -145,7 +133,7 @@ maybeYouWanted source choices =
                 then ""
                 else intercalate item ["\"", "\""])
             $ choices
-                                        
+
     in
         if s /= ""
         then "Perhaps you meant " <> s <> "?"

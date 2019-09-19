@@ -5,12 +5,8 @@ module Blob.Language.Desugaring.Types where
 import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Except
-import qualified Blob.Language.Parsing.Types as P (Fixity, Atom, Expr)
+import qualified Blob.Language.Parsing.Types as P (Fixity)
 import Text.PrettyPrint.Leijen (Doc)
-import qualified Text.Megaparsec as Mega
-import Data.Void
-import Control.Monad.Combinators.Expr
-import Data.Proxy
 import Blob.Language.Parsing.Annotation
 
 data Expr = EId String

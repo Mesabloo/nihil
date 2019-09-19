@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase, TupleSections, BangPatterns #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase #-}
 
 module Blob.REPL.REPL
 ( runREPL
@@ -9,48 +9,23 @@ module Blob.REPL.REPL
 ) where
 
 import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException(..), RunIO(..), defaultSettings, withInterrupt, handleInterrupt)
-import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..), runExcept)
-import Control.Monad.State (StateT(..), evalStateT, lift, get, MonadIO, liftIO, runState, modify, evalState, gets)
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..))
+import Control.Monad.State (StateT(..), lift, get, liftIO, gets)
 import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), REPLOptions(..))
-import Blob.Interpreter.Types (Value(..), EvalState(..))
-import Blob.Language.TypeChecking.Types (GlobalEnv(..), TypeEnv(..), CustomScheme(..), Scheme(..), apply)
-import Blob.Language.Desugaring.Types (Program(..), Statement(..), SugarState(..))
-import Blob.Prelude (defaultEnv, initGlobalEnv, initEvalState)
-import Blob.Interpreter.Eval (evaluate)
 import Blob.REPL.Commands (command)
 import Blob.REPL.Execution
-import Blob.Language.TypeChecking.Inference
-import Blob.Language.KindChecking.Checker (kiType, checkKI, kindInference)
-import Blob.Language.Pretty.Inference (pType, pKind)
-import qualified Data.List as List
-import qualified Data.Map as Map
-import Data.Void (Void)
-import qualified Data.Text as Text (Text, pack, unpack)
-import qualified Data.Text.IO as Text (readFile)
-import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..), ConsoleIntensity(..))
-import Text.Megaparsec.Error (ParseErrorBundle(..), errorBundlePretty, bundleErrors, parseErrorTextPretty)
-import Text.Megaparsec (runParser, PosState(..), (<|>), eof, try)
-import Text.Megaparsec.Pos (SourcePos(..), unPos, mkPos)
+import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..))
+import Text.Megaparsec.Error (ParseErrorBundle(..), bundleErrors, parseErrorTextPretty)
+import Text.Megaparsec (runParser)
 import System.IO (hFlush, stdout)
-import Control.Monad (forever, void, forM, replicateM, guard, forM_)
-import System.Directory (doesFileExist, getCurrentDirectory, canonicalizePath)
+import Control.Monad (forever, forM_)
+import System.Directory (doesFileExist, getCurrentDirectory, canonicalizePath, getHomeDirectory)
 import Data.List.NonEmpty (toList)
-import Data.List.Utils (split)
-import Data.String.Utils (rstrip, strip)
+import Data.String.Utils (strip)
 import Data.Char (toUpper)
-import Criterion.Measurement (secs, initializeTime, getTime, measure, runBenchmark)
-import Criterion.Measurement.Types (whnf, Measured(..))
-import Debug.Trace
-import System.IO.Unsafe (unsafePerformIO)
-import Text.PrettyPrint.Leijen (text, (<$$>), empty)
-import Blob.Language.Desugaring.Defaults
-import Blob.Language.Desugaring.Desugarer
-import Blob.Language.Parsing.Annotation
 import System.FilePath.Posix ((</>))
 import Blob.REPL.Defaults
 import Blob.REPL.Logger
-import System.Directory
 import Data.Conf
 import Data.Maybe
 
@@ -107,8 +82,6 @@ replLoop = do
         case input of
             Nothing     -> liftIO exitCommand
             Just input' -> do
-                env <- lift get
-
                 let res = runParser command "" input'
 
                 case res of
@@ -135,9 +108,6 @@ replCheck = \case
     Env                 -> getEnv
 
 
-capitalize :: String -> String
-capitalize "" = ""
-capitalize (x:xs) = toUpper x : xs
 
 
 

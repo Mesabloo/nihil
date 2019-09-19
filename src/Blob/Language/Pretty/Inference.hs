@@ -5,7 +5,7 @@ module Blob.Language.Pretty.Inference
 , pKind
 ) where
 
-import Text.PrettyPrint.Leijen (text, parens, Doc, brackets, empty, (<+>))
+import Text.PrettyPrint.Leijen (text, parens, Doc, (<+>))
 import Blob.Language.TypeChecking.Types (TVar(..), Type(..), Kind(..))
 import Data.List (intersperse)
 import Blob.Language.Parsing.Annotation

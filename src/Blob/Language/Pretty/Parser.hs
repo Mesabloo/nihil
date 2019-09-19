@@ -10,9 +10,8 @@ module Blob.Language.Pretty.Parser
 import Blob.Language.Desugaring.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Pattern(..), Scheme(..), CustomType(..))
 import Blob.Language.Parsing.Types (Associativity(..), Fixity(..))
 import Text.PrettyPrint.Leijen hiding ((<$>))
-import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import Data.List (intersperse)
-import qualified Data.Map as Map (toList, map, foldr)
+import qualified Data.Map as Map (foldr)
 import Blob.Language.Parsing.Annotation
 
 indentLevel :: Int
@@ -41,7 +40,7 @@ pStatement (TypeDeclaration name _ custom :- _) =
                           t@(TAlias _) :- _ -> text "Alias = " <> printCustomType t
                           t@(TSum _) :- _ -> text "Constructors = " <$$> printCustomType t
     in text "TypeDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> printCustom custom)
-pStatement _ = undefined
+pStatement _ = text "-- Unimplemented pretty printing"
 
 pFixity :: Fixity -> Doc
 pFixity (Infix assoc prec _) =

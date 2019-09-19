@@ -5,19 +5,15 @@ module Blob.Language.Parsing.Parser where
 import Blob.Language.Lexing.Types hiding (Parser)
 import Blob.Language.Parsing.Types
 import Blob.Language.Parsing.Annotation
-import Text.PrettyPrint.Leijen (Doc, text, linebreak)
 import qualified Data.Map as Map
 import Control.Monad
 import Data.Functor
-import Control.Monad.Except
 import Data.Maybe
-import Control.Monad.State
 import qualified Data.Text as Text
 import qualified Data.Char as Ch
 import Text.Megaparsec hiding (Token, match)
-import Control.Applicative (empty, liftA2)
+import Control.Applicative (liftA2)
 import Data.Void
-import Debug.Trace
 
 program :: Parser Program
 program = "statements" <??> many statement <* (eof <?> "EOF")
@@ -88,7 +84,7 @@ typeAlias = do
         (pInit, pEnd, alias) <- getPositionInSource $ sameLineOrIndented iPos type'
 
         pure (TypeDeclaration name tvs (TAlias alias :- Just (SourceSpan pInit pEnd)))
-    
+
     pure (alias :- Just (SourceSpan pInit pEnd))
 
 declaration :: Parser (Annotated Statement)
@@ -168,13 +164,13 @@ symbol s = ("symbol \"" <> s <> "\"") <??> satisfy (\(_, _, t) -> case t of
 identifier :: Parser String
 identifier = "identifier" <??> sat >>= \(_, _, LLowIdentifier i) -> pure (Text.unpack i)
   where sat = satisfy $ \(_, _, t) -> case t of
-            LLowIdentifier i -> True 
+            LLowIdentifier _ -> True
             _ -> False
 
 typeIdentifier :: Parser String
 typeIdentifier = "type identifier" <??> sat >>= \(_, _, LUpIdentifier i) -> pure (Text.unpack i)
   where sat = satisfy $ \(_, _, t) -> case t of
-            LUpIdentifier i -> True
+            LUpIdentifier _ -> True
             _ -> False
 
 opSymbol :: Parser String
@@ -182,7 +178,7 @@ opSymbol = "operator" <??> sat >>= \(_, _, LSymbol s) -> pure (Text.unpack s) >>
   where sat = satisfy $ \(_, _, t) -> case t of
             LSymbol s | isOperator s -> True
             _ -> False
-  
+
         isOperator :: Text.Text -> Bool
         isOperator = Text.all (liftA2 (||) Ch.isSymbol (`elem` "!#$%&.<=>?^~|@*/-:"))
 
@@ -199,25 +195,25 @@ brackets p = symbol "[" *> p <* symbol "]"
 integer :: Parser Integer
 integer = "integer" <??> sat >>= \(_, _, LInteger i) -> pure i
   where sat = satisfy $ \(_, _, t) -> case t of
-            LInteger lit -> True
+            LInteger _ -> True
             _ -> False
 
 float :: Parser Double
 float = "floaing point number" <??> sat >>= \(_, _, LFloat f) -> pure f
   where sat = satisfy $ \(_, _, t) -> case t of
-            LFloat lit -> True
+            LFloat _ -> True
             _ -> False
 
 char :: Parser Char
 char = "character" <??> sat >>= \(_, _, LChar c) -> pure c
   where sat = satisfy $ \(_, _, t) -> case t of
-            LChar lit -> True
+            LChar _ -> True
             _ -> False
 
 string :: Parser String
 string = "string" <??> sat >>= \(_, _, LString s) -> pure (Text.unpack s)
   where sat = satisfy $ \(_, _, t) -> case t of
-            LString lit -> True
+            LString _ -> True
             _ -> False
 
 ------------------------------------------------------------------------------------------
@@ -251,7 +247,7 @@ type' = do
 btype :: Parser (Annotated Type)
 btype = do
     iPos <- getPositionAndIndent
-    (pInit, pEnd, ts) <- getPositionInSource $ 
+    (pInit, pEnd, ts) <- getPositionInSource $
         some (sameLineOrIndented iPos atype)
     pure (TApp ts :- Just (SourceSpan pInit pEnd))
 
@@ -348,7 +344,7 @@ tuple = do
         e1 <- sameLineOrIndented iPos expression
         es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos expression)
         pure $ ATuple (e1:es)
-    
+
 list :: Parser Atom
 list = do
     iPos <- getPositionAndIndent
@@ -376,7 +372,7 @@ match = do
 
 pattern' :: Parser [Annotated Pattern]
 pattern' = some (try patOperator <|> patTerm)
-    
+
 patOperator :: Parser (Annotated Pattern)
 patOperator = do
     (pInit, pEnd, op) <- getPositionInSource $
@@ -404,7 +400,7 @@ patTerm = do
         Just t  -> pure (PAnn [term :- Just (SourceSpan pInit pEnd)] t :- Just (SourceSpan pInit pEnd))
   where
     patList :: Parser Pattern
-    patList = 
+    patList =
         getPositionAndIndent
         >>= \iPos -> brackets $ choice [ do { e1 <- sameLineOrIndented iPos pattern'
                                             ; es <- many (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos pattern')

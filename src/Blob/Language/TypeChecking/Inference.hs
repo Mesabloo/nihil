@@ -18,7 +18,6 @@ import Control.Monad.Reader
 import MonadUtils (mapAndUnzip3M)
 import Control.Applicative ((<|>), liftA2)
 import Data.Bifunctor (first, second, bimap)
-import Debug.Trace
 import Data.These
 import qualified Data.Map.Unordered as UMap
 import Blob.Language.KindChecking.Checker
@@ -57,7 +56,7 @@ closeOver = normalize . generalize mempty
 
 -- | Extend type environment
 inEnv :: (String, Scheme) -> Infer a -> Infer a
-inEnv (x, sc) m = 
+inEnv (x, sc) m =
     flip local m $ do
         env <- ask
         let ctx = getMap $ defCtx env
@@ -188,7 +187,7 @@ infer (e :- _) = case e of
 
             zipFrom :: a -> [b] -> [(a, b)]
             zipFrom = zip . repeat
-            
+
 
 inferTop :: GlobalEnv -> [(String, Annotated Expr)] -> Either TIError GlobalEnv
 inferTop env [] = Right env
@@ -261,13 +260,13 @@ unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
                 in unifies (apply sub t) t3
             Just _ -> throwError $ makeUnifyError a t3
             Nothing -> undefined -- ? case handled by kind checking
-        go t args = throwError $ makeUnifyError a t3
+        go _ _ = throwError $ makeUnifyError a t3
 unifyCustom _ _ = undefined -- ! never happening
 
 unifyAlias :: String -> Type -> Solve Subst
 unifyAlias name t1 =
     asks (Map.lookup name . typeDefCtx) >>= \case
-        Just (CustomScheme tvs (TAlias t2)) -> unifies t2 t1
+        Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
         Just _ -> undefined
         Nothing -> undefined -- ? Should never happen
 unifyAlias _ _ = undefined -- ! never happening
@@ -331,18 +330,18 @@ sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedefinedError mempt
     foldDecls _ m []              = pure m
     foldDecls err m ((id', t):ts) = case UMap.lookup id' m of
                                         Nothing -> flip (foldDecls err) ts $ UMap.insert id' t m
-                                        Just _ -> throwError $ err id'      
+                                        Just _ -> throwError $ err id'
 
 handleStatement :: String -> These (Annotated Expr) (Annotated TP.Type) -> Check ()
 handleStatement name (This def)      = do
     e <- get
     let res = runInfer e $ do { var <- fresh "a"
-                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def 
-                              ; pure (t, c ++ [(t, var)]) }
+                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def
+                              ; pure (t, c <> [(t, var)]) }
 
     case res of
         Left err -> throwError err
-        Right ((t,c),_) -> 
+        Right ((t,c),_) ->
             case runSolve e c of
                 Left err -> throwError err
                 Right x ->
@@ -353,20 +352,18 @@ handleStatement name (This def)      = do
                                                                  in TypeEnv tv }
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
-    env <- gets typeDeclCtx
-
     let ti     = tiType typ
     let gen'ed = closeOver (relax ti)
     checkKI $ kiScheme gen'ed
 
     e <- get
     let res = runInfer e $ do { var <- fresh "a"
-                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def 
-                              ; pure (t, c ++ [(t, var)]) }
+                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def
+                              ; pure (t, c <> [(t, var)]) }
 
     case res of
         Left err -> throwError err
-        Right ((t,c),_) -> 
+        Right ((t,c),_) ->
             case runSolve e ((ti, t):c) of
                 Left err -> throwError err
                 Right x ->
@@ -395,8 +392,8 @@ analyseTypeDecl k v = do
                 e <- get
 
                 case runSolve e [(typeDef, r)] of
-                    Left err -> throwError $ makeGADTWrongReturnTypeError ctorName r typeDef
-                    Right x -> pure ()
+                    Left _ -> throwError $ makeGADTWrongReturnTypeError ctorName r typeDef
+                    Right _ -> pure ()
 
             pure ctors
         _          -> pure $ Map.fromList []

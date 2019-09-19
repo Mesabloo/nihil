@@ -4,9 +4,6 @@ module Blob.Language.Parsing.Types where
 
 import qualified Data.Map as Map
 import Blob.Language.Parsing.Annotation
-import Control.Monad.State
-import Control.Monad.Except
-import Text.PrettyPrint.Leijen hiding ((<$>))
 import Blob.Language.Lexing.Types (SourceSpan, Lexeme)
 import Text.Megaparsec
 import Data.Proxy
@@ -23,7 +20,7 @@ instance Stream [TokenL] where
     tokensToChunk Proxy = id
     chunkToTokens Proxy = id
     chunkLength Proxy = length
-    chunkEmpty Proxy = null 
+    chunkEmpty Proxy = null
     take1_ [] = Nothing
     take1_ (x:xs) = Just (x, xs)
     takeN_ n s | n <= 0 = Nothing
@@ -40,6 +37,7 @@ instance Stream [TokenL] where
                             (pstateLinePrefix ps)
 
             increaseSourcePos sp n' = SourcePos (sourceName sp) (sourceLine sp) (mkPos $ unPos (sourceColumn sp) + n')
+-- ? Causes a warning, which will not be fixed
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------

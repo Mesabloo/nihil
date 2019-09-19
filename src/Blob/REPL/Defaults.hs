@@ -11,7 +11,8 @@ initREPLState :: REPLState
 initREPLState = REPLState { ctx = initGlobalEnv
                           , values = initEvalState
                           , op = initSugarState
-                          , prompt = "> " }
+                          , prompt = "> "
+                          , preload = [] }
 
 initREPL :: IO ()
 initREPL = liftIO $ do

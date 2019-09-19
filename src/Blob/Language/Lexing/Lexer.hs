@@ -11,7 +11,6 @@ import Control.Applicative (liftA2)
 import qualified Data.Char as Ch
 import qualified Data.Text as Text
 import Data.Functor
-import Text.PrettyPrint.Leijen (Doc)
 import Data.Void
 
 tokens :: Parser [Token]
@@ -29,8 +28,8 @@ eolI = do
 
 indent :: Parser ()
 indent = do
-    indent <- length <$> space'
-    put $ LexState indent
+    indent' <- length <$> space'
+    put $ LexState indent'
 
 keyword :: Parser Token
 keyword = lexeme $ do

@@ -6,7 +6,6 @@ import Blob.Language.Desugaring.Types (Expr(..), Literal(..), Pattern(..))
 import qualified Data.Map as Map
 import Blob.Interpreter.Types
 import Control.Monad.Reader
-import Control.Monad.State
 import Control.Monad.Except
 import Control.Applicative
 import Text.PrettyPrint.Leijen hiding ((<$>), empty)
