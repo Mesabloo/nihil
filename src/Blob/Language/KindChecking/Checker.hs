@@ -111,6 +111,7 @@ kiType (TApp f t) = do
     (s2, k2) <- local (applyKind s1 <$>) (kiType t)
     s3       <- mguKind (applyKind s2 k1) (KArr k2 kv)
     pure (concatKindSubsts [s3,s2,s1], applyKind s3 kv)
+kiType (TNonLin t) = kiType t
 kiType t = traceShow t undefined
 
 kiScheme :: Scheme -> KI (KindSubst, Kind)
