@@ -240,10 +240,10 @@ unifies (TId i) TFloat | i == "Double" = pure nullSubst
 unifies TFloat (TId i) | i == "Double" = pure nullSubst
 unifies (TId i) TChar | i == "Char" = pure nullSubst
 unifies TChar (TId i) | i == "Char" = pure nullSubst
-unifies (TId i) t = unifyAlias i t
-unifies t (TId i) = unifyAlias i t
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
+unifies (TId i) t       = unifyAlias i t
+unifies t       (TId i) = unifyAlias i t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
@@ -268,7 +268,7 @@ unifyAlias name t1 =
     asks (Map.lookup name . typeDefCtx) >>= \case
         Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
         Just _ -> undefined
-        Nothing -> undefined -- ? Should never happen
+        Nothing -> throwError $ makeUnifyError (TId name) t1 -- ? Should never happen
 unifyAlias _ _ = undefined -- ! never happening
 
 -- Unification solver
