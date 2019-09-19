@@ -58,7 +58,7 @@ customRunREPL r opts = do
                 >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\".")
                 >> setSGR [Reset]
                 >> hFlush stdout
-            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe fs (getConf "preload" config))
+            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe [] (getConf "preload" config) <> fs)
 
 loadFiles :: REPL ()
 loadFiles = do
