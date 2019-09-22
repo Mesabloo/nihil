@@ -14,5 +14,14 @@ type String = [Char]
 id :: a -o a
 id x = x
 
+dupl :: !a -o (!a, !a)
+dupl !x = (x, x)
+
+-- read :: !a -o a
+-- read !x = x -- wrong, but will be reported by type checking
+
+kill :: a -> ()
+kill !x = ()
+
 const :: a -o b -> a
-const a b = a
+const a !b = a
