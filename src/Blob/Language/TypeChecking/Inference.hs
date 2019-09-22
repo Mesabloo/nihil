@@ -314,7 +314,10 @@ unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies a@(TApp _ _) t = unifyCustom a t
 unifies t a@(TApp _ _) = unifyCustom a t
-unifies t1           t2           = throwError $ makeUnifyError t1 t2
+unifies t1           t2           =
+    let (Scheme _ st1) = closeOver t1
+        (Scheme _ st2) = closeOver t2
+    in throwError $ makeUnifyError st1 st2
 
 unifyCustom :: Type -> Type -> Solve Subst
 unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
@@ -323,17 +326,24 @@ unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
             Just (CustomScheme tvs (TAlias t)) ->
                 let sub = Map.fromList (zipWith (\k v -> (TV k, v)) tvs args)
                 in unifies (apply sub t) t3
-            Just _ -> throwError $ makeUnifyError a t3
+            Just _ ->
+                let (Scheme _ st3) = closeOver t3
+                in throwError $ makeUnifyError a st3
             Nothing -> undefined -- ? case handled by kind checking
-        go _ _ = throwError $ makeUnifyError a t3
+        go _ _ = let (Scheme _ st3) = closeOver t3
+                 in throwError $ makeUnifyError a st3
 unifyCustom _ _ = undefined -- ! never happening
 
 unifyAlias :: String -> Type -> Solve Subst
 unifyAlias name t1 =
     asks (Map.lookup name . typeDefCtx) >>= \case
         Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
-        Just _ -> throwError $ makeUnifyError (TId name) t1
-        Nothing -> throwError $ makeUnifyError (TId name) t1 -- ? Should never happen
+        Just _ ->
+            let (Scheme _ st1) = closeOver t1
+            in throwError $ makeUnifyError (TId name) st1
+        Nothing ->
+            let (Scheme _ st1) = closeOver t1
+            in throwError $ makeUnifyError (TId name) st1 -- ? Should never happen
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
@@ -344,10 +354,10 @@ solver (su, cs) = case cs of
         solver (su1 `compose` su, apply su1 cs0)
 
 bind :: TVar -> Type -> Solve Subst
-bind a t | t == TVar a     = case a of
-                                TV id' -> if head id' == '_'
-                                          then throwError $ makeHoleError t
-                                          else pure nullSubst
+bind a t | t == TVar a     = case a of TV (h:id') | h == '_' ->
+                                                        let (Scheme _ st) = closeOver t
+                                                        in throwError $ makeHoleError st
+                                                  | otherwise -> pure nullSubst
          | occursCheck a t = throwError $ makeOccurError a t
          | otherwise       = pure $ Map.singleton a t
 
@@ -361,7 +371,7 @@ runHoleInspect subst =
     let map' = Map.filterWithKey (\(TV k) _ -> head k == '_') subst
     in if null map'
         then pure ()
-        else throwError $ Map.foldl (\acc t -> acc <> makeHoleError t) empty map'
+        else throwError $ Map.foldl (\acc t -> acc <> let (Scheme _ st) = closeOver t in makeHoleError st) empty map'
 
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
