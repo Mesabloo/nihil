@@ -29,7 +29,10 @@ evaluate (EApp f x :- _)         = do
     x' <- evaluate x
     f' <- evaluate f
     case f' of
-        VLam x e c -> foldr ((<|>) . uncurry (evalBranch x')) makeMatchError [(x, e)]
+        VLam x e c -> do
+            vals' <- unpackPattern x' x <|> makeMatchError
+            local (\env -> env { vals = vals' <> c <> vals env }) $
+                evaluate e
         HLam f''   -> f'' x'
         VCon id' e -> pure $ VCon id' (snoc e x')
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, `HLam` or `VCon` ; got `" <> show v <> "`.\nPlease report the issue."
@@ -52,7 +55,8 @@ unpackPattern = curry $ \case
     (VCon id' v, PCtor id'' v' :- _)
         | id' == id''                -> mconcat <$> zipWithM unpackPattern v v'
     (val, PAnn p _ :- _)             -> unpackPattern val p
+    (val, PLinear p :- _)            -> unpackPattern val p
     _                                -> empty
 
-makeMatchError :: EvalEnv Value
-makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot
+makeMatchError :: EvalEnv a
+makeMatchError = throwError $ text "Non-exhaustive patterns in pattern matching" <> dot <> linebreak
