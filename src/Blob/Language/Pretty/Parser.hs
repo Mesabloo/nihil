@@ -57,7 +57,7 @@ pExpression (ELit l :- _) = pLiteral l
         pLiteral (LChr c) = text (show c)
 pExpression (EId i :- _) = text i
 pExpression (EHole :- _) = text "_"
-pExpression (ELam arg e :- _) = parens $ text "\\" <+> text arg <+> text "->" <+> pExpression e
+pExpression (ELam arg e :- _) = parens $ text "\\" <+> pPattern arg <+> text "->" <+> pExpression e
 pExpression (ETuple e :- _) = parens . mconcat $ intersperse (text ", ") (map pExpression e)
 pExpression (EMatch toMatch cases :- _) =
     let printCase (pat, expr) = pPattern pat <+> text "->" <+> pExpression expr
@@ -78,6 +78,7 @@ pPattern (PId i :- _) = text i
 pPattern (Wildcard :- _) = text "_"
 pPattern (PTuple pats :- _) = parens . mconcat $ intersperse (text ", ") (map pPattern pats)
 pPattern (PAnn p t :- _) = parens $ pPattern p <+> text "::" <+> pType t
+pPattern (PLinear p :- _) = text "!" <> pPattern p
 pPattern (PCtor name args :- _) =
     let parenthesized = foldr ((<+>) . parenthesizeIfNeeded) empty args
     in text name <+> parenthesized
@@ -92,7 +93,7 @@ pType (t :- _) = case t of
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
     TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
     TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "-o" <+> parenthesizeIfNeededF t2
-    TNonLin t1 -> text "!" <> parenthesizeIfNeeded t1
+    TBang t1 -> text "!" <> parenthesizeIfNeeded t1
   where parenthesizeIfNeeded (t :- p) = case t of
             TApp _ _ -> parens $ pType (t :- p)
             TFun _ _ -> parens $ pType (t :- p)

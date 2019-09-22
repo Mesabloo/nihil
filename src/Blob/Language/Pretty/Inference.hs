@@ -21,7 +21,7 @@ pType (t :- _) = case t of
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map (pType . flip (:-) Nothing) ts)
     TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "-o" <+> pType (t2 :- Nothing)
     TApp t1 t2 -> pType (t1 :- Nothing) <+> parenthesizeIfNeeded t2
-    TNonLin t1 -> text "!" <> parenthesizeIfNeeded t1
+    TBang t1 -> text "!" <> parenthesizeIfNeeded t1
   where parenthesizeIfNeeded t = case t of
             TFun _ _ -> parens $ pType (t :- Nothing)
             TApp _ _ -> parens $ pType (t :- Nothing)

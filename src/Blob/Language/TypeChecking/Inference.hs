@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, BlockArguments #-}
+{-# LANGUAGE LambdaCase, BlockArguments, TupleSections #-}
 
 module Blob.Language.TypeChecking.Inference where
 
@@ -26,21 +26,38 @@ import Data.Align.Key (alignWithKey)
 import Blob.Language.Parsing.Annotation
 import Data.Functor.Invariant (invmap)
 import Debug.Trace
+import Data.Functor (($>))
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
 runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
-  where initInfer = InferState { count = 0 }
+  where initInfer = InferState { count = 0, linearities = mempty }
 
 -- | Solve for the toplevel type of an expression in a given environment
 inferExpr :: GlobalEnv -> Annotated Expr -> Either TIError Scheme
-inferExpr env ex = case runInfer env (infer ex) of
-    Left err -> Left err
-    Right ((ty, c), _) -> case runSolve env c of
-        Left err -> Left err
-        Right subst -> case runHoleInspect subst of
-            Left err -> Left err
-            Right _ -> Right . closeOver $ apply subst ty
+inferExpr env ex = do
+    (ty, c) <- fst <$> runInfer env (infer ex)
+    subst <- runSolve env c
+    runHoleInspect subst
+    pure . closeOver $ apply subst ty
+
+inferDef :: GlobalEnv -> String -> Annotated Expr -> Check ()
+inferDef env name def =
+    let res = runInfer env $
+            do var <- fresh "#"
+               (t, c) <- inEnv (name, Scheme [] var) $ infer def
+               pure (t, c <> [(t, var)])
+    in case res of
+        Left err -> throwError err
+        Right ((t,c),_) -> case runSolve env c of
+            Left err -> throwError err
+            Right x -> case runHoleInspect x of
+                Left err -> throwError err
+                Right _ -> modify $ \st -> st
+                    { defCtx = let env' = defCtx st
+                                   tv = Map.singleton name (closeOver (apply x t)) `Map.union` getMap env'
+                               in TypeEnv tv }
+
 
 -- | Return the internal constraints used in solving for the type of an expression
 constraintsExpr :: GlobalEnv -> Annotated Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
@@ -68,6 +85,20 @@ inEnvMany list m = do
     let map' = Map.fromList list
     local (\e -> e { defCtx = TypeEnv $ map' `Map.union` getMap (defCtx e) }) m
 
+withLin :: (String, Linearity) -> Infer a -> Infer a
+withLin nl i = do
+    uncurry putLin nl
+    res <- i
+    removeLin (fst nl)
+    pure res
+
+withLinMany :: [(String, Linearity)] -> Infer a -> Infer a
+withLinMany nls i = do
+    mapM_ (uncurry putLin) nls
+    res <- i
+    mapM_ (removeLin . fst) nls
+    pure res
+
 -- | Lookup type in the environment
 lookupEnv :: String -> Infer Type
 lookupEnv x = do
@@ -77,15 +108,26 @@ lookupEnv x = do
         Nothing   ->  throwError $ makeUnboundVarError x
         Just s    ->  instantiate s
 
+lookupLin :: String -> Infer (Maybe Linearity)
+lookupLin x = gets (Map.lookup x . linearities)
+
+putLin :: String -> Linearity -> Infer ()
+putLin x l = modify $ \st -> st { linearities = Map.insert x l (linearities st) }
+
+removeLin :: String -> Infer ()
+removeLin x = modify $ \st -> st { linearities = Map.delete x (linearities st) }
+
 fresh :: String -> Infer Type
 fresh v = do
     s <- get
     put s { count = count s + 1 }
-    pure . TVar . TV $ v <> show (count s)
+
+    let id' = v <> show (count s)
+    pure . TVar $ TV id'
 
 instantiate :: Scheme -> Infer Type
 instantiate (Scheme as t) = do
-    as' <- mapM (const $ fresh "i") as
+    as' <- mapM (const $ fresh "@") as
     let s = Map.fromList $ zip as as'
     pure $ apply s (relax t)
 
@@ -102,7 +144,7 @@ relax (TRigid n)    = TVar n
 relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
 relax (TTuple ts)   = TTuple (map relax ts)
 relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
-relax (TNonLin t1)  = TNonLin (relax t1)
+relax (TBang t1)  = TBang (relax t1)
 relax t = t
 
 infer :: Annotated Expr -> Infer (Type, [Constraint])
@@ -112,19 +154,30 @@ infer (e :- _) = case e of
     ELit (LChr _) -> pure (TChar, [])
     EHole -> do
         tv <- fresh "_"
-        tv' <- fresh "a"
+        tv' <- fresh "#"
         pure (tv, [(tv, tv')])
     EId x -> do
         t <- lookupEnv x
-        pure (t, [])
+        lookupLin x >>= \case
+            Nothing -> pure (t, []) -- non linear variable (function or operator, nobody cares about them)
+            Just Unrestricted -> pure (t, [])
+            Just Linear -> putLin x Used $> (t, [])
+            Just Used -> throwError $ makeTooMuchUsagesError x
     ELam x e' -> do
-        tv <- fresh "a"
-        (t, c) <- inEnv (x, Scheme [] tv) (infer e')
-        pure (tv `TFun` t, c)
+        (pat, cs, env) <- inferPattern x
+
+        let convertToLin name (Scheme _ t) = (name,) $ case t of
+                TBang _ -> Unrestricted
+                _ -> Linear
+            lins = uncurry convertToLin <$> Map.toList env
+
+        (t, c) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e')
+
+        pure (pat `TFun` t, cs <> c)
     EApp e1 e2 -> do
         (t1, c1) <- infer e1
         (t2, c2) <- infer e2
-        tv <- fresh "a"
+        tv <- fresh "#"
         pure (tv, c1 <> c2 <> [(t1, t2 `TFun` tv)])
     ETuple es -> do
         ts <- mapM infer es
@@ -139,56 +192,71 @@ infer (e :- _) = case e of
         let envBranch = zip envs branches
             types = zipFrom tExp patsTy
 
-        xs <- forM envBranch $ \(env, expr) -> inEnvMany (Map.toList env) (infer expr)
+        xs <- forM envBranch $ \(env, expr) -> do
+            let convertToLin name (Scheme _ t) = (name,) $ case t of
+                    TBang _ -> Unrestricted
+                    _ -> Linear
+                lins = uncurry convertToLin <$> Map.toList env
+
+            inEnvMany (Map.toList env) (withLinMany lins $ infer expr)
         let ret = fst $ head xs
 
         let types2 = zipFrom ret (map fst $ tail xs)
             cons = mconcat (map snd xs)
 
         pure (ret, types2 <> cons <> types <> mconcat patsCons <> tCon)
-      where inferPattern :: Annotated Pattern -> Infer (Type, [Constraint], Map.Map String Scheme)
-            inferPattern (p :- _) = case p of
-                Wildcard -> do
-                    t <- fresh "p"
-                    pure (t, [], mempty)
-                PInt _ -> pure (TInt, [], mempty)
-                PDec _ -> pure (TFloat, [], mempty)
-                PChr _ -> pure (TChar, [], mempty)
-                PId id' -> do
-                    t <- fresh "p"
-                    pure (t, [], Map.singleton id' (Scheme [] t))
-                PTuple exp -> do
-                    pats <- mapM inferPattern exp
-                    let (ts, cs, envs) = unzip3 pats
-                    pure (TTuple ts, mconcat cs, mconcat envs)
-                PAnn p t -> do
-                    (t', cs, env) <- inferPattern p
-                    pure (t', (tiType t, t') : cs, env)
-                PCtor id' args -> do
-                    ctor <- instantiate =<< lookupCtor id'
-                    let (ts, r) = unfoldParams ctor
+      where
+        zipFrom :: a -> [b] -> [(a, b)]
+        zipFrom = zip . repeat
 
-                    guard (length args == length ts)
-                        <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor \"" <> text id' <> text "\", but got " <> text (show $ length args) <> dot <> linebreak)
+inferPattern :: Annotated Pattern -> Infer (Type, [Constraint], Map.Map String Scheme)
+inferPattern (p :- _) = case p of
+    Wildcard -> do
+        t <- fresh "&"
+        pure (t, [], mempty)
+    PInt _ -> pure (TInt, [], mempty)
+    PDec _ -> pure (TFloat, [], mempty)
+    PChr _ -> pure (TChar, [], mempty)
+    PId id' -> do
+        t <- fresh "&"
+        pure (t, [], Map.singleton id' (Scheme [] t))
+    PTuple exp -> do
+        pats <- mapM inferPattern exp
+        let (ts, cs, envs) = unzip3 pats
+        pure (TTuple ts, mconcat cs, mconcat envs)
+    PLinear (PId id' :- _) -> do
+        t <- fresh "&"
+        pure (TBang t, [], Map.singleton id' (Scheme [] (TBang t)))
+    PAnn p t -> do
+        (t', cs, env) <- inferPattern p
+        let t'' = tiType t
+        pure (t'', (t'', t') : cs, env)
+    PLinear p -> do
+        t <- fresh "&"
+        inferPattern (PAnn p (untiType (TBang t) :- Nothing) :- Nothing)
+    PCtor id' args -> do
+        ctor <- instantiate =<< lookupCtor id'
+        let (ts, r) = unfoldParams ctor
 
-                    (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
+        guard (length args == length ts)
+            <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor \"" <> text id' <> text "\", but got " <> text (show $ length args) <> dot <> linebreak)
 
-                    let cons' = zip ts ts'
+        (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
 
-                    pure (r, cons' <> mconcat cons, env)
-                  where lookupCtor :: String -> Infer Scheme
-                        lookupCtor id' = do
-                            env <- asks (getMap . ctorCtx)
-                            case Map.lookup id' env of
-                                Nothing -> throwError $ makeUnboundVarError id'
-                                Just x  -> pure x
+        let cons' = zip ts ts'
 
-                        unfoldParams :: Type -> ([Type], Type)
-                        unfoldParams (TFun a b) = first (a:) (unfoldParams b)
-                        unfoldParams t = ([], t)
+        pure (r, cons' <> mconcat cons, env)
+  where
+    lookupCtor :: String -> Infer Scheme
+    lookupCtor id' = do
+        env <- asks (getMap . ctorCtx)
+        case Map.lookup id' env of
+            Nothing -> throwError $ makeUnboundVarError id'
+            Just x  -> pure x
 
-            zipFrom :: a -> [b] -> [(a, b)]
-            zipFrom = zip . repeat
+    unfoldParams :: Type -> ([Type], Type)
+    unfoldParams (TFun a b) = first (a:) (unfoldParams b)
+    unfoldParams t = ([], t)
 
 
 inferTop :: GlobalEnv -> [(String, Annotated Expr)] -> Either TIError GlobalEnv
@@ -209,13 +277,13 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     fv (TFun a b)  = fv a <> fv b
     fv (TApp a b)  = fv a <> fv b
     fv (TTuple e)  = foldMap fv e
-    fv (TNonLin t) = fv t
+    fv (TBang t) = fv t
     fv _           = []
 
     normtype (TFun a b)       = TFun (normtype a) (normtype b)
     normtype (TApp a b)       = TApp (normtype a) (normtype b)
     normtype (TTuple e)       = TTuple (map normtype e)
-    normtype (TNonLin t)      = TNonLin (normtype t)
+    normtype (TBang t)      = TBang (normtype t)
     normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
             Just x -> TRigid x
@@ -238,23 +306,14 @@ unifyMany t1 t2 = throwError $ foldl (\acc (t1', t2') -> acc <> makeUnifyError t
 
 unifies :: Type -> Type -> Solve Subst
 unifies t1 t2 | t1 == t2          = pure nullSubst
-unifies (TId i) TInt | i == "Integer" = pure nullSubst
-unifies TInt (TId i) | i == "Integer" = pure nullSubst
-unifies (TId i) TFloat | i == "Double" = pure nullSubst
-unifies TFloat (TId i) | i == "Double" = pure nullSubst
-unifies (TId i) TChar | i == "Char" = pure nullSubst
-unifies TChar (TId i) | i == "Char" = pure nullSubst
-unifies (TId i1) (TId i2) | i1 == i2 = pure nullSubst
-unifies (TNonLin _) _ = throwError $ text "Non-linear types are not supported yet!\n"
-unifies _ (TNonLin _) = throwError $ text "Non-linear types are not supported yet!\n"
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
+unifies (TBang t1) (TBang t2) = unifies t1 t2
 unifies (TId i) t       = unifyAlias i t
 unifies t       (TId i) = unifyAlias i t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
--- maybe some more
 unifies a@(TApp _ _) t = unifyCustom a t
 unifies t a@(TApp _ _) = unifyCustom a t
 unifies t1           t2           = throwError $ makeUnifyError t1 t2
@@ -275,9 +334,8 @@ unifyAlias :: String -> Type -> Solve Subst
 unifyAlias name t1 =
     asks (Map.lookup name . typeDefCtx) >>= \case
         Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
-        Just _ -> traceShow t1 $ throwError $ makeUnifyError (TId name) t1
+        Just _ -> throwError $ makeUnifyError (TId name) t1
         Nothing -> throwError $ makeUnifyError (TId name) t1 -- ? Should never happen
-unifyAlias _ _ = undefined -- ! never happening
 
 -- Unification solver
 solver :: Unifier -> Solve Subst
@@ -315,9 +373,22 @@ tiType :: Annotated TP.Type -> Type
 tiType (TP.TId id' :- _)        = TId id'
 tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
-tiType (TP.TVar id' :- _)       = TRigid (TV id')
+tiType (TP.TRVar id' :- _)      = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
-tiType (TP.TNonLin t :- _)      = TNonLin (tiType t)
+tiType (TP.TBang t :- _)      = TBang (tiType t)
+tiType (TP.TVar id' :- _)       = TVar (TV id')
+
+untiType :: Type -> TP.Type
+untiType (TId i) = TP.TId i
+untiType (TFun t1 t2) = TP.TFun (untiType t1 :- Nothing) (untiType t2 :- Nothing)
+untiType (TTuple ts) = TP.TTuple ((:- Nothing) . untiType <$> ts)
+untiType (TRigid (TV i)) = TP.TRVar i
+untiType (TApp t1 t2) = TP.TApp (untiType t1 :- Nothing) (untiType t2 :- Nothing)
+untiType (TBang t) = TP.TBang (untiType t :- Nothing)
+untiType (TVar (TV i)) = TP.TVar i
+untiType TInt = TP.TId "Integer"
+untiType TChar = TP.TId "Char"
+untiType TFloat = TP.TId "Double"
 
 tiScheme :: TP.Scheme -> Scheme
 tiScheme (TP.Scheme tvs t) = Scheme (map TV tvs) (tiType t)
@@ -343,21 +414,7 @@ sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedefinedError mempt
 handleStatement :: String -> These (Annotated Expr) (Annotated TP.Type) -> Check ()
 handleStatement name (This def)      = do
     e <- get
-    let res = runInfer e $ do { var <- fresh "a"
-                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                              ; pure (t, c <> [(t, var)]) }
-
-    case res of
-        Left err -> throwError err
-        Right ((t,c),_) ->
-            case runSolve e c of
-                Left err -> throwError err
-                Right x ->
-                    case runHoleInspect x of
-                        Left err -> throwError err
-                        Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
-                                                                     tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
-                                                                 in TypeEnv tv }
+    inferDef e name def
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
     let ti     = tiType typ
@@ -365,21 +422,7 @@ handleStatement name (These def typ) = do
     checkKI $ kiScheme gen'ed
 
     e <- get
-    let res = runInfer e $ do { var <- fresh "a"
-                              ; (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                              ; pure (t, c <> [(t, var)]) }
-
-    case res of
-        Left err -> throwError err
-        Right ((t,c),_) ->
-            case runSolve e ((ti, t):c) of
-                Left err -> throwError err
-                Right x ->
-                    case runHoleInspect x of
-                        Left err -> throwError err
-                        Right _ -> modify $ \st -> st { defCtx = let env' = defCtx st
-                                                                     tv = Map.singleton name (generalize mempty (apply x t)) `Map.union` getMap env'
-                                                                 in TypeEnv tv }
+    inferDef e name def
 
 analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do

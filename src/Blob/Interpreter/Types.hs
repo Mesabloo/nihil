@@ -12,7 +12,7 @@ data Value = VInt Integer
            | VDec Double
            | VChr Char
            | VVar String
-           | VLam String (Annotated Expr) (Scope Value)
+           | VLam (Annotated Pattern) (Annotated Expr) (Scope Value)
            | VTuple [Value]
            | HLam (Value -> EvalEnv Value)
            | VCon String [Value]

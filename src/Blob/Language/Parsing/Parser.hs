@@ -103,7 +103,7 @@ definition = do
     (pInit, pEnd, def) <- getPositionInSource $ do
         iPos <- getPositionAndIndent
         name <- identifier <|> parens opSymbol
-        args <- many $ sameLineOrIndented iPos identifier
+        args <- many $ sameLineOrIndented iPos patTerm
         sameLineOrIndented iPos (symbol "=")
         v <- sameLineOrIndented iPos expression
 
@@ -336,7 +336,7 @@ lambda :: Parser Atom
 lambda = do
     iPos <- getPositionAndIndent
     symbol "\\" <|> symbol "λ"
-    params <- some (sameLineOrIndented iPos identifier)
+    params <- some $ sameLineOrIndented iPos patTerm
     sameLineOrIndented iPos (symbol "->" <|> symbol "→")
     ALambda params <$> sameLineOrIndented iPos expression
 
@@ -396,6 +396,7 @@ patTerm = do
                     ,                 try patTuple
                     ,                 patList
                     , PLit . LStr <$> string
+                    , PLinear     <$> (symbol "!" *> pattern')
                     , PParens     <$> parens pattern' ]
         optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (p,)
 
@@ -434,4 +435,4 @@ runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks
 -------------------------------------------------------------------------------------------------------------
 
 rOps :: [String]
-rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒" ]
+rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒", "!" ]

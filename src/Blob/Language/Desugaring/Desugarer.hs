@@ -26,7 +26,8 @@ desugarStatement fileName (P.Declaration name pType :- p) = do
     pure (D.Declaration name t :- p)
 desugarStatement fileName (P.Definition name args pExpr :- p) = do
     e <- desugarExpression fileName pExpr
-    let val = foldr (\a acc -> D.ELam a acc :- Nothing) e args
+    a <- mapM (\p -> syPat [p] [] []) args
+    let val = foldr (\a acc -> D.ELam a acc :- Nothing) e a
     pure (D.Definition name val :- p)
 desugarStatement fileName (P.TypeDeclaration name tvs cType :- p) = do
     ct <- desugarCustomType fileName (name, tvs, cType)
@@ -84,7 +85,7 @@ desugarType fileName (P.TList ts :- p) =
 
         pure (D.TApp acc t' :- Nothing) ) (D.TId "[]" :- Nothing) ts
 desugarType fileName (P.TNonLinear t :- p) =
-    (:- p) . D.TNonLin <$> desugarType fileName t
+    (:- p) . D.TBang <$> desugarType fileName t
 
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
 desugarExpression _ expr = do
@@ -212,8 +213,9 @@ syExpr ((x :- p):xs) out ops = do
         P.AParens (a :- _) -> syExpr a [] []
         P.ALambda ss (e :- p1) -> do
             e' <- syExpr e [] []
+            args <- mapM (\p -> syPat [p] [] []) ss
 
-            pure $ foldr (flip (:-) Nothing .: D.ELam) e' ss
+            pure $ foldr (flip (:-) Nothing .: D.ELam) e' args
         P.ATuple es -> do
             es' <- forM es $ \(e :- _) -> syExpr e [] []
 
@@ -306,6 +308,7 @@ syPat ((x :- p):xs) out ops = do
             t' <- desugarType "" t
 
             pure $ D.PAnn p' t'
+        P.PLinear p -> D.PLinear <$> syPat p [] []
         P.POperator _ -> undefined -- ! Should never happen
 
     syPat xs ((pat :- p) : out) ops

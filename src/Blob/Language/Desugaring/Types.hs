@@ -11,7 +11,7 @@ import Blob.Language.Parsing.Annotation
 
 data Expr = EId String
           | ELit Literal
-          | ELam String (Annotated Expr)
+          | ELam (Annotated Pattern) (Annotated Expr)
           | EApp (Annotated Expr) (Annotated Expr)
           | ETuple [Annotated Expr]
           | EMatch (Annotated Expr) [(Annotated Pattern, Annotated Expr)]
@@ -27,6 +27,7 @@ data Pattern = Wildcard               -- _
              | PTuple [Annotated Pattern]       -- a basic value like `(a, b)`
              | PCtor String [Annotated Pattern] -- a basic value like `Just a`
              | PAnn (Annotated Pattern) (Annotated Type)
+             | PLinear (Annotated Pattern)
     deriving (Show, Eq, Ord)
 
 data Literal = LInt Integer
@@ -58,9 +59,10 @@ data Scheme = Scheme [String] (Annotated Type)
 data Type = TId String            -- Type
           | TTuple [Annotated Type]         -- (a, ...)
           | TFun (Annotated Type) (Annotated Type)
-          | TVar String           -- a...
+          | TRVar String           -- a...
+          | TVar String
           | TApp (Annotated Type) (Annotated Type)        -- Type a...
-          | TNonLin (Annotated Type)              -- !a
+          | TBang (Annotated Type)              -- !a
     deriving (Eq, Ord, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TAlias (Annotated Type)

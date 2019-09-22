@@ -47,7 +47,7 @@ type Program = [Annotated Statement]
 
 data Statement
     = Declaration String (Annotated Type)
-    | Definition String [String] (Annotated Expr)
+    | Definition String [Annotated Pattern] (Annotated Expr)
     | OpFixity String (Annotated Fixity)
     | TypeDeclaration String [String] (Annotated CustomType)
     | Empty
@@ -62,7 +62,7 @@ data Atom
     | AList [Annotated Expr]
     | ATuple [Annotated Expr]
     | AHole
-    | ALambda [String] (Annotated Expr)
+    | ALambda [Annotated Pattern] (Annotated Expr)
     | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]
     | AParens (Annotated Expr)
     | AApp (Annotated Atom) (Annotated Atom)
@@ -79,6 +79,7 @@ data Pattern
     | PParens [Annotated Pattern]
     | POperator String
     | PAnn [Annotated Pattern] (Annotated Type)
+    | PLinear [Annotated Pattern]
     deriving (Show, Ord, Eq)
 
 data Literal
