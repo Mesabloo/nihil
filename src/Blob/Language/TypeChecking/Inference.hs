@@ -87,16 +87,18 @@ inEnvMany list m = do
 
 withLin :: (String, Linearity) -> Infer a -> Infer a
 withLin nl i = do
+    s <- gets linearities
     uncurry putLin nl
     res <- i
-    removeLin (fst nl)
+    modify $ \st -> st { linearities = s }
     pure res
 
 withLinMany :: [(String, Linearity)] -> Infer a -> Infer a
 withLinMany nls i = do
+    s <- gets linearities
     mapM_ (uncurry putLin) nls
     res <- i
-    mapM_ (removeLin . fst) nls
+    modify $ \st -> st { linearities = s }
     pure res
 
 -- | Lookup type in the environment
@@ -113,9 +115,6 @@ lookupLin x = gets (Map.lookup x . linearities)
 
 putLin :: String -> Linearity -> Infer ()
 putLin x l = modify $ \st -> st { linearities = Map.insert x l (linearities st) }
-
-removeLin :: String -> Infer ()
-removeLin x = modify $ \st -> st { linearities = Map.delete x (linearities st) }
 
 fresh :: String -> Infer Type
 fresh v = do
@@ -187,24 +186,23 @@ infer (e :- _) = case e of
         pure (t', (tiType t, t') : c)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
-        let (pats, branches) = unzip cases
-        (patsTy, patsCons, envs) <- unzip3 <$> mapM inferPattern pats
-        let envBranch = zip envs branches
-            types = zipFrom tExp patsTy
 
-        xs <- forM envBranch $ \(env, expr) -> do
+        res <- (unzip3 <$>) . forM cases $ \(pat, expr) -> do
+            (patTy, patsCons, env) <- inferPattern pat
+
             let convertToLin name (Scheme _ t) = (name,) $ case t of
                     TBang _ -> Unrestricted
                     _ -> Linear
                 lins = uncurry convertToLin <$> Map.toList env
 
-            inEnvMany (Map.toList env) (withLinMany lins $ infer expr)
-        let ret = fst $ head xs
+            (exprTy, exprCons) <- inEnvMany (Map.toList env) (withLinMany lins $ infer expr)
+            pure (exprTy, patTy, exprCons <> patsCons)
 
-        let types2 = zipFrom ret (map fst $ tail xs)
-            cons = mconcat (map snd xs)
+        let (ret:xs, patsTy, pCons) = res
+            types = zipFrom ret xs <> zipFrom tExp patsTy
+            cons = mconcat pCons
 
-        pure (ret, types2 <> cons <> types <> mconcat patsCons <> tCon)
+        pure (ret, types <> cons <> tCon)
       where
         zipFrom :: a -> [b] -> [(a, b)]
         zipFrom = zip . repeat
