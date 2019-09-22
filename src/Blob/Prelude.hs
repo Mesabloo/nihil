@@ -12,7 +12,10 @@ defaultEnv :: Scope Value
 defaultEnv = Map.fromList [ ("+", addF)
                           , ("-", subF)
                           , ("*", mulF)
-                          , ("/", divF) ]
+                          , ("/", divF)
+                          , ("kill", killF)
+                          , ("dupl", duplF)
+                          , ("read", readF) ]
   where
     addF = HLam $ \case
         VInt x -> pure . HLam $ \case
@@ -58,17 +61,19 @@ defaultEnv = Map.fromList [ ("+", addF)
             _      -> throwError (text "Expected integer or float")
         _      -> throwError (text "Expected integer or float")
 
-    -- cons = HLam $ \item -> pure . HLam $ \case
-    --     VCon id' _ | id' == "[]" -> pure $ VList [item]
-    --     VList vals'              -> pure $ VList (item:vals')
-    --     _                        -> throwError (text "Expected list")
+    killF = HLam $ \_ -> pure $ VTuple []
+    duplF = HLam $ \x -> pure $ VTuple [x, x]
+    readF = HLam $ \x -> pure x
 
 
 defaultDeclContext :: Map.Map String Scheme
 defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
                                   , ("-", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
                                   , ("*", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
-                                  , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a"))) ]
+                                  , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                  , ("kill", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [])
+                                  , ("dupl", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [TBang (TVar $ TV "a"), TBang (TVar $ TV "a")])
+                                  , ("read", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TVar (TV "a")) ]
 
 defaultDefContext :: Map.Map String Scheme
 defaultDefContext = defaultDeclContext
