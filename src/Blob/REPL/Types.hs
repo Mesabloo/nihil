@@ -1,19 +1,14 @@
 module Blob.REPL.Types where
 
-import Blob.Language.Desugaring.Types (Expr, SugarState)
+import Blob.Language.Desugaring.Types (SugarState)
 import Blob.Language.TypeChecking.Types (GlobalEnv)
-import Blob.Language.Pretty.Parser (pExpression)
 import Text.PrettyPrint.Leijen (Doc)
-import qualified Data.Map as Map
 import Control.Monad.State (StateT)
-import Control.Monad.Reader (ReaderT)
-import Control.Monad.Except (Except, ExceptT)
+import Control.Monad.Except (ExceptT)
 import System.Console.Haskeline (InputT)
-import Data.List (intercalate)
-import Blob.Language.Parsing.Annotation
 import Blob.Interpreter.Types
 import Data.Void
-import Text.Megaparsec (Parsec(..))
+import Text.Megaparsec (Parsec)
 
 type Parser = Parsec Void String
 

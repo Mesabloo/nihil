@@ -5,21 +5,12 @@ module Blob.Language.Desugaring.Desugarer where
 import qualified Blob.Language.Desugaring.Types as D
 import qualified Blob.Language.Parsing.Types as P
 import qualified Data.Map as Map
-import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Except
-import Text.PrettyPrint.Leijen (text, dot, linebreak, Doc)
-import qualified Data.Set as Set
-import qualified Data.MultiMap as MMap
-import Blob.Language.Desugaring.Defaults
-import Text.Megaparsec
-import Control.Monad.Combinators.Expr
+import Text.PrettyPrint.Leijen (Doc)
 import Blob.Language.Parsing.Annotation
-import Data.List (sortBy)
-import Data.Foldable (foldrM, foldlM)
-import Data.Maybe (fromJust)
+import Data.Foldable (foldlM)
 import Data.Composition ((.:))
-import Data.Functor ((<&>))
 import Blob.Language.Desugaring.Errors
 import Blob.Language.Lexing.Types (SourceSpan(..))
 
@@ -35,12 +26,13 @@ desugarStatement fileName (P.Declaration name pType :- p) = do
     pure (D.Declaration name t :- p)
 desugarStatement fileName (P.Definition name args pExpr :- p) = do
     e <- desugarExpression fileName pExpr
-    let val = foldr (\a acc -> D.ELam a acc :- Nothing) e args
+    a <- mapM (\p -> syPat [p] [] []) args
+    let val = foldr (\a acc -> D.ELam a acc :- Nothing) e a
     pure (D.Definition name val :- p)
 desugarStatement fileName (P.TypeDeclaration name tvs cType :- p) = do
     ct <- desugarCustomType fileName (name, tvs, cType)
     pure (D.TypeDeclaration name tvs ct :- p)
-desugarStatement fileName (_ :- p) = pure (D.Empty :- p)
+desugarStatement _ (_ :- p) = pure (D.Empty :- p)
 
 desugarCustomType :: String -> (String, [String], Annotated P.CustomType) -> D.Sugar (Annotated D.CustomType)
 desugarCustomType fileName (name, tvs, ct :- p) = case ct of
@@ -67,8 +59,8 @@ desugarCustomType fileName (name, tvs, ct :- p) = case ct of
         pure (D.TSum m' :- p)
 
 desugarType :: String -> Annotated P.Type -> D.Sugar (Annotated D.Type)
-desugarType fileName (P.TId name :- p) = pure (D.TId name :- p)
-desugarType fileName (P.TApp [] :- _) = undefined
+desugarType _ (P.TId name :- p) = pure (D.TId name :- p)
+desugarType _ (P.TApp [] :- _) = undefined -- ! never happening
 desugarType fileName (P.TApp (t:ts) :- p) = do
     t1 <- desugarType fileName t
 
@@ -78,17 +70,11 @@ desugarType fileName (P.TApp (t:ts) :- p) = do
             Just (SourceSpan _ end) = getSpan t2
 
         pure (D.TApp acc t2 :- Just (SourceSpan beg end)) ) t1 ts
-desugarType fileName (P.TVar name :- p) = pure (D.TVar name :- p)
+desugarType _ (P.TVar name :- p) = pure (D.TVar name :- p)
 desugarType fileName (P.TFun t1 t2 :- p) = do
     t1' <- desugarType fileName t1
     t2' <- desugarType fileName t2
     pure (D.TFun t1' t2' :- p)
-desugarType fileName (P.TArrow e t1 t2 :- p) = do
-    e' <- desugarExpression fileName e
-    t1' <- desugarType fileName t1
-    t2' <- desugarType fileName t2
-
-    pure (D.TArrow e' t1' t2' :- p)
 desugarType fileName (P.TTuple ts :- p) = do
     ts' <- mapM (desugarType fileName) ts
 
@@ -98,9 +84,11 @@ desugarType fileName (P.TList ts :- p) =
         t' <- desugarType fileName t
 
         pure (D.TApp acc t' :- Nothing) ) (D.TId "[]" :- Nothing) ts
+desugarType fileName (P.TNonLinear t :- p) =
+    (:- p) . D.TBang <$> desugarType fileName t
 
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
-desugarExpression fileName expr = do
+desugarExpression _ expr = do
     let (e :- p) = expr
 
     syExpr e [] []
@@ -180,7 +168,7 @@ syExpr [] out ops =
     else addOperators ops out
   where addOperators :: [String] -> [Annotated D.Expr] -> D.Sugar (Annotated D.Expr)
         addOperators [] out = pure $ head out
-        addOperators (o:os) out = 
+        addOperators (o:os) out =
             if length out < 2
             then throwError $ makeUnexpectedOperatorError o
             else let (e1:e2:es) = out
@@ -188,7 +176,7 @@ syExpr [] out ops =
 syExpr ((P.AOperator o :- _):xs) out ops = do
     (out', ops') <- handleOperator o out ops
     syExpr xs out' ops'
-  where 
+  where
     handleOperator :: String -> [Annotated D.Expr] -> [String] -> D.Sugar ([Annotated D.Expr], [String])
     handleOperator o out ops = do
         ops' <- gets D.fixities
@@ -225,8 +213,9 @@ syExpr ((x :- p):xs) out ops = do
         P.AParens (a :- _) -> syExpr a [] []
         P.ALambda ss (e :- p1) -> do
             e' <- syExpr e [] []
+            args <- mapM (\p -> syPat [p] [] []) ss
 
-            pure $ foldr (flip (:-) Nothing .: D.ELam) e' ss
+            pure $ foldr (flip (:-) Nothing .: D.ELam) e' args
         P.ATuple es -> do
             es' <- forM es $ \(e :- _) -> syExpr e [] []
 
@@ -237,7 +226,7 @@ syExpr ((x :- p):xs) out ops = do
             pure $ getAnnotated (foldr (\t acc -> D.EApp (D.EApp (D.EId ":" :- Nothing) t :- Nothing) acc :- Nothing) (D.EId "[]" :- Nothing) es') :- p
         P.AMatch (e :- p1) cases -> do
             toMatch <- syExpr e [] []
-            branches <- mapM (uncurry handleBranch) cases 
+            branches <- mapM (uncurry handleBranch) cases
 
             pure $ D.EMatch toMatch branches :- p
           where
@@ -319,6 +308,7 @@ syPat ((x :- p):xs) out ops = do
             t' <- desugarType "" t
 
             pure $ D.PAnn p' t'
+        P.PLinear p -> D.PLinear <$> syPat p [] []
         P.POperator _ -> undefined -- ! Should never happen
 
     syPat xs ((pat :- p) : out) ops

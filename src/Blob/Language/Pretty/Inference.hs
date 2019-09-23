@@ -5,7 +5,7 @@ module Blob.Language.Pretty.Inference
 , pKind
 ) where
 
-import Text.PrettyPrint.Leijen (text, parens, Doc, brackets, empty, (<+>))
+import Text.PrettyPrint.Leijen (text, parens, Doc, (<+>))
 import Blob.Language.TypeChecking.Types (TVar(..), Type(..), Kind(..))
 import Data.List (intersperse)
 import Blob.Language.Parsing.Annotation
@@ -19,8 +19,9 @@ pType (t :- _) = case t of
     TFloat -> text "Double"
     TChar -> text "Char"
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map (pType . flip (:-) Nothing) ts)
-    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "->" <+> pType (t2 :- Nothing)
+    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "-o" <+> pType (t2 :- Nothing)
     TApp t1 t2 -> pType (t1 :- Nothing) <+> parenthesizeIfNeeded t2
+    TBang t1 -> text "!" <> parenthesizeIfNeeded t1
   where parenthesizeIfNeeded t = case t of
             TFun _ _ -> parens $ pType (t :- Nothing)
             TApp _ _ -> parens $ pType (t :- Nothing)

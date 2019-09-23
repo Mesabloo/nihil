@@ -5,17 +5,13 @@ module Blob.Language.Desugaring.Types where
 import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Except
-import qualified Blob.Language.Parsing.Types as P (Fixity, Atom, Expr)
+import qualified Blob.Language.Parsing.Types as P (Fixity)
 import Text.PrettyPrint.Leijen (Doc)
-import qualified Text.Megaparsec as Mega
-import Data.Void
-import Control.Monad.Combinators.Expr
-import Data.Proxy
 import Blob.Language.Parsing.Annotation
 
 data Expr = EId String
           | ELit Literal
-          | ELam String (Annotated Expr)
+          | ELam (Annotated Pattern) (Annotated Expr)
           | EApp (Annotated Expr) (Annotated Expr)
           | ETuple [Annotated Expr]
           | EMatch (Annotated Expr) [(Annotated Pattern, Annotated Expr)]
@@ -31,6 +27,7 @@ data Pattern = Wildcard               -- _
              | PTuple [Annotated Pattern]       -- a basic value like `(a, b)`
              | PCtor String [Annotated Pattern] -- a basic value like `Just a`
              | PAnn (Annotated Pattern) (Annotated Type)
+             | PLinear (Annotated Pattern)
     deriving (Show, Eq, Ord)
 
 data Literal = LInt Integer
@@ -61,10 +58,11 @@ data Scheme = Scheme [String] (Annotated Type)
 
 data Type = TId String            -- Type
           | TTuple [Annotated Type]         -- (a, ...)
-          | TArrow (Annotated Expr) (Annotated Type) (Annotated Type) -- a ->{n} b -o ...
           | TFun (Annotated Type) (Annotated Type)
-          | TVar String           -- a...
+          | TRVar String           -- a...
+          | TVar String
           | TApp (Annotated Type) (Annotated Type)        -- Type a...
+          | TBang (Annotated Type)              -- !a
     deriving (Eq, Ord, Show)
 
 data CustomType = TSum (Map.Map String Scheme) | TAlias (Annotated Type)

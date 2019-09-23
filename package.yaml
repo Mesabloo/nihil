@@ -62,6 +62,9 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -Wextra
+    - -Wno-unused-do-bind
+    - -Wno-name-shadowing
     - -O2
     - -optc-O3
     - -fasm

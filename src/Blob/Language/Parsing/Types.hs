@@ -4,9 +4,6 @@ module Blob.Language.Parsing.Types where
 
 import qualified Data.Map as Map
 import Blob.Language.Parsing.Annotation
-import Control.Monad.State
-import Control.Monad.Except
-import Text.PrettyPrint.Leijen hiding ((<$>))
 import Blob.Language.Lexing.Types (SourceSpan, Lexeme)
 import Text.Megaparsec
 import Data.Proxy
@@ -23,7 +20,7 @@ instance Stream [TokenL] where
     tokensToChunk Proxy = id
     chunkToTokens Proxy = id
     chunkLength Proxy = length
-    chunkEmpty Proxy = null 
+    chunkEmpty Proxy = null
     take1_ [] = Nothing
     take1_ (x:xs) = Just (x, xs)
     takeN_ n s | n <= 0 = Nothing
@@ -40,6 +37,7 @@ instance Stream [TokenL] where
                             (pstateLinePrefix ps)
 
             increaseSourcePos sp n' = SourcePos (sourceName sp) (sourceLine sp) (mkPos $ unPos (sourceColumn sp) + n')
+-- ? Causes a warning, which will not be fixed
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -49,7 +47,7 @@ type Program = [Annotated Statement]
 
 data Statement
     = Declaration String (Annotated Type)
-    | Definition String [String] (Annotated Expr)
+    | Definition String [Annotated Pattern] (Annotated Expr)
     | OpFixity String (Annotated Fixity)
     | TypeDeclaration String [String] (Annotated CustomType)
     | Empty
@@ -64,7 +62,7 @@ data Atom
     | AList [Annotated Expr]
     | ATuple [Annotated Expr]
     | AHole
-    | ALambda [String] (Annotated Expr)
+    | ALambda [Annotated Pattern] (Annotated Expr)
     | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]
     | AParens (Annotated Expr)
     | AApp (Annotated Atom) (Annotated Atom)
@@ -81,6 +79,7 @@ data Pattern
     | PParens [Annotated Pattern]
     | POperator String
     | PAnn [Annotated Pattern] (Annotated Type)
+    | PLinear [Annotated Pattern]
     deriving (Show, Ord, Eq)
 
 data Literal
@@ -101,10 +100,10 @@ data Type
     = TId String            -- Type
     | TTuple [Annotated Type]         -- (a, b, ...)
     | TList [Annotated Type]          -- [a, b, ...]
-    | TArrow (Annotated Expr) (Annotated Type) (Annotated Type) -- a ->{n} b ...
     | TFun (Annotated Type) (Annotated Type)        -- a -o b ...
     | TVar String           -- a...
     | TApp [Annotated Type]        -- Type a...
+    | TNonLinear (Annotated Type)
     deriving (Show, Eq, Ord)
 
 data CustomType = TSum (Map.Map String [Annotated Type]) | TAlias (Annotated Type) | TGADT (Map.Map String (Annotated Type))

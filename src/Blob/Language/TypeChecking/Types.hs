@@ -3,23 +3,15 @@
 module Blob.Language.TypeChecking.Types where
 
 import qualified Data.Map as Map
-import qualified Data.Map.Unordered as UMap
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Text.PrettyPrint.Leijen (Doc)
 import Control.Monad.Except (Except, ExceptT)
-import Control.Monad.Reader (ReaderT, Reader)
-import Control.Monad.State (StateT, State)
+import Control.Monad.Reader (Reader)
+import Control.Monad.State (StateT)
 import Data.Maybe (fromMaybe)
-import Data.Key (Key(..), Keyed(..))
-import Data.Align.Key (AlignWithKey(..))
-import Data.Align (Align(..))
-import Data.Hashable (Hashable(..))
-import Data.These(These(..))
 import Data.Composition ((.:))
-import Data.Unique (Unique)
 import Control.Monad.RWS
-import Control.Monad.Identity
 import Data.Bifunctor
 
 newtype TVar = TV String
@@ -31,6 +23,7 @@ data Type = TVar TVar | TRigid TVar
           | TTuple [Type]
           | TApp Type Type
           | TId String
+          | TBang Type
     deriving (Eq, Ord, Show)
 
 data Kind = KType | KArr Kind Kind | KVar String
@@ -67,7 +60,10 @@ type Infer a = RWST
                   a               -- Result
 
 -- | Inference state
-newtype InferState = InferState { count :: Int }
+data InferState = InferState { count :: Int, linearities :: Map.Map String Linearity }
+
+data Linearity = Unrestricted | Linear | Used
+    deriving (Show, Eq)
 
 type Constraint = (Type, Type)
 
@@ -116,12 +112,14 @@ instance Substitutable Type where
     ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
+    ftv (TBang t1)    = ftv t1
     ftv _             = mempty
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
     apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
+    apply s (TBang t1)    = TBang (apply s t1)
     apply _ t             = t
 
 instance Substitutable Scheme where
@@ -147,17 +145,3 @@ instance Monoid TypeEnv where
 
 instance Semigroup TypeEnv where
     (<>) (TypeEnv env1) (TypeEnv env2) = TypeEnv $ env1 <> env2
-
-
-instance (Hashable k, Eq k) => AlignWithKey (UMap.Map k)
-
-type instance Key (UMap.Map k) = k
-
-instance (Hashable k, Eq k) => Keyed (UMap.Map k) where
-    mapWithKey = UMap.mapWithKey
-
-instance (Hashable k, Eq k) => Align (UMap.Map k) where
-    nil = mempty
-    align m n = UMap.unionWith merge (UMap.map This m) (UMap.map That n)
-      where merge (This a) (That b) = These a b
-            merge _ _ = error "Align (UMap.Map k): internal error"

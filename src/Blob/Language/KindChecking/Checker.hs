@@ -3,9 +3,8 @@
 module Blob.Language.KindChecking.Checker where
 
 import Blob.Language.TypeChecking.Types
-import qualified Blob.Language.Parsing.Types as PT
 import Blob.Language.KindChecking.Types
-import Blob.Language.Pretty.Inference (pType, pKind)
+import Blob.Language.Pretty.Inference (pKind)
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -14,7 +13,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
 
-import Text.PrettyPrint.Leijen (text, (<+>), linebreak, dot)
+import Text.PrettyPrint.Leijen (text, linebreak, dot)
 
 import Debug.Trace
 
@@ -72,7 +71,7 @@ kiCustomScheme (CustomScheme tvs t) = do
     let k = foldr KArr k' (fromJust . flip Map.lookup typeArgs <$> tvs)
     pure (s, applyKind s k)
   where foldConstr (TFun t1 t2) = t1 : foldConstr t2
-        foldConstr t = []            
+        foldConstr t = []
 
         kiConstrs [] = pure nullKindSubst
         kiConstrs ((n, Scheme _ c):cs) = do
@@ -80,7 +79,7 @@ kiCustomScheme (CustomScheme tvs t) = do
             s2 <- kiConstrs cs
             pure (s2 `composeKindSubst` s1)
 
-        kiConstr n [] = pure nullKindSubst
+        kiConstr _ [] = pure nullKindSubst
         kiConstr n (t:ts) = do
             (s1, k) <- kiType t
             s2 <- mguKind k KType
@@ -98,7 +97,7 @@ kiType (TTuple []) = pure (mempty, KType)
 kiType (TTuple (t:ts)) = do
     (s1, k) <- kiType t
     s2 <- mguKind k KType
-    (s3, _) <- kiType (TTuple ts) 
+    (s3, _) <- kiType (TTuple ts)
     pure (concatKindSubsts [s3,s2,s1], KType)
 kiType (TFun t1 t2) = do
     (s1, k1) <- kiType t1
@@ -112,6 +111,7 @@ kiType (TApp f t) = do
     (s2, k2) <- local (applyKind s1 <$>) (kiType t)
     s3       <- mguKind (applyKind s2 k1) (KArr k2 kv)
     pure (concatKindSubsts [s3,s2,s1], applyKind s3 kv)
+kiType (TBang t) = kiType t
 kiType t = traceShow t undefined
 
 kiScheme :: Scheme -> KI (KindSubst, Kind)

@@ -17,7 +17,7 @@ import Control.Monad.State
 import Control.Monad.Except
 import Text.PrettyPrint.Leijen hiding ((<$>))
 import Blob.Language.Desugaring.Desugarer
-import Blob.Language.Parsing.Parser (program, statement, expression, type', runParser, runParser')
+import Blob.Language.Parsing.Parser (program, expression, type', runParser, runParser')
 import Text.Megaparsec (eof, try)
 import Control.Applicative
 import Text.Megaparsec.Error (errorBundlePretty, ParseErrorBundle(..), parseErrorTextPretty, bundleErrors, ShowErrorComponent(..))
@@ -31,10 +31,8 @@ import Blob.Language.Pretty.Inference
 import Blob.Language.Lexing.Lexer
 import Blob.Language.KindChecking.Checker
 import Criterion.Measurement (secs, getTime)
-import qualified Data.List as List
 import Blob.Interpreter.Types
 import Blob.Prelude
-import Debug.Trace
 
 helpCommand :: IO ()
 helpCommand = do
@@ -121,8 +119,7 @@ loadFile file = do
 getType :: String -> REPL ()
 getType expr = do
     st <- lift get
-    let (TypeEnv env) = defCtx $ ctx st
-        res = runLexer (Text.pack expr) "interactive"
+    let res = runLexer (Text.pack expr) "interactive"
 
     case res of
         Left err -> lift $ throwError (text $ errorBundlePretty err)
@@ -196,8 +193,6 @@ execCode stat = do
                 Right s ->
                     case s of
                         Right e -> do
-                            let env = defCtx $ ctx st
-
                             let res1 = runSugar ( do { accumulateOnExpression e
                                                         ; desugarExpression "interactive" e } ) (op st)
                             case res1 of
@@ -237,7 +232,6 @@ execCode stat = do
                                                         Right evalRes -> lift . modify $ \st' -> st' { values = let env = values st'
                                                                                                                 in env { vals = Map.insert id' evalRes (vals env) }}
                                                 _                   -> pure ()
-                                _ -> pure ()
 
 execTime :: String -> REPL ()
 execTime expr = do
@@ -255,8 +249,7 @@ execTime expr = do
                     case res1 of
                         Left err -> lift $ throwError err
                         Right (e, _) -> do
-                            let env = defCtx $ ctx st
-                                t   = inferExpr (ctx st) e
+                            let t   = inferExpr (ctx st) e
                             case t of
                                 Left err -> lift $ throwError err
                                 Right _ -> do
@@ -291,8 +284,7 @@ execBench n expr = do
                     case res1 of
                         Left err -> lift $ throwError err
                         Right (e, _) -> do
-                            let env = defCtx $ ctx st
-                                t   = inferExpr (ctx st) e
+                            let t   = inferExpr (ctx st) e
                             case t of
                                 Left err -> lift $ throwError err
                                 Right _ -> do
@@ -302,13 +294,17 @@ execBench n expr = do
                                         min = minimum t
                                         max = maximum t
                                         avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
+                                        stddev =
+                                            let sigma = sum $ map ((^ 2) . subtract avg) t
+                                            in sqrt (sigma / fromIntegral n)
 
                                     liftIO $ do
                                         setSGR [SetColor Foreground Vivid Yellow]
                                         putStrLn $ "Results for " <> show n <> " runs:"
-                                        putStrLn $ "- Minimum: " <> secs min
-                                        putStrLn $ "- Maximum: " <> secs max
-                                        putStrLn $ "- Average: " <> secs avg
+                                        putStrLn $ "> Minimum: " <> secs min
+                                        putStrLn $ "> Maximum: " <> secs max
+                                        putStrLn $ "> Average: " <> secs avg
+                                        putStrLn $ "> Std dev: " <> secs stddev
                                         setSGR [Reset]
                                         hFlush stdout
 
