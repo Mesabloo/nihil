@@ -67,6 +67,7 @@ data Atom
     | AParens (Annotated Expr)
     | AApp (Annotated Atom) (Annotated Atom)
     | AAnn (Annotated Expr) (Annotated Type)
+    | ALet ([Annotated Pattern], Annotated Expr) (Annotated Expr)
     deriving (Show, Ord, Eq)
 
 data Pattern

@@ -17,6 +17,7 @@ data Expr = EId String
           | EMatch (Annotated Expr) [(Annotated Pattern, Annotated Expr)]
           | EHole
           | EAnn (Annotated Expr) (Annotated Type)
+          | ELet (Annotated Pattern, Annotated Expr) (Annotated Expr)
     deriving (Show, Eq, Ord)
 
 data Pattern = Wildcard               -- _

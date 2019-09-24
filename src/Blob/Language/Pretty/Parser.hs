@@ -69,6 +69,7 @@ pExpression (EApp e1 e2 :- _) = pExpression e1 <+> parenthesizeIfNeeded e2
             EMatch{} -> parens $ pExpression (p :- p_)
             _ -> pExpression (p :- p_)
 pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "::" <+> pType t
+pExpression (ELet (f, x) e :- _) = text "let" <+> pPattern f <+> text "=" <+> pExpression x <$$> text "in" <+> pExpression e
 
 pPattern :: Annotated Pattern -> Doc
 pPattern (PInt i :- _) = text (show i)

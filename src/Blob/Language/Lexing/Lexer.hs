@@ -149,7 +149,7 @@ getPositionInSource p = do
 -----------------------------------------------------------------------------------------------------------
 
 kwords :: [Text.Text]
-kwords = [ "match", "with", "data", "type", "infixl", "infixr", "infix", "where" ]
+kwords = [ "match", "with", "data", "type", "infixl", "infixr", "infix", "where", "let", "in" ]
 
 -----------------------------------------------------------------------------------------------------------
 

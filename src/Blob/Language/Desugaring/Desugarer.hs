@@ -242,6 +242,12 @@ syExpr ((x :- p):xs) out ops = do
             t' <- desugarType "" t
 
             pure $ D.EAnn e' t' :- p
+        P.ALet (ps, e1 :- p1) (e2 :- p2) -> do
+            ps' <- mapM (\p -> syPat [p] [] []) ps
+            let (p':ps'') = ps'
+            e1' <- syExpr e1 [] []
+            e2' <- syExpr e2 [] []
+            pure $ D.ELet (p', foldr (flip (:-) Nothing .: D.ELam) e1' ps'') e2' :- p
         P.AOperator _ -> undefined -- ! should never happen
 
     syExpr xs (e:out) ops

@@ -184,6 +184,17 @@ infer (e :- _) = case e of
     EAnn e t -> do
         (t', c) <- infer e
         pure (t', (tiType t, t') : c)
+    ELet (pat, val) e -> do
+        (t1, c1, env) <- inferPattern pat
+
+        let convertToLin name (Scheme _ t) = (name,) $ case t of
+                TBang _ -> Unrestricted
+                _ -> Linear
+            lins = uncurry convertToLin <$> Map.toList env
+
+        (t2, c2) <- inEnvMany (Map.toList env) (withLinMany lins $ infer val)
+        (t3, c3) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e)
+        pure (t3, (t1, t2) : c1 <> c2 <> c3)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
 

@@ -24,6 +24,11 @@ evaluate (EId id' :- _)          = do
     pure $ fromMaybe (VCon id' []) look
 evaluate (ETuple es :- _)        = VTuple <$> mapM evaluate es
 evaluate (ELam x e :- _)         = VLam x e <$> asks vals
+evaluate (ELet (p, v) e :- _)    = do
+    v' <- evaluate v
+    val <- unpackPattern v' p <|> makeMatchError
+    local (\env -> env { vals = val <> vals env }) $
+        evaluate e
 evaluate (EApp f x :- _)         = do
     x' <- evaluate x
     f' <- evaluate f

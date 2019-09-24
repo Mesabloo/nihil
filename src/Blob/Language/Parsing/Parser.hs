@@ -135,9 +135,19 @@ sameLineOrIndented (indent, SourceSpan beg end) p = do
 sameIndented :: (Int, SourceSpan) -> Parser a -> Parser a
 sameIndented (indent, _) p = do
     (i, _) <- try getPositionAndIndent
-    guard (i > indent)
+    guard (i == indent)
         <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
     p
+
+sameIndentedOrLine :: (Int, SourceSpan) -> Parser a -> Parser a
+sameIndentedOrLine (indent, SourceSpan beg end) p = do
+    (i, SourceSpan b _) <- try getPositionAndIndent
+    if sourceLine beg == sourceLine b
+    then p
+    else do
+        guard (i == indent)
+            <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
+        p
 
 nonIndented :: Parser a -> Parser a
 nonIndented p = do
@@ -284,7 +294,7 @@ conid = TId <$> typeIdentifier
 -------------------------------------------------------------------------------------------
 
 expression :: Parser (Annotated Expr)
-expression = do
+expression = "expression" <??> do
     iPos <- getPositionAndIndent
     (pInit, pEnd, (a, ty)) <- getPositionInSource $ do
         as <- some (sameLineOrIndented iPos atom)
@@ -301,7 +311,8 @@ atom = try operator <|> expr
 exprNoApp :: Parser (Annotated Atom)
 exprNoApp = do
     (pInit, pEnd, a) <- getPositionInSource $
-        choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match", try tuple <?> "tuple", list <?> "list"
+        choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match"
+               , try tuple <?> "tuple", list <?> "list", let' <?> "let expression"
                , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
                , ALit . LDec <$> try float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
@@ -356,6 +367,23 @@ list = do
                            ; es <- many (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos expression)
                            ; pure (AList (e1:es)) }
                       , nothing $> AList [] ]
+
+let' :: Parser Atom
+let' = do
+    iPos <- getPositionAndIndent
+    keyword "let"
+    pats <- sameLineOrIndented iPos def
+    sameIndentedOrLine iPos $ keyword "in"
+    e <- sameLineOrIndented iPos expression
+    pure $ ALet pats e
+  where
+    def :: Parser ([Annotated Pattern], Annotated Expr)
+    def = do
+        iPos <- getPositionAndIndent
+        pats <- some patTerm
+        sameLineOrIndented iPos $ symbol "="
+        e <- sameLineOrIndented iPos expression
+        pure (pats, e)
 
 match :: Parser Atom
 match = do
