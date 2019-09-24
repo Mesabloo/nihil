@@ -18,11 +18,10 @@ evaluate (ELit (LInt v) :- _)    = pure $ VInt v
 evaluate (ELit (LDec v) :- _)    = pure $ VDec v
 evaluate (ELit (LChr v) :- _)    = pure $ VChr v
 evaluate (EId id' :- _)          = do
-                                    isNotCtor <- isJust . Map.lookup id' <$> asks vals
+    val <- asks vals
+    let look = Map.lookup id' val
 
-                                    if isNotCtor
-                                    then fromJust . Map.lookup id' <$> asks vals
-                                    else pure $ VCon id' []
+    pure $ fromMaybe (VCon id' []) look
 evaluate (ETuple es :- _)        = VTuple <$> mapM evaluate es
 evaluate (ELam x e :- _)         = VLam x e <$> asks vals
 evaluate (EApp f x :- _)         = do
@@ -56,6 +55,8 @@ unpackPattern = curry $ \case
         | id' == id''                -> mconcat <$> zipWithM unpackPattern v v'
     (val, PAnn p _ :- _)             -> unpackPattern val p
     (val, PLinear p :- _)            -> unpackPattern val p
+    (VTuple vs, PTuple ps :- _)
+        | length vs == length ps     -> mconcat <$> zipWithM unpackPattern vs ps
     _                                -> empty
 
 makeMatchError :: EvalEnv a
