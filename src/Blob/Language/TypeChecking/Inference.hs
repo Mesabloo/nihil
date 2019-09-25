@@ -26,7 +26,7 @@ import Data.Align.Key (alignWithKey)
 import Blob.Language.Parsing.Annotation
 import Data.Functor.Invariant (invmap)
 import Debug.Trace
-import Data.Functor (($>))
+import Data.Functor (($>), (<&>))
 
 -- | Run the inference monad
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -116,6 +116,11 @@ lookupLin x = gets (Map.lookup x . linearities)
 putLin :: String -> Linearity -> Infer ()
 putLin x l = modify $ \st -> st { linearities = Map.insert x l (linearities st) }
 
+getLinearity :: String -> Scheme -> (String, Linearity)
+getLinearity name (Scheme _ t) = (name,) $ case t of
+        TBang _ -> Unrestricted
+        _ -> Linear
+
 fresh :: String -> Infer Type
 fresh v = do
     s <- get
@@ -165,10 +170,7 @@ infer (e :- _) = case e of
     ELam x e' -> do
         (pat, cs, env) <- inferPattern x
 
-        let convertToLin name (Scheme _ t) = (name,) $ case t of
-                TBang _ -> Unrestricted
-                _ -> Linear
-            lins = uncurry convertToLin <$> Map.toList env
+        let lins = uncurry getLinearity <$> Map.toList env
 
         (t, c) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e')
 
@@ -184,13 +186,23 @@ infer (e :- _) = case e of
     EAnn e t -> do
         (t', c) <- infer e
         pure (t', (tiType t, t') : c)
+    -- ELet (PLinear (PId id' :- _) :- _, val) e -> do
+    --     t <- TBang <$> fresh "&"
+    --     originalEnv <- (<>) <$> asks (getMap . defCtx) <*> asks (getMap . ctorCtx)
+
+    --     let env = Map.singleton id' (Scheme [] t)
+    --         lins = filter ((== Unrestricted) . snd) $ uncurry getLinearity <$> Map.toList originalEnv
+    --         ks = fst <$> lins
+    --         modifiedEnv = Map.filterWithKey (\k _ -> k `elem` ks) originalEnv
+    --         lins2 = uncurry getLinearity <$> Map.toList env
+
+    --     (t2, c2) <- local (\env' -> env' { defCtx = TypeEnv modifiedEnv }) (withLinMany lins $ infer val)
+    --     (t3, c3) <- inEnvMany (Map.toList env) (withLinMany lins2 $ infer e)
+    --     pure (t3, (t, case t2 of { TBang _ -> t2 ; _ -> TBang t2 }) : c2 <> c3)
     ELet (pat, val) e -> do
         (t1, c1, env) <- inferPattern pat
 
-        let convertToLin name (Scheme _ t) = (name,) $ case t of
-                TBang _ -> Unrestricted
-                _ -> Linear
-            lins = uncurry convertToLin <$> Map.toList env
+        let lins = uncurry getLinearity <$> Map.toList env
 
         (t2, c2) <- inEnvMany (Map.toList env) (withLinMany lins $ infer val)
         (t3, c3) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e)
@@ -201,10 +213,7 @@ infer (e :- _) = case e of
         res <- (unzip3 <$>) . forM cases $ \(pat, expr) -> do
             (patTy, patsCons, env) <- inferPattern pat
 
-            let convertToLin name (Scheme _ t) = (name,) $ case t of
-                    TBang _ -> Unrestricted
-                    _ -> Linear
-                lins = uncurry convertToLin <$> Map.toList env
+            let lins = uncurry getLinearity <$> Map.toList env
 
             (exprTy, exprCons) <- inEnvMany (Map.toList env) (withLinMany lins $ infer expr)
             pure (exprTy, patTy, exprCons <> patsCons)
