@@ -15,7 +15,8 @@ defaultEnv = Map.fromList [ ("+", addF)
                           , ("/", divF)
                           , ("kill", killF)
                           , ("dupl", duplF)
-                          , ("read", readF) ]
+                          , ("read", readF)
+                          , ("make", makeF) ]
   where
     addF = HLam $ \case
         VInt x -> pure . HLam $ \case
@@ -64,6 +65,7 @@ defaultEnv = Map.fromList [ ("+", addF)
     killF = HLam $ \_ -> pure $ VTuple []
     duplF = HLam $ \x -> pure $ VTuple [x, x]
     readF = HLam $ \x -> pure x
+    makeF = HLam $ \x -> pure x
 
 
 defaultDeclContext :: Map.Map String Scheme
@@ -73,7 +75,8 @@ defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a")
                                   , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
                                   , ("kill", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [])
                                   , ("dupl", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [TBang (TVar $ TV "a"), TBang (TVar $ TV "a")])
-                                  , ("read", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TVar (TV "a")) ]
+                                  , ("read", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TVar (TV "a"))
+                                  , ("make", Scheme [TV "a"] $ (TVar $ TV "a") `TFun` TBang (TVar $ TV "a")) ]
 
 defaultDefContext :: Map.Map String Scheme
 defaultDefContext = defaultDeclContext
