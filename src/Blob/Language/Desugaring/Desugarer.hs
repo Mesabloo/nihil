@@ -314,7 +314,7 @@ syPat ((x :- p):xs) out ops = do
             t' <- desugarType "" t
 
             pure $ D.PAnn p' t'
-        P.PLinear p -> D.PLinear <$> syPat p [] []
+        P.PLinear p -> D.PLinear <$> syPat [p] [] []
         P.POperator _ -> undefined -- ! Should never happen
 
     syPat xs ((pat :- p) : out) ops

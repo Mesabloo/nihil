@@ -80,7 +80,7 @@ data Pattern
     | PParens [Annotated Pattern]
     | POperator String
     | PAnn [Annotated Pattern] (Annotated Type)
-    | PLinear [Annotated Pattern]
+    | PLinear (Annotated Pattern)
     deriving (Show, Ord, Eq)
 
 data Literal

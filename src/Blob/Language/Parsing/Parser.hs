@@ -424,7 +424,7 @@ patTerm = do
                     ,                 try patTuple
                     ,                 patList
                     , PLit . LStr <$> string
-                    , PLinear     <$> (symbol "!" *> pattern')
+                    , PLinear     <$> (symbol "!" *> patTerm)
                     , PParens     <$> parens pattern' ]
         optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (p,)
 
@@ -443,10 +443,10 @@ patTerm = do
     patTuple :: Parser Pattern
     patTuple =
         getPositionAndIndent
-        >>= \iPos -> parens $ do
-            e1 <- sameLineOrIndented iPos pattern'
-            es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos pattern')
-            pure $ PTuple (e1:es)
+        >>= \iPos -> parens $ choice [ do { e1 <- sameLineOrIndented iPos pattern'
+                                          ; es <- some (sameLineOrIndented iPos (symbol ",") *> sameLineOrIndented iPos pattern')
+                                          ; pure $ PTuple (e1:es) }
+                                     , nothing $> PTuple [] ]
 
 --------------------------------------------------------------------------------------------------------------
 
