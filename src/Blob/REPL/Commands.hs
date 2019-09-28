@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, TypeFamilies, BlockArguments #-}
 
+-- | This module holds the command parser for the REPL.
 module Blob.REPL.Commands where
 
 import Text.Megaparsec
@@ -12,6 +13,7 @@ import qualified Data.Char as Ch
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 
+-- | A list of all existing commands.
 commands :: [String]
 commands = [  ":help", ":h", ":?"
            ,  ":quit", ":q"
@@ -24,12 +26,21 @@ commands = [  ":help", ":h", ":?"
            , ":bench"
            ,   ":env" ]
 
+-- | The 'Help' command parser.
+--
+-- Either @:h@ or @:help@ or @:?@.
 help :: Parser Command
 help = C.space *> (try . hidden) (keyword "?" <|> keyword "help" <|> keyword "h") <* C.space $> Help <?> "߷"
 
+-- | The 'Exit' command parser.
+--
+-- Either @:quit@ or @:q@.
 exit :: Parser Command
 exit = C.space *> (try . hidden) (keyword "quit" <|> keyword "q") <* C.space $> Exit <?> "߷"
 
+-- | The 'Load' command parser.
+--
+-- Either @:load@ or @:l@.
 load :: Parser Command
 load = do
     C.space *> (try . hidden) (keyword "load" <|> keyword "l") <* C.space <?> "߷"
@@ -41,12 +52,20 @@ load = do
             file <- anySingle `someTill` eof
             pure . Load $ rstrip file
 
+-- | When the entire input is some 'Code'.
 code :: Parser Command
 code = (eof *> fail "") <|> Code <$> anySingle `someTill` eof
 
+-- | The 'ResetEnv' command parser.
+--
+-- Either @:r@ or @:reset@
 reset :: Parser Command
-reset = (C.space *> (try . hidden) (keyword "reset" <|> keyword "r") <* C.space <?> "߷") *> (ResetEnv <$> many (C.space *> (identifier <|> opSymbol) <* C.space))
+reset = (C.space *> (try . hidden) (keyword "reset" <|> keyword "r") <* C.space <?> "߷")
+     *> (ResetEnv <$> many (C.space *> (identifier <|> opSymbol) <* C.space))
 
+-- | The 'GetType' command parser.
+--
+-- Either @:type@ or @:t@.
 getType :: Parser Command
 getType = do
     C.space *> (try . hidden) (keyword "type" <|> keyword "t") <* C.space <?> "߷"
@@ -56,6 +75,9 @@ getType = do
         Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> GetType <$> (anySingle `someTill` eof)
 
+-- | The 'GetKind' command parser.
+--
+-- Either @:k@ or @:kind@.
 getKind :: Parser Command
 getKind = do
     C.space *> (try . hidden) (keyword "kind" <|> keyword "k") <* C.space <?> "߷"
@@ -65,6 +87,9 @@ getKind = do
         Right _ -> fail "Missing argument \"[type]\""
         Left _  -> GetKind <$> (anySingle `someTill` eof)
 
+-- | The 'Time' command parser.
+--
+-- @:time@
 time :: Parser Command
 time = do
     C.space *> (try . hidden) (keyword "time") <* C.space <?> "߷"
@@ -74,6 +99,9 @@ time = do
         Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> Time <$> (anySingle `someTill` eof)
 
+-- | The 'Bench' command parser.
+--
+-- @:bench@
 bench :: Parser Command
 bench = do
     C.space *> (try . hidden) (keyword "bench") <* C.space <?> "߷"
@@ -88,9 +116,13 @@ bench = do
                 Right _ -> fail "Missing argument \"[expr]\""
                 Left _  -> Bench n <$> (anySingle `someTill` eof)
 
+-- | The 'Env' command parser.
+--
+-- @:env@
 env :: Parser Command
 env = C.space *> (try . hidden) (keyword "env") <* C.space $> Env <?> "߷"
 
+-- | The global command parser.
 command :: Parser Command
 command = do { try (C.space *> C.string ":")
              ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env] <* eof
@@ -110,7 +142,7 @@ makeCommandError = do
     pure $ "Unknown command `" <> cmd <> "`\n" <> maybeYouWanted (':':cmd) commands
 
 
-
+-- | The levenshtein algorithm for suggesting typing error possibilities.
 levenshtein :: String -> String -> Int
 levenshtein s1 s2
     | length s1 > length s2 = levenshtein s2 s1
@@ -123,6 +155,7 @@ levenshtein s1 s2
                                       , 1 + levenshtein s1 (init s2)
                                       , 1 + levenshtein (init s1) (init s2) ]
 
+-- | A wrapper around the levenshtein algorithm to prettify the output.
 maybeYouWanted :: String -> [String] -> String
 maybeYouWanted source choices =
     let s = intercalate ", "

@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | This module contains all the functions executed for each command.
 module Blob.REPL.Execution where
 
 import Blob.REPL.Types
@@ -353,7 +354,7 @@ resetOne x = lift . modify $
 
 
 
-
+-- | A simple function to get the execution time of an action.
 time :: IO a -> IO (Double, a)
 time f = do
     begin  <- getTime

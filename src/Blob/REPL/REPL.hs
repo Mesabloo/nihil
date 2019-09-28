@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase #-}
 
+-- | This module contains all the functions related to the internal functionnalities of the REPL.
 module Blob.REPL.REPL
 ( runREPL
 , customRunREPL
@@ -29,9 +30,11 @@ import Blob.REPL.Logger
 import Data.Conf
 import Data.Maybe
 
+-- | Runs the REPL with no options.
 runREPL :: REPL a -> IO ()
 runREPL = flip customRunREPL (REPLOptions [])
 
+-- | Runs the REPL with some specified options
 customRunREPL :: REPL a -> REPLOptions -> IO ()
 customRunREPL r opts = do
     initREPL
@@ -47,6 +50,7 @@ customRunREPL r opts = do
         Right _ -> pure ()
   where
     configState :: REPLState -> [FilePath] -> IO REPLState
+    -- ^ Updates a 'REPLState' according to the file `$HOME/.iblob`, if existing.
     configState s fs = do
         home <- getHomeDirectory
         fe <- doesFileExist (home <> "/.iblob")
@@ -60,6 +64,7 @@ customRunREPL r opts = do
                 >> hFlush stdout
             pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe [] (getConf "preload" config) <> fs)
 
+-- | Loads some files in the REPL.
 loadFiles :: REPL ()
 loadFiles = do
     let check i f fs = do
@@ -69,6 +74,7 @@ loadFiles = do
     fs <- lift $ gets preload
     forM_ (zip [1..] fs) $ \(i, f) -> check i f fs *> catchError (replCheck (Load f)) (liftIO . logError)
 
+-- | The basic loop of the REPL.
 replLoop :: REPL ()
 replLoop = do
     loadFiles
@@ -93,7 +99,7 @@ replLoop = do
                         else putStr ""
                     Right output -> catchError (replCheck output) (liftIO . logError)
 
-
+-- | The REPL command handler.
 replCheck :: Command -> REPL ()
 replCheck = \case
     Help                -> liftIO helpCommand
