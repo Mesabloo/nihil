@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections, LambdaCase #-}
 
+-- | This module holds the kind checker.
 module Blob.Language.KindChecking.Checker where
 
 import Blob.Language.TypeChecking.Types
@@ -17,38 +18,55 @@ import Text.PrettyPrint.Leijen (text, linebreak, dot)
 
 import Debug.Trace
 
+-- | The empty substitution
 nullKindSubst :: KindSubst
 nullKindSubst = mempty
 
+-- | Composes two substitutions into one.
 composeKindSubst :: KindSubst -> KindSubst -> KindSubst
 composeKindSubst s1 s2 = Map.map (applyKind s1) s2 `Map.union` s1
 
+-- | Composes @n@ substitutions into one.
 concatKindSubsts :: [KindSubst] -> KindSubst
 concatKindSubsts = foldr composeKindSubst nullKindSubst
 
+-- | Runs the kind checking algorithm.
 runKI :: KindEnv -> KI a -> (Either KIError a, KIState)
 runKI env ki = runState (runReaderT (runExceptT ki) env) initKIState
   where initKIState = KIState { kiSupply = 0 }
 
+-- | Generates a new kind variable with the prefix given as argument.
 newKindVar :: String -> KI Kind
 newKindVar prefix = do
     s <- get
     put s { kiSupply = kiSupply s + 1 }
     pure $ KVar (prefix <> show (kiSupply s))
 
+-- | Binds a kind variable to a kind
 kindVarBind :: String -> Kind -> KI KindSubst
 kindVarBind u k | k == KVar u          = pure nullKindSubst
                 | u `Set.member` fkv k = throwError (makeKindOccurError u k)
                 | otherwise            = pure $ Map.singleton u k
 
+-- | The core of the unification algorithm.
+--
+-- Basically:
+--
+-- > unify (KVar n) k  = n `bind` k
+-- > unify k (KVar n)  = n `bind` k
+-- > unify KType KType = no substitution
+-- > unify (KArr l r) (KArr l' r') = do
+-- >     s1 <- unify l l'
+-- >     s2 <- unify (apply s1 r) (apply s1 r')
+-- >     s1 `compose` s2
 mguKind :: Kind -> Kind -> KI KindSubst
 mguKind (KVar n) k = kindVarBind n k
 mguKind k (KVar n)= kindVarBind n k
 mguKind KType KType = pure nullKindSubst
 mguKind (KArr l r) (KArr l' r') = do
-    s1 <- mguKind l l'
-    s2 <- mguKind (applyKind s1 r) (applyKind s1 r')
-    pure $ s1 `composeKindSubst` s2
+    s1 <- mguKind l l'                               -- unify the left hand side of the arrow
+    s2 <- mguKind (applyKind s1 r) (applyKind s1 r') -- unify the right hand side of the arrow
+    pure $ s1 `composeKindSubst` s2                  -- and compose the substitutions
 mguKind k1 k2 = throwError (makeKindUnifyError k1 k2)
 
 makeKindUnifyError :: Kind -> Kind -> KIError
@@ -60,11 +78,14 @@ makeUndefinedTypeError s = text "Undefined kind of type \"" <> text s <> text "\
 makeRedeclaredTypeError :: String -> KIError
 makeRedeclaredTypeError id' = text "Type \"" <> text id' <> text "\" has already been declared" <> dot <> linebreak
 
+-- | Kind checking for custom types.
 kiCustomScheme :: CustomScheme -> KI (KindSubst, Kind)
 kiCustomScheme (CustomScheme tvs t) = do
     typeArgs <- Map.fromList <$> mapM (\ v -> (v,) <$> newKindVar "k") tvs
     (s,k') <- local (Map.union typeArgs) $ case t of
+        -- If it is a sum type, kind checking all of its constructors
         TSum constrs -> (,KType) <$> kiConstrs (Map.toList constrs)
+        -- If it is a type alias, kind check the type
         TAlias t -> kiType t
         _ -> undefined
 
@@ -86,6 +107,7 @@ kiCustomScheme (CustomScheme tvs t) = do
             s3 <- kiConstr n ts
             pure (concatKindSubsts [s3,s2,s1])
 
+-- | Transforms a 'Type' into a pair composed of a 'KindSubst' and a 'Kind'.
 kiType :: Type -> KI (KindSubst, Kind)
 kiType (TId n)       = asks (Map.lookup n) >>= maybe err (pure . (mempty,))
     where err = throwError (makeUndefinedTypeError n)
@@ -114,12 +136,14 @@ kiType (TApp f t) = do
 kiType (TBang t) = kiType t
 kiType t = traceShow t undefined
 
+-- | Transforms a 'Scheme' into a pair composed of a 'KindSubst' and a 'Kind'.
 kiScheme :: Scheme -> KI (KindSubst, Kind)
 kiScheme (Scheme vars t) = do
     nvars <- mapM (const $ newKindVar "k") vars
     let s = Map.fromList (zipWith (\(TV v) n -> (v, n)) vars nvars)
     local (Map.union s) (kiType t)
 
+-- | Run a 'KI' monad inside the 'Check' monad.
 checkKI :: KI a -> Check a
 checkKI ki = do
     (GlobalEnv env _ _ _) <- get
@@ -128,6 +152,7 @@ checkKI ki = do
         Left err     -> throwError err
         Right result -> pure result
 
+-- | Infer the 'Kind' of a 'Type'.
 kindInference :: KindEnv -> Type -> KI Kind
 kindInference _ e = do
     (s, k) <- kiType e
