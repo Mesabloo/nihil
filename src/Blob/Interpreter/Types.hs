@@ -1,3 +1,4 @@
+-- | This module holds the types for the interpreter process.
 module Blob.Interpreter.Types where
 
 import Blob.Language.Desugaring.Types
@@ -8,23 +9,31 @@ import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen
 import Data.List (intercalate)
 
-data Value = VInt Integer
-           | VDec Double
-           | VChr Char
-           | VVar String
-           | VLam (Annotated Pattern) (Annotated Expr) (Scope Value)
-           | VTuple [Value]
-           | HLam (Value -> EvalEnv Value)
-           | VCon String [Value]
+-- | The data type providing any sort of value, for example:
+data Value
+    = VInt Integer                                             -- ^ An integer
+    | VDec Double                                              -- ^ A floating point number
+    | VChr Char                                                -- ^ A character
+    | VVar String                                              -- ^ A variable
+    | VLam (Annotated Pattern) (Annotated Expr) (Scope Value)  -- ^ A lambda (remains unevaluated until the argument value is given)
+    | VTuple [Value]                                           -- ^ A tuple
+    | HLam (Value -> EvalEnv Value)                            -- ^ A native lambda (implemented in Haskell)
+    | VCon String [Value]                                      -- ^ A data type constructor
 
+-- | A type alias for convenient naming.
 type Scope = Map.Map String
 
+-- | The 'EvalEnv' monad used for evaluation.
 type EvalEnv a = ReaderT EvalState (ExceptT EvalError IO) a
 
+-- | The error type
 type EvalError = Doc
 
-data EvalState = EvalState { vals :: Scope Value
-                           , ctors :: [String] }
+-- | The state used in the 'EvalEnv' monad.
+data EvalState
+    = EvalState { vals :: Scope Value  -- ^ A mapping of all the values of all the variables known
+                , ctors :: [String]    -- ^ All the data type constructors existing in the current session
+                }
 
 
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | This module holds all the interpreting functions.
 module Blob.Interpreter.Eval where
 
 import Blob.Language.Desugaring.Types (Expr(..), Literal(..), Pattern(..))
@@ -13,6 +14,7 @@ import Data.Maybe
 import Data.List.Extra (snoc)
 import Blob.Language.Parsing.Annotation
 
+-- | Evaluates an expression.
 evaluate :: Annotated Expr -> EvalEnv Value
 evaluate (ELit (LInt v) :- _)    = pure $ VInt v
 evaluate (ELit (LDec v) :- _)    = pure $ VDec v
@@ -24,6 +26,7 @@ evaluate (EId id' :- _)          = do
     pure $ fromMaybe (VCon id' []) look
 evaluate (ETuple es :- _)        = VTuple <$> mapM evaluate es
 evaluate (ELam x e :- _)         = VLam x e <$> asks vals
+    -- Do not unwrap the lambda, as an argument has not been given yet
 evaluate (ELet (p, v) e :- _)    = do
     v' <- evaluate v
     val <- unpackPattern v' p <|> makeMatchError
@@ -40,16 +43,19 @@ evaluate (EApp f x :- _)         = do
         HLam f''   -> f'' x'
         VCon id' e -> pure $ VCon id' (snoc e x')
         v          -> throwError . text $ "Developer error: type checking failed ; expecting `VLam`, `HLam` or `VCon` ; got `" <> show v <> "`.\nPlease report the issue."
--- evaluate (EList es)         = VList <$> mapM evaluate es
 evaluate (EMatch expr pats :- _) = evaluate expr >>= \e -> foldr ((<|>) . uncurry (evalBranch e)) makeMatchError pats
 evaluate (EHole :- _) = throwError . text $ "Developer error: type checking failed ; unexpected type hole while executing.\nPlease report the issue."
 evaluate (EAnn e _ :- _) = evaluate e
 
+-- | Evaluates a pattern matching branch (@pattern -> expression@).
 evalBranch :: Value -> Annotated Pattern -> Annotated Expr -> EvalEnv Value
 evalBranch e pat branch = do
     s <- unpackPattern e pat
     local (\env -> env { vals = s <> vals env }) (evaluate branch)
 
+-- | Unpacks a pattern from a value.
+--
+-- Returns a new scope with the new bindings for the variables in the pattern.
 unpackPattern :: Value -> Annotated Pattern -> EvalEnv (Scope Value)
 unpackPattern = curry $ \case
     (_, Wildcard :- _)               -> pure mempty
