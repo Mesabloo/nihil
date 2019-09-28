@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | This module holds all the functions used in the desugaring process.
 module Blob.Language.Desugaring.Desugarer where
 
 import qualified Blob.Language.Desugaring.Types as D
@@ -13,33 +14,40 @@ import Data.Foldable (foldlM)
 import Data.Composition ((.:))
 import Blob.Language.Desugaring.Errors
 import Blob.Language.Lexing.Types (SourceSpan(..))
+import Data.Maybe
 
+-- | Desugars a whole 'P.Program' into a 'D.Program'.
 desugarProgram :: String -> Annotated P.Program -> D.Sugar (Annotated D.Program)
 desugarProgram fileName (s :- p)= do
-    x <- mapM (desugarStatement fileName) s
-    let l = filter (/= (D.Empty :- Nothing)) x
+    l <- catMaybes <$> mapM (desugarStatement fileName) s
     pure (D.Program l :- p)
 
-desugarStatement :: String -> Annotated P.Statement -> D.Sugar (Annotated D.Statement)
+-- | Desugars a 'P.Statement' into a 'D.Statement'.
+desugarStatement :: String -> Annotated P.Statement -> D.Sugar (Maybe (Annotated D.Statement))
 desugarStatement fileName (P.Declaration name pType :- p) = do
     t <- desugarType fileName pType
-    pure (D.Declaration name t :- p)
+    pure $ Just (D.Declaration name t :- p)
 desugarStatement fileName (P.Definition name args pExpr :- p) = do
     e <- desugarExpression fileName pExpr
     a <- mapM (\p -> syPat [p] [] []) args
     let val = foldr (\a acc -> D.ELam a acc :- Nothing) e a
-    pure (D.Definition name val :- p)
+    pure $ Just (D.Definition name val :- p)
 desugarStatement fileName (P.TypeDeclaration name tvs cType :- p) = do
     ct <- desugarCustomType fileName (name, tvs, cType)
-    pure (D.TypeDeclaration name tvs ct :- p)
-desugarStatement _ (_ :- p) = pure (D.Empty :- p)
+    pure $ Just (D.TypeDeclaration name tvs ct :- p)
+desugarStatement _ (_ :- p) = pure Nothing
 
+-- Desugars a 'P.CustomType' into a 'D.CustomType'
 desugarCustomType :: String -> (String, [String], Annotated P.CustomType) -> D.Sugar (Annotated D.CustomType)
 desugarCustomType fileName (name, tvs, ct :- p) = case ct of
     P.TAlias t -> do
         t' <- desugarType fileName t
         pure $ D.TAlias t' :- p
     P.TSum s -> do
+        {- How to desugar a sum type:
+            * First transform the base type into a type application
+            * Then concat this type with the type of the constructor: `consType <> defType`
+        -}
         state' <- get
 
         let initialType = foldl (flip (:-) Nothing .: D.TApp) (D.TId name :- Nothing) (map (flip (:-) Nothing . D.TVar) tvs)
@@ -50,7 +58,7 @@ desugarCustomType fileName (name, tvs, ct :- p) = case ct of
         m' <- sequence m
 
         pure (D.TSum m' :- p)
-    P.TGADT s -> do
+    P.TGADT s -> do -- Desugaring a 'P.TGADT' is equivalent to transforming it into a 'D.TSum'
         let m = Map.map (\c -> do
                 c' <- desugarType fileName c
                 pure (D.Scheme tvs c')) s
@@ -58,6 +66,7 @@ desugarCustomType fileName (name, tvs, ct :- p) = case ct of
 
         pure (D.TSum m' :- p)
 
+-- | Desugars a 'P.Type' into a 'D.Type'.
 desugarType :: String -> Annotated P.Type -> D.Sugar (Annotated D.Type)
 desugarType _ (P.TId name :- p) = pure (D.TId name :- p)
 desugarType _ (P.TApp [] :- _) = undefined -- ! never happening
@@ -87,6 +96,7 @@ desugarType fileName (P.TList ts :- p) =
 desugarType fileName (P.TNonLinear t :- p) =
     (:- p) . D.TBang <$> desugarType fileName t
 
+-- | Desugars a 'P.Expr' into a 'D.Expr'.
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
 desugarExpression _ expr = do
     let (e :- p) = expr
@@ -96,6 +106,7 @@ desugarExpression _ expr = do
 
 -- operators accumulator
 
+-- | Accumulates operator fixities in a 'P.Program', beginning with 'P.OpFixity' statements.
 accumulateOnProgram :: Annotated P.Program -> D.Sugar ()
 accumulateOnProgram (p :- _) = do
     let customOps = filter check p
@@ -106,15 +117,20 @@ accumulateOnProgram (p :- _) = do
   where check (P.OpFixity _ _ :- _) = True
         check _ = False
 
+-- | Accumulates operator fixites in a 'P.Statement'.
 accumulateOnStatement :: Annotated P.Statement -> D.Sugar ()
 accumulateOnStatement (P.OpFixity _ (f@(P.Infix _ _ name) :- _) :- _) =
     modify $ \st -> st { D.fixities = Map.insert name f (D.fixities st) }
 accumulateOnStatement (P.Definition _ _ expr :- _) = accumulateOnExpression expr
 accumulateOnStatement _ = pure ()
 
+-- | Accumulates operator fixities in a 'P.Expr'.
 accumulateOnExpression :: Annotated P.Expr -> D.Sugar ()
 accumulateOnExpression = mapM_ accumulateOnAtom . getAnnotated
 
+-- | Accumulates operator fixities in a 'P.Atom'.
+--
+-- In case of an unregistered operator being encountered, a default fixity of `infixl 9` is registered.
 accumulateOnAtom :: Annotated P.Atom -> D.Sugar ()
 accumulateOnAtom (P.AOperator name :- _) = modify $ \st -> st { D.fixities = Map.insertWith (flip const) name (P.Infix P.L 9 name) (D.fixities st) }
 accumulateOnAtom (P.AList e :- _) = mapM_ accumulateOnExpression e
@@ -130,9 +146,11 @@ accumulateOnAtom (P.AApp a1 a2 :- _) = do
     accumulateOnAtom a2
 accumulateOnAtom _ = pure ()
 
+-- | Accumulates operator fixities in 'P.Pattern's.
 accumulateOnPatterns :: [Annotated P.Pattern] -> D.Sugar ()
 accumulateOnPatterns = mapM_ accumulateOnPattern
 
+-- | Accumulates operator fixities in a 'P.Pattern'.
 accumulateOnPattern :: Annotated P.Pattern -> D.Sugar ()
 accumulateOnPattern (P.POperator name :- _) = modify $ \st -> st { D.fixities = Map.insertWith (flip const) name (P.Infix P.L 9 name) (D.fixities st) }
 accumulateOnPattern (P.PCtor _ ps :- _) = mapM_ accumulateOnPatterns ps
@@ -144,12 +162,14 @@ accumulateOnPattern _ = pure ()
 --------------------------------------------------------------------------------------------------------------------
 {- runners -}
 
+-- | Runs the entire desugaring process on a given 'P.Program'.
 runDesugarer :: String -> Annotated P.Program -> D.Sugar (Annotated D.Program)
 runDesugarer fileName program = do
     accumulateOnProgram program
 
     desugarProgram fileName program
 
+-- | Runs an action in the 'D.Sugar' monad with a given state.
 runSugar :: D.Sugar a -> D.SugarState -> Either Doc (a, D.SugarState)
 runSugar = runExcept .: runStateT
 
@@ -158,15 +178,17 @@ runSugar = runExcept .: runStateT
 
 -- Shunting Yard Algorithm for expressions
 
-syExpr :: P.Expr      -- ^ Input expression
+-- | Run the Shunting Yard Algorithm on an expression.
+syExpr :: P.Expr                -- ^ Input expression
           -> [Annotated D.Expr] -- ^ Output stack
-          -> [String] -- ^ Operator stack
+          -> [String]           -- ^ Operator stack
           -> D.Sugar (Annotated D.Expr)
 syExpr [] out ops =
     if null out
     then pure $ D.EId "()" :- Nothing
     else addOperators ops out
   where addOperators :: [String] -> [Annotated D.Expr] -> D.Sugar (Annotated D.Expr)
+        -- ^ Adds the operators on the output stack when there is nothing left to desugar.
         addOperators [] out = pure $ head out
         addOperators (o:os) out =
             if length out < 2
@@ -178,6 +200,7 @@ syExpr ((P.AOperator o :- _):xs) out ops = do
     syExpr xs out' ops'
   where
     handleOperator :: String -> [Annotated D.Expr] -> [String] -> D.Sugar ([Annotated D.Expr], [String])
+    -- ^ Adds the operator on top of the operator stack, popping other operators if needed
     handleOperator o out ops = do
         ops' <- gets D.fixities
 
@@ -254,15 +277,17 @@ syExpr ((x :- p):xs) out ops = do
 
 -- shunting yard for patterns
 
-syPat :: [Annotated P.Pattern] -- ^ Input pattern
+-- | Runs the Shunting Yard Algorithm on a 'P.Pattern'.
+syPat :: [Annotated P.Pattern]    -- ^ Input pattern
          -> [Annotated D.Pattern] -- ^ Output stack
-         -> [String]
+         -> [String]              -- ^ Operator stack
          -> D.Sugar (Annotated D.Pattern)
 syPat [] out ops =
     if null out
     then pure $ D.PId "()" :- Nothing
     else addOperators out ops
   where addOperators :: [Annotated D.Pattern] -> [String] -> D.Sugar (Annotated D.Pattern)
+        -- ^ Adds the operators on the output stack when there is nothing left to desugar.
         addOperators out [] = pure $ head out
         addOperators out (o:os) =
             if length out < 2
@@ -273,8 +298,9 @@ syPat ((P.POperator o :- p):xs) out ops = do
     (out', ops') <- handleOperator o out ops
 
     syPat xs out' ops'
-    where handleOperator :: String -> [Annotated D.Pattern] -> [String] -> D.Sugar ([Annotated D.Pattern], [String])
-          handleOperator o out ops = do
+  where handleOperator :: String -> [Annotated D.Pattern] -> [String] -> D.Sugar ([Annotated D.Pattern], [String])
+        -- ^ Adds the operator on top of the operator stack, popping other operators if needed
+        handleOperator o out ops = do
             ops' <- gets D.fixities
 
             if null ops

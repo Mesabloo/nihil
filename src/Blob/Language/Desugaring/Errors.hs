@@ -1,3 +1,4 @@
+-- | This module holds the errors for the desugaring process.
 module Blob.Language.Desugaring.Errors where
 
 import Text.PrettyPrint.Leijen
