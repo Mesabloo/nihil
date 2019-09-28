@@ -1,3 +1,4 @@
+-- | This module holds all the possible errors for the type-checking.
 module Blob.Language.TypeChecking.Errors where
 
 import Text.PrettyPrint.Leijen
