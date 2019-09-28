@@ -19,7 +19,7 @@ import Control.Monad.Except
 import Text.PrettyPrint.Leijen hiding ((<$>))
 import Blob.Language.Desugaring.Desugarer
 import Blob.Language.Parsing.Parser (program, expression, type', runParser, runParser')
-import Text.Megaparsec (eof, try)
+import Text.Megaparsec (eof, try, eitherP)
 import Control.Applicative
 import Text.Megaparsec.Error (errorBundlePretty, ParseErrorBundle(..), parseErrorTextPretty, bundleErrors, ShowErrorComponent(..))
 import Text.Megaparsec.Stream (Stream(..))
@@ -78,236 +78,174 @@ loadFile file = do
     if not fileExists
     then lift $ throwError (text "File \"" <> text file <> text "\" not found" <> dot <> linebreak)
     else do
+        content       <- liftIO $ Text.readFile file
+        st''          <- lift get
+        tks           <- rethrowEither (text . errorBundlePretty) (runLexer content file)
+        parseTree     <- rethrowEither printParseError (runParser tks file)
 
-        content <- liftIO $ Text.readFile file
-        st''    <- lift get
-        let res = runLexer content file
-        case res of
-            Left err -> lift $ throwError (text $ errorBundlePretty err)
-            Right tks -> do
-                let res' = runParser tks file
+        let state' = op st''
+        (ast, state') <- rethrowEither id $ runSugar (runDesugarer file (parseTree :- Nothing)) state'
 
-                case res' of
-                    Left err        -> lift $ throwError (printParseError err)
-                    Right parseTree -> do
-                        let state' = op st''
-                        let res1 = runSugar (runDesugarer file (parseTree :- Nothing)) state'
+        lift . modify $ \ st -> st { op = state' }
+        (_, state')   <- rethrowEither id $ runTypeInference (ctx st'') (tiProgram ast)
 
-                        case res1 of
-                            Left err            -> lift $ throwError err
-                            Right (ast, state') -> do
-                                lift . modify $ \ st -> st { op = state' }
+        lift . modify $ \st' -> st' { ctx = state' }
 
-                                case runTypeInference (ctx st'') (tiProgram ast) of
-                                    Left err          -> lift $ throwError err
-                                    Right (_, state') -> do
-                                        lift . modify $ \st' -> st' { ctx = state' }
+        let (Program stmts) = getAnnotated ast
 
-                                        let (Program stmts) = getAnnotated ast
+        forM_ stmts $ \case
+            Definition id' expr :- _ -> do
+                st'' <- lift get
+                evalRes <- lift . lift $ runReaderT (evaluate expr) (values st'')
 
-                                        mapM_ (\case
-                                            Definition id' expr :- _ -> do
-                                                st'' <- lift get
-                                                eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st'')
-
-                                                case eval' of
-                                                    Left err      -> lift $ throwError err
-                                                    Right evalRes -> lift . modify $ \st' -> st' { values = let env  = values st'
-                                                                                                            in env { vals = Map.insert id' evalRes (vals env) } }
-                                            _                   -> pure ()
-                                            ) stmts
+                lift . modify $ \st' -> st' { values = let env = values st'
+                                                        in env { vals = Map.insert id' evalRes (vals env) } }
+            _                   -> pure ()
 
 getType :: String -> REPL ()
 getType expr = do
     st <- lift get
-    let res = runLexer (Text.pack expr) "interactive"
+    tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
-    case res of
-        Left err -> lift $ throwError (text $ errorBundlePretty err)
-        Right tks -> do
-            let res'           = runParser' (expression <* eof) tks "interactive"
+    e <- rethrowEither printParseError $ runParser' (expression <* eof) tks "interactive"
 
-            case res' of
-                Left err  -> lift $ throwError (printParseError err)
-                Right e   -> do
-                    let res1 = runSugar (do { accumulateOnExpression e
-                                            ; desugarExpression "interactive" e } ) (op st)
-                    case res1 of
-                        Left err -> lift $ throwError err
-                        Right (e, _) -> do
-                            let t = inferExpr (ctx st) e
-                            case t of
-                                Left err -> lift $ throwError err
-                                Right (Scheme _ type') ->
-                                    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-                                            >> putStr (show (pExpression e))
-                                            >> setSGR [Reset]
-                                            >> putStr " :: "
-                                            >> setSGR [SetColor Foreground Vivid Cyan]
-                                            >> print (pType (type' :- Nothing))
-                                            >> setSGR [Reset]
-                                            >> hFlush stdout
+    (e, _) <- rethrowEither id $ runSugar
+        (do { accumulateOnExpression e
+            ; desugarExpression "interactive" e } ) (op st)
+
+    (Scheme _ type') <- rethrowEither id $ inferExpr (ctx st) e
+
+    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
+        >> putStr (show (pExpression e))
+        >> setSGR [Reset]
+        >> putStr " :: "
+        >> setSGR [SetColor Foreground Vivid Cyan]
+        >> print (pType (type' :- Nothing))
+        >> setSGR [Reset]
+        >> hFlush stdout
 
 getKind :: String -> REPL ()
 getKind typeExpr = do
     st <- lift get
     let env = typeDeclCtx $ ctx st
 
-    let res = runLexer (Text.pack typeExpr) "interactive"
-    case res of
-        Left err -> lift $ throwError (text $ errorBundlePretty err)
-        Right tks -> do
-            let res' = runParser' (type' <* eof) tks "interactive"
+    tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack typeExpr) "interactive"
 
-            case res' of
-                Left err  -> lift $ throwError (printParseError err)
-                Right t   -> do
-                    let res1 = runSugar (desugarType "interactive" t) (op st)
-                    case res1 of
-                        Left err -> lift $ throwError err
-                        Right (t, _) -> do
-                            let t1 = tiType t
-                            let k = runExcept (evalStateT (checkKI $ kindInference env t1) (ctx st))
-                            case k of
-                                Left err   -> lift $ throwError err
-                                Right kind ->
-                                    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-                                            >> putStr (show (pType (t1 :- Nothing)))
-                                            >> setSGR [Reset]
-                                            >> putStr " :: "
-                                            >> setSGR [SetColor Foreground Vivid Cyan]
-                                            >> print (pKind kind)
-                                            >> setSGR [Reset]
-                                            >> hFlush stdout
+    t <- rethrowEither printParseError $ runParser' (type' <* eof) tks "interactive"
+
+    (t, _) <- rethrowEither id $ runSugar (desugarType "interactive" t) (op st)
+
+    let t1 = tiType t
+    kind <- rethrowEither id $ runExcept (evalStateT (checkKI $ kindInference env t1) (ctx st))
+
+    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
+        >> putStr (show (pType (t1 :- Nothing)))
+        >> setSGR [Reset]
+        >> putStr " :: "
+        >> setSGR [SetColor Foreground Vivid Cyan]
+        >> print (pKind kind)
+        >> setSGR [Reset]
+        >> hFlush stdout
 
 execCode :: String -> REPL ()
 execCode stat = do
     st <- lift get
-    let res = runLexer (Text.pack stat) "interactive"
-    case res of
-        Left err -> lift $ throwError (text $ errorBundlePretty err)
-        Right x -> do
-            let res' = runParser' ((Right <$> try (expression <* eof)) <|> (Left <$> (program <* eof))) x "interactive"
+    x <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack stat) "interactive"
 
-            case res' of
-                Left err -> lift $ throwError (printParseError err)
-                Right s ->
-                    case s of
-                        Right e -> do
-                            let res1 = runSugar ( do { accumulateOnExpression e
-                                                        ; desugarExpression "interactive" e } ) (op st)
-                            case res1 of
-                                Left err -> lift $ throwError err
-                                Right (e, _) -> do
-                                    let t   = inferExpr (ctx st) e
-                                    case t of
-                                        Left err -> lift $ throwError err
-                                        Right _ -> do
-                                            res <- liftIO . runExceptT $ runReaderT (evaluate e) (values st)
-                                            case res of
-                                                Left err      -> lift $ throwError err
-                                                Right evalRes -> liftIO $ setSGR [SetColor Foreground Vivid Cyan]
-                                                                        >> print evalRes
-                                                                        >> setSGR [Reset]
-                                                                        >> hFlush stdout
+    rethrowEither printParseError (runParser' (eitherP (try (expression <* eof)) (program <* eof)) x "interactive")
+     >>= \case
+        Left e -> do
+            (e, _) <- rethrowEither id $ runSugar
+                ( do { accumulateOnExpression e
+                     ; desugarExpression "interactive" e } ) (op st)
 
-                        Left p  -> do
-                            let res1 = runSugar (runDesugarer "interactive" (p :- Nothing)) (op st)
-                            case res1 of
-                                Left err -> lift $ throwError err
-                                Right (p'@(Program ss :- _), state') -> do
-                                    lift . modify $ \st -> st { op = state' }
+            rethrowEither id $ inferExpr (ctx st) e
 
-                                    case runTypeInference (ctx st) (tiProgram p') of
-                                        Left err -> lift $ throwError err
-                                        Right (_, state') -> do
-                                            lift . modify $ \st' -> st' { ctx = state' }
+            evalRes <- lift . lift $ runReaderT (evaluate e) (values st)
 
-                                            forM_ ss $ \case
-                                                Definition id' expr :- _ -> do
-                                                    st'   <- lift get
-                                                    eval' <- liftIO . runExceptT $ runReaderT (evaluate expr) (values st')
+            liftIO $ setSGR [SetColor Foreground Vivid Cyan]
+                >> print evalRes
+                >> setSGR [Reset]
+                >> hFlush stdout
 
-                                                    case eval' of
-                                                        Left err -> lift $ throwError err
-                                                        Right evalRes -> lift . modify $ \st' -> st' { values = let env = values st'
-                                                                                                                in env { vals = Map.insert id' evalRes (vals env) }}
-                                                _                   -> pure ()
+        Right p  -> do
+            (p'@(Program ss :- _), state') <- rethrowEither id $ runSugar (runDesugarer "interactive" (p :- Nothing)) (op st)
+
+            lift . modify $ \st -> st { op = state' }
+
+            (_, state') <- rethrowEither id $ runTypeInference (ctx st) (tiProgram p')
+
+            lift . modify $ \st' -> st' { ctx = state' }
+
+            forM_ ss $ \case
+                Definition id' expr :- _ -> do
+                    st'   <- lift get
+                    evalRes <- lift . lift $ runReaderT (evaluate expr) (values st')
+
+                    lift . modify $ \st' -> st' { values = let env = values st'
+                                                           in env { vals = Map.insert id' evalRes (vals env) }}
+                _                   -> pure ()
 
 execTime :: String -> REPL ()
 execTime expr = do
     st <- lift get
-    let res = runLexer (Text.pack expr) "interactive"
-    case res of
-        Left err -> lift $ throwError (text $ errorBundlePretty err)
-        Right tks -> do
-            let e = runParser' (try expression <* eof) tks "interactive"
-            case e of
-                Left err     -> lift $ throwError (printParseError err)
-                Right e -> do
-                    let res1 = runSugar ( do { accumulateOnExpression e
-                                                ; desugarExpression "interactive" e } ) (op st)
-                    case res1 of
-                        Left err -> lift $ throwError err
-                        Right (e, _) -> do
-                            let t   = inferExpr (ctx st) e
-                            case t of
-                                Left err -> lift $ throwError err
-                                Right _ -> do
-                                    (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (values st)
-                                    case res of
-                                        Left err      -> lift $ throwError err
-                                        Right evalRes ->
-                                            liftIO $ setSGR [SetColor Foreground Vivid Cyan]
-                                                >> print evalRes
-                                                >> setSGR [Reset]
-                                                >> hFlush stdout
+    tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
-                                    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-                                        >> putStrLn ("Time taken: " <> secs t)
-                                        >> setSGR [Reset]
-                                        >> hFlush stdout
+    e <- rethrowEither printParseError $ runParser' (try expression <* eof) tks "interactive"
+
+    (e, _) <- rethrowEither id $ runSugar
+        ( do { accumulateOnExpression e
+             ; desugarExpression "interactive" e } ) (op st)
+
+    rethrowEither id $ inferExpr (ctx st) e
+
+    (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (values st)
+    case res of
+        Left err      -> lift $ throwError err
+        Right evalRes ->
+            liftIO $ setSGR [SetColor Foreground Vivid Cyan]
+                >> print evalRes
+                >> setSGR [Reset]
+                >> hFlush stdout
+
+    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
+        >> putStrLn ("Time taken: " <> secs t)
+        >> setSGR [Reset]
+        >> hFlush stdout
 
 execBench :: Integer -> String -> REPL ()
 execBench n expr = do
     st <- lift get
 
-    let res = runLexer (Text.pack expr) "interactive"
-    case res of
-        Left err -> lift $ throwError (text $ errorBundlePretty err)
-        Right tks -> do
-            let e = runParser' (try expression <* eof) tks "interactive"
-            case e of
-                Left err     -> lift $ throwError (printParseError err)
-                Right e -> do
-                    let res1 = runSugar ( do { accumulateOnExpression e
-                                                ; desugarExpression "interactive" e } ) (op st)
-                    case res1 of
-                        Left err -> lift $ throwError err
-                        Right (e, _) -> do
-                            let t   = inferExpr (ctx st) e
-                            case t of
-                                Left err -> lift $ throwError err
-                                Right _ -> do
-                                    t' <- liftIO . replicateM (fromIntegral n) . time $ runExceptT $ runReaderT (evaluate e) (values st)
+    tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
-                                    let t   = map (uncurry const) t'
-                                        min = minimum t
-                                        max = maximum t
-                                        avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
-                                        stddev =
-                                            let sigma = sum $ map ((^ 2) . subtract avg) t
-                                            in sqrt (sigma / fromIntegral n)
+    e <- rethrowEither printParseError $ runParser' (try expression <* eof) tks "interactive"
 
-                                    liftIO $ do
-                                        setSGR [SetColor Foreground Vivid Yellow]
-                                        putStrLn $ "Results for " <> show n <> " runs:"
-                                        putStrLn $ "> Minimum: " <> secs min
-                                        putStrLn $ "> Maximum: " <> secs max
-                                        putStrLn $ "> Average: " <> secs avg
-                                        putStrLn $ "> Std dev: " <> secs stddev
-                                        setSGR [Reset]
-                                        hFlush stdout
+    (e, _) <- rethrowEither id $ runSugar
+        ( do { accumulateOnExpression e
+             ; desugarExpression "interactive" e } ) (op st)
+
+    rethrowEither id $ inferExpr (ctx st) e
+
+    t' <- liftIO . replicateM (fromIntegral n) . time . runExceptT $ runReaderT (evaluate e) (values st)
+
+    let t   = map (uncurry const) t'
+        min = minimum t
+        max = maximum t
+        avg = uncurry (/) . foldr (\e (s, c) -> (e + s, c + 1)) (0.0, 0.0) $ t
+        stddev =
+            let sigma = sum $ map ((^ 2) . subtract avg) t
+            in sqrt (sigma / fromIntegral n)
+
+    liftIO $ do
+        setSGR [SetColor Foreground Vivid Yellow]
+        putStrLn $ "Results for " <> show n <> " runs:"
+        putStrLn $ "> Minimum: " <> secs min
+        putStrLn $ "> Maximum: " <> secs max
+        putStrLn $ "> Average: " <> secs avg
+        putStrLn $ "> Std dev: " <> secs stddev
+        setSGR [Reset]
+        hFlush stdout
 
 getEnv :: REPL ()
 getEnv = do
@@ -364,3 +302,7 @@ time f = do
 
 printParseError :: (Stream s, ShowErrorComponent e) => ParseErrorBundle s e -> Doc
 printParseError = text . concatMap parseErrorTextPretty . bundleErrors
+
+-- | Rethrows the 'Either' computation, applying the function on the error, or returning the result.
+rethrowEither :: (e -> REPLError) -> Either e a -> REPL a
+rethrowEither f = either (lift . throwError . f) pure
