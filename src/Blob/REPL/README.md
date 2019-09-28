@@ -58,7 +58,7 @@ These are the current options which can be modified and that will be recognized 
 | Option name | Default value | Description
 |:-----------:|:-------------:|-------------
 | `prompt`    | `">"`         | Modify the REPL prompt symbol
-| `preload`   | `[""]`        | Add files to preload each time the REPL is launched
+| `preload`   | `[]`          | Add files to preload each time the REPL is launched
 
 Here is an example sample:
 ```haskell
