@@ -97,7 +97,7 @@ loadFile file = do
                             Right (ast, state') -> do
                                 lift . modify $ \ st -> st { op = state' }
 
-                                case programTypeInference (ctx st'') (tiProgram ast) of
+                                case runTypeInference (ctx st'') (tiProgram ast) of
                                     Left err          -> lift $ throwError err
                                     Right (_, state') -> do
                                         lift . modify $ \st' -> st' { ctx = state' }
@@ -217,7 +217,7 @@ execCode stat = do
                                 Right (p'@(Program ss :- _), state') -> do
                                     lift . modify $ \st -> st { op = state' }
 
-                                    case programTypeInference (ctx st) (tiProgram p') of
+                                    case runTypeInference (ctx st) (tiProgram p') of
                                         Left err -> lift $ throwError err
                                         Right (_, state') -> do
                                             lift . modify $ \st' -> st' { ctx = state' }

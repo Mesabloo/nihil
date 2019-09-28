@@ -505,5 +505,5 @@ tiProgram (Program stmts :- _) = do
         sepTypeDecls ((s :- _):ss) = (s:) <$> sepTypeDecls ss
 
 -- Runs the type inference given a 'GlobalEnv' and an action.
-programTypeInference :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
-programTypeInference g p = runExcept (runStateT p g)
+runTypeInference :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
+runTypeInference g p = runExcept (runStateT p g)
