@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase, TupleSections #-}
 
+-- | This module holds all the parsing-specific functions
 module Blob.Language.Parsing.Parser where
 
 import Blob.Language.Lexing.Types hiding (Parser)
@@ -11,7 +12,7 @@ import Data.Functor
 import Data.Maybe
 import qualified Data.Text as Text
 import qualified Data.Char as Ch
-import Text.Megaparsec hiding (Token, match)
+import Text.Megaparsec hiding (Token, match, runParser')
 import Control.Applicative (liftA2)
 import Data.Void
 
@@ -112,6 +113,7 @@ definition = do
 
 ------------------------------------------------------------------------------------------
 
+-- | A function for getting the position in the source, as well as the current indentation, for a specific lexeme.
 getPositionInSource :: Parser a -> Parser (SourcePos, SourcePos, a)
 getPositionInSource p = do
     (_, SourceSpan pInit _) <- getPositionAndIndent
@@ -122,6 +124,7 @@ getPositionInSource p = do
 
     pure (pInit, pEnd, res)
 
+-- | A function which checks whether the next token is on the same line, or more indented than the last one.
 sameLineOrIndented :: (Int, SourceSpan) -> Parser a -> Parser a
 sameLineOrIndented (indent, SourceSpan beg end) p = do
     (i, SourceSpan b _) <- try getPositionAndIndent
@@ -132,6 +135,7 @@ sameLineOrIndented (indent, SourceSpan beg end) p = do
             <|> fail ("Possible incorrect indentation (should be greater than " <> show indent <> ")")
         p
 
+-- | A function which checks whether two tokens are on the same indentation level.
 sameIndented :: (Int, SourceSpan) -> Parser a -> Parser a
 sameIndented (indent, _) p = do
     (i, _) <- try getPositionAndIndent
@@ -139,6 +143,7 @@ sameIndented (indent, _) p = do
         <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
     p
 
+-- | A function which checks whether two tokens are on the same line, or aligned on multiple lines.
 sameIndentedOrLine :: (Int, SourceSpan) -> Parser a -> Parser a
 sameIndentedOrLine (indent, SourceSpan beg end) p = do
     (i, SourceSpan b _) <- try getPositionAndIndent
@@ -149,6 +154,7 @@ sameIndentedOrLine (indent, SourceSpan beg end) p = do
             <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
         p
 
+-- | A function which checks if a token is not indented.
 nonIndented :: Parser a -> Parser a
 nonIndented p = do
     (i, _) <- try getPositionAndIndent
@@ -156,6 +162,7 @@ nonIndented p = do
         <|> fail "Possible incorrect indentation (should equal 0)"
     p
 
+-- | A simple function for returning the current indentation level, as well as the position.
 getPositionAndIndent :: Parser (Int, SourceSpan)
 getPositionAndIndent =
     "any token" <??> try (lookAhead anySingle)
@@ -228,9 +235,11 @@ string = "string" <??> sat >>= \(_, _, LString s) -> pure (Text.unpack s)
 
 ------------------------------------------------------------------------------------------
 
+-- | A 'Parser' which does nothing.
 nothing :: Parser ()
 nothing = pure ()
 
+-- | The @flip@ped version of @'<?>'@.
 (<??>) :: String -> Parser a -> Parser a
 (<??>) = flip (<?>)
 infix 0 <??>
@@ -450,11 +459,11 @@ patTerm = do
 
 --------------------------------------------------------------------------------------------------------------
 
+-- | A simple wrapper function for running the 'program' 'Parser' on a stream of 'Token's.
 runParser :: [Token] -> String -> Either (ParseErrorBundle [TokenL] Void) Program
-runParser tks fileName = Text.Megaparsec.runParser program fileName (mapMaybe f tks)
-  where f (_, _, Nothing) = Nothing
-        f (indent, spos, Just x) = Just (indent, spos, x)
+runParser = runParser' program
 
+-- | A simple wrapper function for running a 'Parser' on a stream of 'Token's.
 runParser' :: Parser a -> [Token] -> String -> Either (ParseErrorBundle [TokenL] Void) a
 runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks)
   where f (_, _, Nothing) = Nothing
@@ -462,5 +471,6 @@ runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks
 
 -------------------------------------------------------------------------------------------------------------
 
+-- | The list of reserved operators in the language.
 rOps :: [String]
 rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒", "!" ]

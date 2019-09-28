@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies, RecordWildCards, FlexibleInstances #-}
 
+-- | This module holds the types for the parsing step.
 module Blob.Language.Parsing.Types where
 
 import qualified Data.Map as Map
@@ -9,8 +10,10 @@ import Text.Megaparsec
 import Data.Proxy
 import Data.Void
 
+-- | A simple parser working with a stream of tokens.
 type Parser = Parsec Void [TokenL]
 
+-- | A basic token type (should be the one from 'Blob.Language.Lexing.Types')
 type TokenL = (Int, SourceSpan, Lexeme)
 
 instance Stream [TokenL] where
@@ -43,69 +46,82 @@ instance Stream [TokenL] where
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
+-- | A simple program AST node containing many statement nodes.
 type Program = [Annotated Statement]
 
+-- | A simple statement AST node, which may be:
 data Statement
-    = Declaration String (Annotated Type)
-    | Definition String [Annotated Pattern] (Annotated Expr)
-    | OpFixity String (Annotated Fixity)
-    | TypeDeclaration String [String] (Annotated CustomType)
-    | Empty
+    = Declaration String (Annotated Type)                     -- ^ A function declaration | @name :: type@
+    | Definition String [Annotated Pattern] (Annotated Expr)  -- ^ A function definition | @name args = expression@
+    | OpFixity String (Annotated Fixity)                      -- ^ An operator precedence declaration | @infixr 3 (++)@
+    | TypeDeclaration String [String] (Annotated CustomType)  -- ^ A type declaration | @data X = Y@ or @type X = Y@
+    | Empty                                                   -- ^ An unsupported kind of statement
     deriving (Show, Eq, Ord)
 
+-- | A simple expression AST node containing many atom nodes.
 type Expr = [Annotated Atom]
 
+-- | A simple atom AST node, which can be:
 data Atom
-    = ALit Literal
-    | AId String
-    | AOperator String
-    | AList [Annotated Expr]
-    | ATuple [Annotated Expr]
-    | AHole
-    | ALambda [Annotated Pattern] (Annotated Expr)
-    | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]
-    | AParens (Annotated Expr)
-    | AApp (Annotated Atom) (Annotated Atom)
-    | AAnn (Annotated Expr) (Annotated Type)
-    | ALet ([Annotated Pattern], Annotated Expr) (Annotated Expr)
+    = ALit Literal                                                     -- ^ A literal
+    | AId String                                                       -- ^ An identifier
+    | AOperator String                                                 -- ^ An operator
+    | AList [Annotated Expr]                                           -- ^ A list
+    | ATuple [Annotated Expr]                                          -- ^ A tuple
+    | AHole                                                            -- ^ A type hole
+    | ALambda [Annotated Pattern] (Annotated Expr)                     -- ^ An anonymous function (lambda function)
+    | AMatch (Annotated Expr) [([Annotated Pattern], Annotated Expr)]  -- ^ A @match@ expression
+    | AParens (Annotated Expr)                                         -- ^ A parenthesized expression
+    | AApp (Annotated Atom) (Annotated Atom)                           -- ^ A function application
+    | AAnn (Annotated Expr) (Annotated Type)                           -- ^ A type-annotated expression
+    | ALet ([Annotated Pattern], Annotated Expr) (Annotated Expr)      -- ^ A @let@ expression
     deriving (Show, Ord, Eq)
 
+-- | A simple pattern AST node, which might be:
 data Pattern
-    = PId String
-    | PLit Literal
-    | PCtor String [[Annotated Pattern]]
-    | PTuple [[Annotated Pattern]]
-    | PList [[Annotated Pattern]]
-    | PHole
-    | PParens [Annotated Pattern]
-    | POperator String
-    | PAnn [Annotated Pattern] (Annotated Type)
-    | PLinear (Annotated Pattern)
+    = PId String                                 -- ^ An identifier
+    | PLit Literal                               -- ^ A literal
+    | PCtor String [[Annotated Pattern]]         -- ^ A data type constructor
+    | PTuple [[Annotated Pattern]]               -- ^ A tuple
+    | PList [[Annotated Pattern]]                -- ^ A list
+    | PHole                                      -- ^ A wildcard
+    | PParens [Annotated Pattern]                -- ^ A parenthesized pattern
+    | POperator String                           -- ^ An operator
+    | PAnn [Annotated Pattern] (Annotated Type)  -- ^ A type-annotated pattern
+    | PLinear (Annotated Pattern)                -- ^ A non-linear pattern
     deriving (Show, Ord, Eq)
 
+-- | A simple literal AST node, which may be:
 data Literal
-    = LInt Integer
-    | LChr Char
-    | LDec Double
-    | LStr String
+    = LInt Integer  -- ^ An integer
+    | LChr Char     -- ^ A character
+    | LDec Double   -- ^ A float
+    | LStr String   -- ^ A string
     deriving (Show, Ord, Eq)
 
+-- | A data type for holding the fixity of an operator
 data Fixity
     = Infix Associativity Integer String
     deriving (Show, Eq, Ord)
 
+-- | A data type showing the associativity of an operator (Left, Right or None)
 data Associativity = L | R | N
     deriving (Show, Eq, Ord)
 
+-- | A simple type AST node, which can be:
 data Type
-    = TId String            -- Type
-    | TTuple [Annotated Type]         -- (a, b, ...)
-    | TList [Annotated Type]          -- [a, b, ...]
-    | TFun (Annotated Type) (Annotated Type)        -- a -o b ...
-    | TVar String           -- a...
-    | TApp [Annotated Type]        -- Type a...
-    | TNonLinear (Annotated Type)
+    = TId String                              -- ^ An identifier
+    | TTuple [Annotated Type]                 -- ^ A tuple
+    | TList [Annotated Type]                  -- ^ A list
+    | TFun (Annotated Type) (Annotated Type)  -- ^ A linear function
+    | TVar String                             -- ^ A rigid type variable
+    | TApp [Annotated Type]                   -- ^ A type application
+    | TNonLinear (Annotated Type)             -- ^ A non-linear type
     deriving (Show, Eq, Ord)
 
-data CustomType = TSum (Map.Map String [Annotated Type]) | TAlias (Annotated Type) | TGADT (Map.Map String (Annotated Type))
+-- | A custom type AST node, which might be:
+data CustomType
+    = TSum (Map.Map String [Annotated Type])   -- ^ A sum type
+    | TAlias (Annotated Type)                  -- ^ A type alias
+    | TGADT (Map.Map String (Annotated Type))  -- ^ A GADT (Generalized ADT)
     deriving (Show, Eq, Ord)
