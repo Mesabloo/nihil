@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments, LambdaCase #-}
 
+-- | This module contains all the pretty-printing functions concerning the AST.
 module Blob.Language.Pretty.Parser
 ( pProgram
 , pStatement
@@ -14,9 +15,11 @@ import Data.List (intersperse)
 import qualified Data.Map as Map (foldr)
 import Blob.Language.Parsing.Annotation
 
+-- | The default indentation level for the pretty printing
 indentLevel :: Int
 indentLevel = 4
 
+-- | Program pretty printing
 pProgram :: Program -> Doc
 pProgram (Program []) = text "Program []"
 pProgram (Program stt) =
@@ -24,6 +27,7 @@ pProgram (Program stt) =
         printStatements s = mconcat $ map (flip (<>) linebreak . printStatement) s
     in text "Program [" <$$> printStatements stt <> text "]"
 
+-- | Statement pretty printing
 pStatement :: Annotated Statement -> Doc
 pStatement (Declaration name t :- _) =
     text "Declaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Type = " <> pType t)
@@ -42,6 +46,7 @@ pStatement (TypeDeclaration name _ custom :- _) =
     in text "TypeDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> printCustom custom)
 pStatement _ = text "-- Unimplemented pretty printing"
 
+-- | Unused pretty printing
 pFixity :: Fixity -> Doc
 pFixity (Infix assoc prec _) =
     let printAssoc = \case
@@ -50,6 +55,7 @@ pFixity (Infix assoc prec _) =
                          _ -> text "infix"
     in printAssoc assoc <+> text (show prec)
 
+-- | Expression pretty printing
 pExpression :: Annotated Expr -> Doc
 pExpression (ELit l :- _) = pLiteral l
   where pLiteral (LDec d) = text (show d)
@@ -71,6 +77,7 @@ pExpression (EApp e1 e2 :- _) = pExpression e1 <+> parenthesizeIfNeeded e2
 pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "::" <+> pType t
 pExpression (ELet (f, x) e :- _) = text "let" <+> pPattern f <+> text "=" <+> pExpression x <$$> text "in" <+> pExpression e
 
+-- | Pattern pretty printing
 pPattern :: Annotated Pattern -> Doc
 pPattern (PInt i :- _) = text (show i)
 pPattern (PDec d :- _) = text (show d)
@@ -87,6 +94,7 @@ pPattern (PCtor name args :- _) =
             PCtor _ _ -> parens (pPattern (p :- p_))
             _ -> pPattern (p :- p_)
 
+-- | Type pretty printing
 pType :: Annotated Type -> Doc
 pType (t :- _) = case t of
     TId i -> text i

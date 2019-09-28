@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | This module contains all the functions related to pretty printing of types and kinds.
 module Blob.Language.Pretty.Inference
 ( pType
 , pKind
@@ -10,6 +11,7 @@ import Blob.Language.TypeChecking.Types (TVar(..), Type(..), Kind(..))
 import Data.List (intersperse)
 import Blob.Language.Parsing.Annotation
 
+-- | Type pretty printing
 pType :: Annotated Type -> Doc
 pType (t :- _) = case t of
     TVar (TV i) -> text i
@@ -30,6 +32,7 @@ pType (t :- _) = case t of
             TFun _ _ -> parens $ pType (t :- Nothing)
             _ -> pType (t :- Nothing)
 
+-- | Kind pretty printing
 pKind :: Kind -> Doc
 pKind (KVar id')      = text id'
 pKind KType           = text "*"
