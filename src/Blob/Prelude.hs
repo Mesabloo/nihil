@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
+-- | This module holds all the built-in functions/types from the language.
 module Blob.Prelude where
 
 import Blob.Interpreter.Types (Value(..), Scope, EvalState(..))
@@ -8,6 +9,7 @@ import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen (text)
 import Control.Monad.Except (throwError)
 
+-- | The default environment used when evaluatingan expression.
 defaultEnv :: Scope Value
 defaultEnv = Map.fromList [ ("+", addF)
                           , ("-", subF)
@@ -67,56 +69,66 @@ defaultEnv = Map.fromList [ ("+", addF)
     readF = HLam $ \x -> pure x
     makeF = HLam $ \x -> pure x
 
-
+-- | The default types of the built-in functions.
 defaultDeclContext :: Map.Map String Scheme
 defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                    -- (+) :: a -o a -o a
                                   , ("-", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                    -- (-) :: a -o a -o a
                                   , ("*", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                    -- (*) :: a -o a -o a
                                   , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
+                                    -- (/) :: a -o a -o a
                                   , ("kill", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [])
+                                    -- kill :: !a -o ()
                                   , ("dupl", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [TBang (TVar $ TV "a"), TBang (TVar $ TV "a")])
+                                    -- dupl :: !a -o (!a, !a)
                                   , ("read", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TVar (TV "a"))
-                                  , ("make", Scheme [TV "a"] $ (TVar $ TV "a") `TFun` TBang (TVar $ TV "a")) ]
+                                    -- read :: !a -o a
+                                  , ("make", Scheme [TV "a"] $ (TVar $ TV "a") `TFun` TBang (TVar $ TV "a"))
+                                    -- make :: a -o !a
+                                  ]
 
+-- | A duplicate of the above default environment.
 defaultDefContext :: Map.Map String Scheme
 defaultDefContext = defaultDeclContext
 
+-- | The default kinds of the built-in types.
 defaultTypeDeclContext :: Map.Map String Kind
 defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
+                                            -- Integer :: *
                                       , ("Float",   KType)
-                                    --   , ("String",  KType)
+                                            -- Float :: *
                                       , ("Char",    KType)
+                                            -- Char :: *
                                       , ("[]",      KType `KArr` KType)
-                                    --   , ("Either",  KType `KArr` KType `KArr` KType)
-                                    --   , ("Maybe",   KType `KArr` KType)
-                                      , ("()",      KType) ]
+                                            -- ([]) :: * -> *
+                                      , ("()",      KType)
+                                            -- (()) :: *
+                                      ]
 
+-- | The default types of the built-in data type constructors.
 defaultCtorsContext :: Map.Map String Scheme
 defaultCtorsContext = Map.fromList [ (":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TApp (TId "[]") $ TVar $ TV "a") (TApp (TId "[]") . TVar $ TV "a")))
+                                        -- (:) :: a -o [a] -o [a]
                                    , ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
-                                --    , ("Left", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "a") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
-                                --    , ("Right", Scheme [TV "a", TV "b"] $ TFun (TVar $ TV "b") (TApp (TApp (TId "Either") (TVar $ TV "a")) (TVar $ TV "b")))
-                                --    , ("Just", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TApp (TId "Maybe") (TVar $ TV "a")))
-                                --    , ("Nothing", Scheme [TV "a"] $ TApp (TId "Maybe") (TVar $ TV "a"))
-                                   , ("()", Scheme [] $ TId "()") ]
+                                        -- ([]) :: [a]
+                                   , ("()", Scheme [] $ TId "()")
+                                        -- (()) :: ()
+                                   ]
 
+-- | All the built-in Types with their constructors.
 defaultTypeDefContext :: Map.Map String CustomScheme
 defaultTypeDefContext = Map.fromList [ ("[]", CustomScheme ["a"] . TSum $
                                                     Map.fromList [ ("[]", defaultCtorsContext Map.! "[]")
                                                                  , ( ":", defaultCtorsContext Map.! ":") ])
-                                    --  , ("Either", CustomScheme ["a", "b"] . TSum $
-                                    --                 Map.fromList [ ("Left", defaultCtorsContext Map.! "Left")
-                                    --                              , ("Right", defaultCtorsContext Map.! "Right") ])
-                                    --  , ("Maybe", CustomScheme ["a"] . TSum $
-                                    --                 Map.fromList [ ("Just", defaultCtorsContext Map.! "Just")
-                                    --                              , ("Nothing", defaultCtorsContext Map.! "Nothing") ])
-                                    --  , ("String", CustomScheme [] . TAlias $ TApp (TId "[]") TChar)
                                      , ("()", CustomScheme [] . TSum $
                                                     Map.fromList [ ("()", defaultCtorsContext Map.! "()") ])
                                      , ("Integer", CustomScheme [] (TAlias TInt))
                                      , ("Double", CustomScheme [] (TAlias TFloat))
                                      , ("Char", CustomScheme [] (TAlias TChar)) ]
 
+-- | The default 'GlobalEnv' for type checking.
 initGlobalEnv :: GlobalEnv
 initGlobalEnv =
     GlobalEnv { typeDeclCtx = defaultTypeDeclContext
@@ -124,6 +136,7 @@ initGlobalEnv =
               , defCtx      = TypeEnv defaultDefContext
               , ctorCtx     = TypeEnv defaultCtorsContext }
 
+-- | The default 'EvalState' for the evaluation process.
 initEvalState :: EvalState
 initEvalState =
     EvalState { vals  = defaultEnv
