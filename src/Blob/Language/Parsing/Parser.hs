@@ -173,8 +173,8 @@ nonIndented p = do
 -- | A simple function for returning the current indentation level, as well as the position.
 getPositionAndIndent :: Parser (Int, SourceSpan)
 getPositionAndIndent =
-    "any token" <??> try (lookAhead anySingle)
-        >>= \(i, p, t) -> pure (i, p)
+    try (lookAhead anySingle)
+        >>= \(i, p, _) -> pure (i, p)
 
 keyword :: String -> Parser TokenL
 keyword s = ("keyword \"" <> s <> "\"") <??> satisfy (\(_, _, t) -> case t of
@@ -316,10 +316,15 @@ expression = "expression" <??> do
     (pInit, pEnd, (a, ty)) <- getPositionInSource $ do
         as <- some (sameLineOrIndented iPos atom)
         optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (as,)
+    w <- optional . try . getPositionInSource . sameLineOrIndented iPos $ do
+        where'
 
-    case ty of
-        Nothing -> pure (a :- Just (SourceSpan pInit pEnd))
-        Just t  -> pure $ [AAnn (a :- Just (SourceSpan pInit pEnd)) t :- Just (SourceSpan pInit pEnd)] :- Just (SourceSpan pInit pEnd)
+    let expr = case ty of
+            Nothing -> a :- Just (SourceSpan pInit pEnd)
+            Just t  -> [AAnn (a :- Just (SourceSpan pInit pEnd)) t :- Just (SourceSpan pInit pEnd)] :- Just (SourceSpan pInit pEnd)
+    case w of
+        Nothing -> pure expr
+        Just (wInit, wEnd, ss) -> pure $ [AWhere expr ss :- Just (SourceSpan pInit wEnd)] :- Just (SourceSpan pInit wEnd)
 
 atom :: Parser (Annotated Atom)
 atom = try operator <|> expr
@@ -336,7 +341,9 @@ exprNoApp = do
                , ALit . LChr <$> char <?> "character"
                , ALit . LStr <$> string <?> "string"
                , AParens <$> parens expression <?> "parenthesized expression" ]
-    pure (a :- Just (SourceSpan pInit pEnd))
+
+
+    pure $ a :- Just (SourceSpan pInit pEnd)
 
 app :: Parser (Annotated Atom)
 app = do
@@ -397,6 +404,12 @@ let' = do
   where
     def :: Parser (Annotated Statement)
     def = try declaration <|> definition
+
+where' :: Parser [Annotated Statement]
+where' = do
+    keyword "where"
+    iPos2 <- try getPositionAndIndent
+    some $ aligned iPos2 (try declaration <|> definition)
 
 match :: Parser Atom
 match = do

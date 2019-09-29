@@ -272,6 +272,7 @@ syExpr fileName ((x :- p):xs) out ops = do
             ss' <- catMaybes <$> mapM (desugarStatement fileName) ss
             e2' <- syExpr fileName e2 [] []
             pure $ D.ELet ss' e2' :- p
+        P.AWhere e ss -> syExpr fileName ((P.ALet ss e :- p):xs) out ops
         P.AOperator _ -> undefined -- ! should never happen
 
     syExpr fileName xs (e:out) ops
