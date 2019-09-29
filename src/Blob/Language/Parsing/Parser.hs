@@ -143,6 +143,14 @@ sameIndented (indent, _) p = do
         <|> fail ("Possible incorrect indentation (should equal " <> show indent <> ")")
     p
 
+-- | A function checking whether two tokens are aligned (same column) or not.
+aligned :: (Int, SourceSpan) -> Parser a -> Parser a
+aligned (_, SourceSpan b1 _) p = do
+    (_, SourceSpan b2 _) <- try getPositionAndIndent
+    guard (sourceColumn b1 == sourceColumn b2)
+        <|> fail ("Possible incorrect alignment (should be on column " <> show (sourceColumn b2) <> ")")
+    p
+
 -- | A function which checks whether two tokens are on the same line, or aligned on multiple lines.
 sameIndentedOrLine :: (Int, SourceSpan) -> Parser a -> Parser a
 sameIndentedOrLine (indent, SourceSpan beg end) p = do
@@ -381,18 +389,14 @@ let' :: Parser Atom
 let' = do
     iPos <- getPositionAndIndent
     keyword "let"
-    pats <- sameLineOrIndented iPos def
+    iPos2 <- getPositionAndIndent
+    stts <- sameLineOrIndented iPos . some $ aligned iPos2 def
     sameIndentedOrLine iPos $ keyword "in"
     e <- sameLineOrIndented iPos expression
-    pure $ ALet pats e
+    pure $ ALet stts e
   where
-    def :: Parser ([Annotated Pattern], Annotated Expr)
-    def = do
-        iPos <- getPositionAndIndent
-        pats <- some patTerm
-        sameLineOrIndented iPos $ symbol "="
-        e <- sameLineOrIndented iPos expression
-        pure (pats, e)
+    def :: Parser (Annotated Statement)
+    def = try declaration <|> definition
 
 match :: Parser Atom
 match = do

@@ -11,6 +11,7 @@ module Blob.Language.Pretty.Parser
 import Blob.Language.Desugaring.Types (Program(..), Statement(..), Type(..), Expr(..), Literal(..), Pattern(..), Scheme(..), CustomType(..))
 import Blob.Language.Parsing.Types (Associativity(..), Fixity(..))
 import Text.PrettyPrint.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import Data.List (intersperse)
 import qualified Data.Map as Map (foldr)
 import Blob.Language.Parsing.Annotation
@@ -30,9 +31,9 @@ pProgram (Program stt) =
 -- | Statement pretty printing
 pStatement :: Annotated Statement -> Doc
 pStatement (Declaration name t :- _) =
-    text "Declaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Type = " <> pType t)
+    text name <+> text "::" <+> pType t
 pStatement (Definition name e :- _) =
-    text "Definition:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Value = " <> pExpression e)
+    text name <+> text "=" <+> pExpression e
 -- pStatement (OpFixity name fix) =
 --     text "OpDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Fixity = " <> pFixity fix)
 pStatement (TypeDeclaration name _ custom :- _) =
@@ -75,7 +76,8 @@ pExpression (EApp e1 e2 :- _) = pExpression e1 <+> parenthesizeIfNeeded e2
             EMatch{} -> parens $ pExpression (p :- p_)
             _ -> pExpression (p :- p_)
 pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "::" <+> pType t
-pExpression (ELet (f, x) e :- _) = text "let" <+> pPattern f <+> text "=" <+> pExpression x <$$> text "in" <+> pExpression e
+pExpression (ELet (s:ss) e :- _) = align (text "let" <+> align (foldl (PP.<$>) (pStatement s) (pStatement <$> ss)) PP.<$> (text "in" <+> pExpression e))
+pExpression _ = text "error: the impossible happened while pretty printing!"
 
 -- | Pattern pretty printing
 pPattern :: Annotated Pattern -> Doc

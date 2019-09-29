@@ -1,9 +1,9 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, TupleSections #-}
 
 -- | This module holds all the interpreting functions.
 module Blob.Interpreter.Eval where
 
-import Blob.Language.Desugaring.Types (Expr(..), Literal(..), Pattern(..))
+import Blob.Language.Desugaring.Types (Expr(..), Literal(..), Pattern(..), Statement(..))
 import qualified Data.Map as Map
 import Blob.Interpreter.Types
 import Control.Monad.Reader
@@ -27,10 +27,11 @@ evaluate (EId id' :- _)          = do
 evaluate (ETuple es :- _)        = VTuple <$> mapM evaluate es
 evaluate (ELam x e :- _)         = VLam x e <$> asks vals
     -- Do not unwrap the lambda, as an argument has not been given yet
-evaluate (ELet (p, v) e :- _)    = do
-    v' <- evaluate v
-    val <- unpackPattern v' p <|> makeMatchError
-    local (\env -> env { vals = val <> vals env }) $
+evaluate (ELet ss e :- _)    = do
+    env' <- (catMaybes <$>) . forM ss $ \case
+        Definition name expr :- _ -> Just . (name,) <$> evaluate expr
+        _ -> pure Nothing
+    local (\env -> env { vals = Map.fromList env' <> vals env }) $
         evaluate e
 evaluate (EApp f x :- _)         = do
     x' <- evaluate x

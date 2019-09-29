@@ -28,6 +28,7 @@ import Blob.Language.Parsing.Annotation
 import Data.Functor.Invariant (invmap)
 import Debug.Trace
 import Data.Functor (($>), (<&>))
+import Data.Maybe
 
 -- | Runs the inference monad given as argument.
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -43,15 +44,15 @@ inferExpr env ex = do
     pure . closeOver $ apply subst ty
 
 -- | Infers the definition of a function given a 'GlobalEnv', the name of the function and its value as an 'Expr'.
-inferDef :: GlobalEnv -> String -> Annotated Expr -> Check ()
-inferDef env name def =
+inferDef :: GlobalEnv -> String -> Annotated Expr -> Maybe Type -> Check ()
+inferDef env name def t1 =
     let res = runInfer env $
             do var <- fresh "#"
                (t, c) <- inEnv (name, Scheme [] var) $ infer def
                pure (t, c <> [(t, var)])
     in case res of
         Left err -> throwError err
-        Right ((t,c),_) -> case runSolve env c of
+        Right ((t,c),_) -> case runSolve env ((if isNothing t1 then ([] <>) else ((t, fromJust t1) :)) c) of
             Left err -> throwError err
             Right x -> case runHoleInspect x of
                 Left err -> throwError err
@@ -198,14 +199,32 @@ infer (e :- _) = case e of
     EAnn e t -> do
         (t', c) <- infer e
         pure (t', (tiType t, t') : c)
-    ELet (pat, val) e -> do
-        (t1, c1, env) <- inferPattern pat
+    ELet stts e -> do
+        let inferStatement name = \case
+                This def ->
+                    do  var <- fresh "&"
+                        (t, c) <- inEnv (name, Scheme [] var) $ infer def
+                        pure (Scheme [] t, c <> [(t, var)])
+                That _ -> throwError $ makeBindLackError name
+                These def decl ->
+                    do  var <- fresh "&"
+                        (t, c) <- inEnv (name, Scheme [] var) $ infer def
+                        (s, cs) <- pure (Scheme [] t, c <> [(t, var)])
+                        pure (s, (t, tiType decl) : cs)
 
-        let lins = uncurry getLinearity <$> Map.toList env
+            sepStatements' [] = ([], [])
+            sepStatements' ((Definition name def :- _):xs) = first ((name, def) :) $ sepStatements' xs
+            sepStatements' ((Declaration name decl :- _):xs) = second ((name, decl) :) $ sepStatements' xs
+            sepStatements' (_:xs) = sepStatements' xs
+        map' <- sequence $ uncurry (alignWithKey inferStatement)
+                    (bimap Map.fromList Map.fromList $ sepStatements' stts)
 
-        (t2, c2) <- inEnvMany (Map.toList env) (withLinMany lins $ infer val)
+        let env = Map.map fst map'
+            cs = concat . Map.elems $ Map.map snd map'
+            lins = uncurry getLinearity <$> Map.toList env
+
         (t3, c3) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e)
-        pure (t3, (t1, t2) : c1 <> c2 <> c3)
+        pure (t3, cs <> c3)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
 
@@ -446,7 +465,7 @@ sepStatements = uncurry (liftA2 (,)) . bimap (foldDecls makeRedefinedError mempt
 handleStatement :: String -> These (Annotated Expr) (Annotated TP.Type) -> Check ()
 handleStatement name (This def)      = do
     e <- get
-    inferDef e name def
+    inferDef e name def Nothing
 handleStatement name (That _)        = throwError $ makeBindLackError name
 handleStatement name (These def typ) = do
     let ti     = tiType typ
@@ -454,7 +473,7 @@ handleStatement name (These def typ) = do
     checkKI $ kiScheme gen'ed
 
     e <- get
-    inferDef e name def
+    inferDef e name def (Just ti)
 
 -- | Kind checks a type declaration.
 analyseTypeDecl :: String -> CustomScheme -> Check ()

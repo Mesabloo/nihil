@@ -98,10 +98,10 @@ desugarType fileName (P.TNonLinear t :- p) =
 
 -- | Desugars a 'P.Expr' into a 'D.Expr'.
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
-desugarExpression _ expr = do
+desugarExpression fileName expr = do
     let (e :- p) = expr
 
-    syExpr e [] []
+    syExpr fileName e [] []
 
 
 -- operators accumulator
@@ -144,6 +144,8 @@ accumulateOnAtom (P.AParens e :- _) = accumulateOnExpression e
 accumulateOnAtom (P.AApp a1 a2 :- _) = do
     accumulateOnAtom a1
     accumulateOnAtom a2
+accumulateOnAtom (P.AAnn e t :- _) = accumulateOnExpression e
+accumulateOnAtom (P.ALet stts e :- _) = mapM_ accumulateOnStatement stts *> accumulateOnExpression e
 accumulateOnAtom _ = pure ()
 
 -- | Accumulates operator fixities in 'P.Pattern's.
@@ -179,11 +181,12 @@ runSugar = runExcept .: runStateT
 -- Shunting Yard Algorithm for expressions
 
 -- | Run the Shunting Yard Algorithm on an expression.
-syExpr :: P.Expr                -- ^ Input expression
+syExpr :: String                -- ^ File name
+          -> P.Expr             -- ^ Input expression
           -> [Annotated D.Expr] -- ^ Output stack
           -> [String]           -- ^ Operator stack
           -> D.Sugar (Annotated D.Expr)
-syExpr [] out ops =
+syExpr fileName [] out ops =
     if null out
     then pure $ D.EId "()" :- Nothing
     else addOperators ops out
@@ -195,9 +198,9 @@ syExpr [] out ops =
             then throwError $ makeUnexpectedOperatorError o
             else let (e1:e2:es) = out
                  in addOperators os ((D.EApp (D.EApp (D.EId o :- Nothing) e2 :- Nothing) e1 :- Nothing) : es)
-syExpr ((P.AOperator o :- _):xs) out ops = do
+syExpr fileName ((P.AOperator o :- _):xs) out ops = do
     (out', ops') <- handleOperator o out ops
-    syExpr xs out' ops'
+    syExpr fileName xs out' ops'
   where
     handleOperator :: String -> [Annotated D.Expr] -> [String] -> D.Sugar ([Annotated D.Expr], [String])
     -- ^ Adds the operator on top of the operator stack, popping other operators if needed
@@ -218,7 +221,7 @@ syExpr ((P.AOperator o :- _):xs) out ops = do
                         let (e1:e2:es') = out
                         in handleOperator o ((D.EApp (D.EApp (D.EId o1 :- Nothing) e2 :- Nothing) e1 :- Nothing) : es') os
                 else pure (out, o : os)
-syExpr ((x :- p):xs) out ops = do
+syExpr fileName ((x :- p):xs) out ops = do
     ops' <- gets D.fixities
 
     e <- case x of
@@ -229,26 +232,26 @@ syExpr ((x :- p):xs) out ops = do
         P.ALit (P.LInt i) -> pure $ D.ELit (D.LInt i) :- p
         P.ALit (P.LDec d) -> pure $ D.ELit (D.LDec d) :- p
         P.AApp a1 a2 -> do
-            e1 <- syExpr [a1] [] []
-            e2 <- syExpr [a2] [] []
+            e1 <- syExpr fileName [a1] [] []
+            e2 <- syExpr fileName [a2] [] []
 
             pure (D.EApp e1 e2 :- p)
-        P.AParens (a :- _) -> syExpr a [] []
+        P.AParens (a :- _) -> syExpr fileName a [] []
         P.ALambda ss (e :- p1) -> do
-            e' <- syExpr e [] []
+            e' <- syExpr fileName e [] []
             args <- mapM (\p -> syPat [p] [] []) ss
 
             pure $ foldr (flip (:-) Nothing .: D.ELam) e' args
         P.ATuple es -> do
-            es' <- forM es $ \(e :- _) -> syExpr e [] []
+            es' <- forM es $ \(e :- _) -> syExpr fileName e [] []
 
             pure $ D.ETuple es' :- p
         P.AList es -> do
-            es' <- forM es $ \(e :- _) -> syExpr e [] []
+            es' <- forM es $ \(e :- _) -> syExpr fileName e [] []
 
             pure $ getAnnotated (foldr (\t acc -> D.EApp (D.EApp (D.EId ":" :- Nothing) t :- Nothing) acc :- Nothing) (D.EId "[]" :- Nothing) es') :- p
         P.AMatch (e :- p1) cases -> do
-            toMatch <- syExpr e [] []
+            toMatch <- syExpr fileName e [] []
             branches <- mapM (uncurry handleBranch) cases
 
             pure $ D.EMatch toMatch branches :- p
@@ -257,23 +260,21 @@ syExpr ((x :- p):xs) out ops = do
             handleBranch [] _ = undefined
             handleBranch pats (branch :- p1) = do
                 p' <- syPat pats [] []
-                e1 <- syExpr branch [] []
+                e1 <- syExpr fileName branch [] []
 
                 pure (p', e1)
         P.AAnn (e :- p1) t -> do
-            e' <- syExpr e [] []
+            e' <- syExpr fileName e [] []
             t' <- desugarType "" t
 
             pure $ D.EAnn e' t' :- p
-        P.ALet (ps, e1 :- p1) (e2 :- p2) -> do
-            ps' <- mapM (\p -> syPat [p] [] []) ps
-            let (p':ps'') = ps'
-            e1' <- syExpr e1 [] []
-            e2' <- syExpr e2 [] []
-            pure $ D.ELet (p', foldr (flip (:-) Nothing .: D.ELam) e1' ps'') e2' :- p
+        P.ALet ss (e2 :- p2) -> do
+            ss' <- catMaybes <$> mapM (desugarStatement fileName) ss
+            e2' <- syExpr fileName e2 [] []
+            pure $ D.ELet ss' e2' :- p
         P.AOperator _ -> undefined -- ! should never happen
 
-    syExpr xs (e:out) ops
+    syExpr fileName xs (e:out) ops
 
 -- shunting yard for patterns
 

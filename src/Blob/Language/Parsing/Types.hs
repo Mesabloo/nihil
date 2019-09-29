@@ -74,7 +74,7 @@ data Atom
     | AParens (Annotated Expr)                                         -- ^ A parenthesized expression
     | AApp (Annotated Atom) (Annotated Atom)                           -- ^ A function application
     | AAnn (Annotated Expr) (Annotated Type)                           -- ^ A type-annotated expression
-    | ALet ([Annotated Pattern], Annotated Expr) (Annotated Expr)      -- ^ A @let@ expression
+    | ALet [Annotated Statement] (Annotated Expr)                      -- ^ A @let@ expression
     deriving (Show, Ord, Eq)
 
 -- | A simple pattern AST node, which might be:

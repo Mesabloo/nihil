@@ -20,7 +20,7 @@ data Expr
     | EMatch (Annotated Expr) [(Annotated Pattern, Annotated Expr)]   -- ^ A @match@ expression (pattern-matching)
     | EHole                                                           -- ^ A type hole
     | EAnn (Annotated Expr) (Annotated Type)                          -- ^ An annotated expression
-    | ELet (Annotated Pattern, Annotated Expr) (Annotated Expr)       -- ^ A @let@ expression
+    | ELet [Annotated Statement] (Annotated Expr)       -- ^ A @let@ expression
     deriving (Show, Eq, Ord)
 
 -- | The 'Pattern' AST Node, either:
