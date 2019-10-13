@@ -13,6 +13,7 @@ import Data.Maybe (fromJust, maybe)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
+import Control.Lens
 
 import Text.PrettyPrint.Leijen (text, linebreak, dot)
 
@@ -33,14 +34,14 @@ concatKindSubsts = foldr composeKindSubst nullKindSubst
 -- | Runs the kind checking algorithm.
 runKI :: KindEnv -> KI a -> (Either KIError a, KIState)
 runKI env ki = runState (runReaderT (runExceptT ki) env) initKIState
-  where initKIState = KIState { kiSupply = 0 }
+  where initKIState = KIState { _kiSupply = 0 }
 
 -- | Generates a new kind variable with the prefix given as argument.
 newKindVar :: String -> KI Kind
 newKindVar prefix = do
-    s <- get
-    put s { kiSupply = kiSupply s + 1 }
-    pure $ KVar (prefix <> show (kiSupply s))
+    s <- use kiSupply
+    kiSupply += 1
+    pure $ KVar (prefix <> show s)
 
 -- | Binds a kind variable to a kind
 kindVarBind :: String -> Kind -> KI KindSubst

@@ -29,11 +29,12 @@ import Data.Functor.Invariant (invmap)
 import Debug.Trace
 import Data.Functor (($>), (<&>))
 import Data.Maybe
+import Control.Lens
 
 -- | Runs the inference monad given as argument.
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
 runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
-  where initInfer = InferState { count = 0, linearities = mempty }
+  where initInfer = InferState { _count = 0, _linearities = mempty }
 
 -- | Solves the type for a given 'Expr' in a given 'GlobalEnv'.
 inferExpr :: GlobalEnv -> Annotated Expr -> Either TIError Scheme
@@ -56,10 +57,8 @@ inferDef env name def t1 =
             Left err -> throwError err
             Right x -> case runHoleInspect x of
                 Left err -> throwError err
-                Right _ -> modify $ \st -> st
-                    { defCtx = let env' = defCtx st
-                                   tv = Map.singleton name (closeOver (apply x t)) `Map.union` getMap env'
-                               in TypeEnv tv }
+                Right _ ->
+                    defCtx %= (TypeEnv . (Map.singleton name (closeOver (apply x t)) `Map.union`) . getMap)
 
 
 -- | Returns the internal constraints used in solving for the type of an expression.
@@ -80,47 +79,45 @@ inEnv :: (String, Scheme) -> Infer a -> Infer a
 inEnv (x, sc) m =
     flip local m $ do
         env <- ask
-        let ctx = getMap $ defCtx env
-        pure $ env { defCtx = TypeEnv $ getMap (remove (TypeEnv ctx) x `extend` (x, sc)) `Map.union` ctx }
+        let ctx = env ^. defCtx . to getMap
+        pure $ env & defCtx .~ (TypeEnv $ getMap (remove (TypeEnv ctx) x `extend` (x, sc)) `Map.union` ctx)
 
 -- | Extends the type environment with multiple entries.
 inEnvMany :: [(String, Scheme)] -> Infer a -> Infer a
 inEnvMany list m = do
     let map' = Map.fromList list
-    local (\e -> e { defCtx = TypeEnv $ map' `Map.union` getMap (defCtx e) }) m
+    local (defCtx %~ TypeEnv . (map' `Map.union`) . getMap) m
 
 -- | Extends the linearity state with a single entry.
 withLin :: (String, Linearity) -> Infer a -> Infer a
 withLin nl i = do
-    s <- gets linearities
+    s <- use linearities
     uncurry putLin nl
-    i <* modify (\st -> st { linearities = s })
+    i <* (linearities .= s)
 
 -- | Extends the linearity state with multiple entries.
 withLinMany :: [(String, Linearity)] -> Infer a -> Infer a
 withLinMany nls i = do
-    s <- gets linearities
+    s <- use linearities
     mapM_ (uncurry putLin) nls
-    res <- i
-    modify $ \st -> st { linearities = s }
-    pure res
+    i <* (linearities .= s)
 
 -- | Returns the type of a constant/function from the environment.
 lookupEnv :: String -> Infer Type
 lookupEnv x = do
-    env <- asks (getMap . defCtx)
-    env' <-  asks (getMap . ctorCtx)
-    case Map.lookup x env <|> Map.lookup x env' of
+    env <- defCtx `views` (Map.lookup x . getMap)
+    env' <- ctorCtx `views` (Map.lookup x . getMap)
+    case env <|> env' of
         Nothing   ->  throwError $ makeUnboundVarError x
         Just s    ->  instantiate s
 
 -- | Returns the 'Linearity' of a constant from the state.
 lookupLin :: String -> Infer (Maybe Linearity)
-lookupLin x = gets (Map.lookup x . linearities)
+lookupLin x = linearities `uses` Map.lookup x
 
 -- | Puts a 'Linearity' into the state.
 putLin :: String -> Linearity -> Infer ()
-putLin x l = modify $ \st -> st { linearities = Map.insert x l (linearities st) }
+putLin x l = linearities %= Map.insert x l
 
 -- | Gets the 'Linearity' from a 'Scheme'.
 getLinearity :: String -> Scheme -> (String, Linearity)
@@ -131,10 +128,10 @@ getLinearity name (Scheme _ t) = (name,) $ case t of
 -- | Creates a new type variable with a given prefix.
 fresh :: String -> Infer Type
 fresh v = do
-    s <- get
-    put s { count = count s + 1 }
+    s <- use count
+    count += 1
 
-    let id' = v <> show (count s)
+    let id' = v <> show s
     pure . TVar $ TV id'
 
 -- | Instantiate a 'Scheme' to produce a fresh 'Type'.
@@ -151,7 +148,7 @@ generalize env t  = Scheme as t
 
 -- | Transforms all the free type variables into rigid type variables in a given 'Type'.
 rigidify :: Type -> Type
-rigidify t = let subst = Map.fromList . Set.toList $ Set.map (\v -> (v, TRigid v)) (ftv t)
+rigidify t = let subst = Map.fromList . Set.toList $ Set.map (ap (,) TRigid) (ftv t)
              in apply subst t
 
 -- | Transforms all the rigid type variables into free type variables in a given 'Type'.
@@ -287,8 +284,8 @@ inferPattern (p :- _) = case p of
     -- | Returns the 'Scheme' of a constructor.
     lookupCtor :: String -> Infer Scheme
     lookupCtor id' = do
-        env <- asks (getMap . ctorCtx)
-        case Map.lookup id' env of
+        env <- ctorCtx `views` (Map.lookup id' . getMap)
+        case env of
             Nothing -> throwError $ makeUnboundVarError id'
             Just x  -> pure x
 
@@ -356,7 +353,7 @@ unifies t1           t2           =
 unifyCustom :: Type -> Type -> Solve Subst
 unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
   where go (TApp t1' t2') args = go t1' (t2':args)
-        go (TId i) args = asks (Map.lookup i . typeDefCtx) >>= \case
+        go (TId i) args = typeDefCtx `views` Map.lookup i >>= \case
             Just (CustomScheme tvs (TAlias t)) ->
                 let sub = Map.fromList (zipWith (\k v -> (TV k, v)) tvs args)
                 in unifies (apply sub t) t3
@@ -371,7 +368,7 @@ unifyCustom _ _ = undefined -- ! never happening
 -- | Unifies a type with a type alias, searching in the environment.
 unifyAlias :: String -> Type -> Solve Subst
 unifyAlias name t1 =
-    asks (Map.lookup name . typeDefCtx) >>= \case
+    typeDefCtx `views` Map.lookup name >>= \case
         Just (CustomScheme _ (TAlias t2)) -> unifies t2 t1
         Just _ ->
             let (Scheme _ st1) = closeOver t1
@@ -391,10 +388,10 @@ solver (su, cs) = case cs of
 -- | Binds a type variable to a type, checking for infinite types.
 bind :: TVar -> Type -> Solve Subst
 bind a t | t == TVar a     = case a of
-                        TV (h:id') | h == '_' ->
+                        TV (h:_) | h == '_' ->
                             let (Scheme _ st) = closeOver t
                             in throwError $ makeHoleError st
-                                   | otherwise -> pure nullSubst
+                        _ -> pure nullSubst
          | occursCheck a t = throwError $ makeOccurError a t
          | otherwise       = pure $ Map.singleton a t
 
@@ -501,10 +498,9 @@ analyseTypeDecl k v = do
             pure ctors
         _          -> pure $ Map.fromList []
 
-    modify $ \st -> st { typeDefCtx  = Map.insert k v (typeDefCtx st)
-                       , typeDeclCtx = Map.insert k kind (typeDeclCtx st)
-                       , ctorCtx     = let (TypeEnv env) = ctorCtx st
-                                       in TypeEnv (schemes `Map.union` env) }
+    typeDefCtx %= Map.insert k v
+    typeDeclCtx %= Map.insert k kind
+    ctorCtx %= (TypeEnv . (schemes `Map.union`) . getMap)
 
 -- | Unfold the parameters and the return type from a type.
 unfoldParams :: Type -> ([Type], Type)

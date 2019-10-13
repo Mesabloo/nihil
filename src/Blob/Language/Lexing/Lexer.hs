@@ -13,6 +13,7 @@ import qualified Data.Char as Ch
 import qualified Data.Text as Text
 import Data.Functor
 import Data.Void
+import Control.Lens
 
 -- | The main function, used to transform a source file into a list of tokens.
 tokens :: Parser [Token]
@@ -26,19 +27,19 @@ eolI = do
         satisfy isEndOfLine
         indent
 
-    i <- gets currentIndent
+    i <- use currentIndent
     pure (i, SourceSpan pInit pEnd, Nothing)
 
 -- | The internal indentation calculator used in @eolI@.
 indent :: Parser ()
 indent = do
     indent' <- length <$> space'
-    put $ LexState indent'
+    currentIndent .= indent'
 
 -- | This function parses a keyword
 keyword :: Parser Token
 keyword = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
 
     (pInit, pEnd, kw) <- getPositionInSource $
         LKeyword <$> (choice (C.string <$> kwords) <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace)))
@@ -52,7 +53,7 @@ keyword = lexeme $ do
 -- > string ::= '"', anyCharButEOL, '"' ;
 stringL :: Parser Token
 stringL = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, s) <- getPositionInSource $
         LString <$> (C.char '"' *> takeWhileP (Just "unescaped character") (/= '"') <* C.char '"')
 
@@ -65,7 +66,7 @@ stringL = lexeme $ do
 -- > integer ::= { decimalNumber } ;
 integerL :: Parser Token
 integerL = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, int) <- getPositionInSource $
         L.decimal <&> LInteger
 
@@ -78,7 +79,7 @@ integerL = lexeme $ do
 -- > float ::= [ '-' ], { decimalNumber }, ',', { decimalNumber } ;
 floatL :: Parser Token
 floatL = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, flo) <- getPositionInSource $
         L.float <&> LFloat
 
@@ -91,7 +92,7 @@ floatL = lexeme $ do
 -- > character ::= '\'', anyCharButEOL, '\'' ;
 charL :: Parser Token
 charL = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, chr) <- getPositionInSource $
         LChar <$> (C.char '\'' *> anySingle <* C.char '\'')
 
@@ -106,7 +107,7 @@ charL = lexeme $ do
 -- > symbolCharacter ::= '!' | '#' | '$' | '%' | '&' | '.' | '<' | '=' | '>' | '?' | '^' | '~' | '|' | '@' | '*' | '/' | '-' | ':' ;
 symbol :: Parser Token
 symbol = do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, s) <- getPositionInSource $
         (LSymbol <$> lexeme (C.string "-o" <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace))))
         <|> (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→⊸λ⇒∷" :: String)))
@@ -121,7 +122,7 @@ symbol = do
 -- > identifier ::= lowerChar, { alphaNumChar | '_' | '\'' } ;
 identifier :: Parser Token
 identifier = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, ident) <- getPositionInSource $
         LLowIdentifier <$> (p >>= check)
 
@@ -137,7 +138,7 @@ identifier = lexeme $ do
 -- > identifier' ::= upperChar, { alphaNumChar | '_' | '\'' } ;
 identifier' :: Parser Token
 identifier' = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, ident) <- getPositionInSource $
         LUpIdentifier . Text.pack <$> ((:) <$> C.upperChar <*> many (C.alphaNumChar <|> satisfy (liftA2 (||) (== '_') (== '\''))))
 
@@ -150,7 +151,7 @@ identifier' = lexeme $ do
 -- > wildcard ::= { '_' } ;
 wildcard :: Parser Token
 wildcard = lexeme $ do
-    i <- gets currentIndent
+    i <- use currentIndent
     (pInit, pEnd, w) <- getPositionInSource $
         LWildcard <$ some (C.char '_')
 

@@ -40,10 +40,11 @@ dependencies:
 - optparse-applicative
 - filepath
 - insert-ordered-containers
-- JellyVM
+# - JellyVM
 - invariant
 - umap
 - conf
+- lens
 
 name: Blob
 version: 0.1.0.0

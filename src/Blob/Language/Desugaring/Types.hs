@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, RecordWildCards, TemplateHaskell #-}
 
 -- | This modules holds the types for the desugaring process.
 module Blob.Language.Desugaring.Types where
@@ -9,6 +9,7 @@ import Control.Monad.Except
 import qualified Blob.Language.Parsing.Types as P (Fixity)
 import Text.PrettyPrint.Leijen (Doc)
 import Blob.Language.Parsing.Annotation
+import Control.Lens
 
 -- | The 'Expr' AST Node, either:
 data Expr
@@ -92,5 +93,6 @@ type Sugar = StateT SugarState (Except Doc)
 
 -- | The state used in the 'Sugar' monad.
 newtype SugarState
-    = SugarState { fixities :: Map.Map String P.Fixity -- ^ Contains all the declared operator fixities
+    = SugarState { _fixities :: Map.Map String P.Fixity -- ^ Contains all the declared operator fixities
                  }
+makeLenses ''SugarState

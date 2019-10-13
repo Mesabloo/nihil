@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module holds the types for the kind checking process
 module Blob.Language.KindChecking.Types where
 
@@ -9,14 +11,17 @@ import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (ExceptT)
 import Data.Maybe (fromMaybe)
 import Blob.Language.TypeChecking.Types (Kind(..), KindEnv)
+import Control.Lens
 
 -- | The error type (convenient for showing).
 type KIError = Doc
 
 -- | The state used in the kind checking.
 newtype KIState
-    = KIState { kiSupply :: Int -- ^ The index for kind name generation
+    = KIState { _kiSupply :: Int -- ^ The index for kind name generation
               }
+
+makeLenses ''KIState
 
 -- | The 'KI' monad is used for the kind checking.
 type KI a = ExceptT KIError (ReaderT KindEnv (State KIState)) a

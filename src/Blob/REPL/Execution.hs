@@ -34,6 +34,7 @@ import Blob.Language.KindChecking.Checker
 import Criterion.Measurement (secs, getTime)
 import Blob.Interpreter.Types
 import Blob.Prelude
+import Control.Lens hiding (op)
 
 helpCommand :: IO ()
 helpCommand = do
@@ -83,37 +84,35 @@ loadFile file = do
         tks           <- rethrowEither (text . errorBundlePretty) (runLexer content file)
         parseTree     <- rethrowEither printParseError (runParser tks file)
 
-        let state' = op st''
+        let state' = st'' ^. op
         (ast, state') <- rethrowEither id $ runSugar (runDesugarer file (parseTree :- Nothing)) state'
 
-        lift . modify $ \ st -> st { op = state' }
-        (_, state')   <- rethrowEither id $ runTypeInference (ctx st'') (tiProgram ast)
-
-        lift . modify $ \st' -> st' { ctx = state' }
+        op .= state'
+        (_, state')   <- rethrowEither id $ runTypeInference (st'' ^. ctx) (tiProgram ast)
+        ctx .= state'
 
         let (Program stmts) = getAnnotated ast
 
         forM_ stmts $ \case
             Definition id' expr :- _ -> do
-                st'' <- lift get
-                evalRes <- lift . lift $ runReaderT (evaluate expr) (values st'')
+                st'' <- get
+                evalRes <- lift . lift $ runReaderT (evaluate expr) (st'' ^. values)
 
-                lift . modify $ \st' -> st' { values = let env = values st'
-                                                        in env { vals = Map.insert id' evalRes (vals env) } }
+                values . vals %= Map.insert id' evalRes
             _                   -> pure ()
 
 getType :: String -> REPL ()
 getType expr = do
-    st <- lift get
+    st <- get
     tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
     e <- rethrowEither printParseError $ runParser' (expression <* eof) tks "interactive"
 
     (e, _) <- rethrowEither id $ runSugar
         (do { accumulateOnExpression e
-            ; desugarExpression "interactive" e } ) (op st)
+            ; desugarExpression "interactive" e } ) (st ^. op)
 
-    (Scheme _ type') <- rethrowEither id $ inferExpr (ctx st) e
+    (Scheme _ type') <- rethrowEither id $ inferExpr (st ^. ctx) e
 
     liftIO $ setSGR [SetColor Foreground Vivid Yellow]
         >> putStr (show (pExpression e))
@@ -126,17 +125,16 @@ getType expr = do
 
 getKind :: String -> REPL ()
 getKind typeExpr = do
-    st <- lift get
-    let env = typeDeclCtx $ ctx st
+    st <- get
 
     tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack typeExpr) "interactive"
 
     t <- rethrowEither printParseError $ runParser' (type' <* eof) tks "interactive"
 
-    (t, _) <- rethrowEither id $ runSugar (desugarType "interactive" t) (op st)
+    (t, _) <- rethrowEither id $ runSugar (desugarType "interactive" t) (st ^. op)
 
     let t1 = tiType t
-    kind <- rethrowEither id $ runExcept (evalStateT (checkKI $ kindInference env t1) (ctx st))
+    kind <- rethrowEither id $ runExcept (evalStateT (checkKI $ kindInference (st ^. ctx . typeDeclCtx) t1) (st ^. ctx))
 
     liftIO $ setSGR [SetColor Foreground Vivid Yellow]
         >> putStr (show (pType (t1 :- Nothing)))
@@ -149,7 +147,7 @@ getKind typeExpr = do
 
 execCode :: String -> REPL ()
 execCode stat = do
-    st <- lift get
+    st <- get
     x <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack stat) "interactive"
 
     rethrowEither printParseError (runParser' (eitherP (try (expression <* eof)) (program <* eof)) x "interactive")
@@ -157,11 +155,11 @@ execCode stat = do
         Left e -> do
             (e, _) <- rethrowEither id $ runSugar
                 ( do { accumulateOnExpression e
-                     ; desugarExpression "interactive" e } ) (op st)
+                     ; desugarExpression "interactive" e } ) (st ^. op)
 
-            rethrowEither id $ inferExpr (ctx st) e
+            rethrowEither id $ inferExpr (st ^. ctx) e
 
-            evalRes <- lift . lift $ runReaderT (evaluate e) (values st)
+            evalRes <- lift . lift $ runReaderT (evaluate e) (st ^. values)
 
             liftIO $ setSGR [SetColor Foreground Vivid Cyan]
                 >> print evalRes
@@ -169,37 +167,34 @@ execCode stat = do
                 >> hFlush stdout
 
         Right p  -> do
-            (p'@(Program ss :- _), state') <- rethrowEither id $ runSugar (runDesugarer "interactive" (p :- Nothing)) (op st)
+            (p'@(Program ss :- _), state') <- rethrowEither id $ runSugar (runDesugarer "interactive" (p :- Nothing)) (st ^. op)
 
-            lift . modify $ \st -> st { op = state' }
-
-            (_, state') <- rethrowEither id $ runTypeInference (ctx st) (tiProgram p')
-
-            lift . modify $ \st' -> st' { ctx = state' }
+            op .= state'
+            (_, state') <- rethrowEither id $ runTypeInference (st ^. ctx) (tiProgram p')
+            ctx .= state'
 
             forM_ ss $ \case
                 Definition id' expr :- _ -> do
-                    st'   <- lift get
-                    evalRes <- lift . lift $ runReaderT (evaluate expr) (values st')
+                    st'   <- get
+                    evalRes <- lift . lift $ runReaderT (evaluate expr) (st' ^. values)
 
-                    lift . modify $ \st' -> st' { values = let env = values st'
-                                                           in env { vals = Map.insert id' evalRes (vals env) }}
+                    values . vals %= Map.insert id' evalRes
                 _                   -> pure ()
 
 execTime :: String -> REPL ()
 execTime expr = do
-    st <- lift get
+    st <- get
     tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
     e <- rethrowEither printParseError $ runParser' (try expression <* eof) tks "interactive"
 
     (e, _) <- rethrowEither id $ runSugar
         ( do { accumulateOnExpression e
-             ; desugarExpression "interactive" e } ) (op st)
+             ; desugarExpression "interactive" e } ) (st ^. op)
 
-    rethrowEither id $ inferExpr (ctx st) e
+    rethrowEither id $ inferExpr (st ^. ctx) e
 
-    (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (values st)
+    (t, res) <- liftIO . time . runExceptT $ runReaderT (evaluate e) (st ^. values)
     case res of
         Left err      -> lift $ throwError err
         Right evalRes ->
@@ -215,7 +210,7 @@ execTime expr = do
 
 execBench :: Integer -> String -> REPL ()
 execBench n expr = do
-    st <- lift get
+    st <- get
 
     tks <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack expr) "interactive"
 
@@ -223,11 +218,11 @@ execBench n expr = do
 
     (e, _) <- rethrowEither id $ runSugar
         ( do { accumulateOnExpression e
-             ; desugarExpression "interactive" e } ) (op st)
+             ; desugarExpression "interactive" e } ) (st ^. op)
 
-    rethrowEither id $ inferExpr (ctx st) e
+    rethrowEither id $ inferExpr (st ^. ctx) e
 
-    t' <- liftIO . replicateM (fromIntegral n) . time . runExceptT $ runReaderT (evaluate e) (values st)
+    t' <- liftIO . replicateM (fromIntegral n) . time . runExceptT $ runReaderT (evaluate e) (st ^. values)
 
     let t   = map (uncurry const) t'
         min = minimum t
@@ -249,9 +244,9 @@ execBench n expr = do
 
 getEnv :: REPL ()
 getEnv = do
-    st  <- lift (gets ctx)
-    let types           = Map.toList $ typeDeclCtx st
-        (TypeEnv funs)  = defCtx st <> ctorCtx st
+    st  <- use ctx
+    let types           = Map.toList $ st ^. typeDeclCtx
+        (TypeEnv funs)  = st ^. defCtx <> st ^. ctorCtx
         funs'           = Map.toList funs
         showKinds       =
             forM_ types $
@@ -275,20 +270,18 @@ getEnv = do
 
 resetEnv :: [String] -> REPL () -> REPL ()
 resetEnv [] reload = do
-    lift . modify $ \st -> st { ctx = initGlobalEnv
-                              , values = initEvalState }
+    ctx .= initGlobalEnv
+    values .= initEvalState
+
     reload
 resetEnv [x] _ = resetOne x
 resetEnv (x:xs) r = resetOne x *> resetEnv xs r
 
 resetOne :: String -> REPL ()
-resetOne x = lift . modify $
-    \st -> st { ctx = let env = ctx st
-                          newDefs = Map.delete x (getMap $ defCtx env)
-                      in GlobalEnv (typeDeclCtx env) (typeDefCtx env) (TypeEnv newDefs) (ctorCtx env)
-              , values = let env = values st
-                             newEvals = Map.delete x (vals env)
-                         in EvalState newEvals (ctors env) }
+resetOne x = do
+    ctx . defCtx %= (TypeEnv . Map.delete x . getMap)
+    values . vals %= Map.delete x
+
 
 
 

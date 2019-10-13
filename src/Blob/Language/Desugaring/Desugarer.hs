@@ -15,6 +15,7 @@ import Data.Composition ((.:))
 import Blob.Language.Desugaring.Errors
 import Blob.Language.Lexing.Types (SourceSpan(..))
 import Data.Maybe
+import Control.Lens
 
 -- | Desugars a whole 'P.Program' into a 'D.Program'.
 desugarProgram :: String -> Annotated P.Program -> D.Sugar (Annotated D.Program)
@@ -120,7 +121,7 @@ accumulateOnProgram (p :- _) = do
 -- | Accumulates operator fixites in a 'P.Statement'.
 accumulateOnStatement :: Annotated P.Statement -> D.Sugar ()
 accumulateOnStatement (P.OpFixity _ (f@(P.Infix _ _ name) :- _) :- _) =
-    modify $ \st -> st { D.fixities = Map.insert name f (D.fixities st) }
+    D.fixities %= Map.insert name f
 accumulateOnStatement (P.Definition _ _ expr :- _) = accumulateOnExpression expr
 accumulateOnStatement _ = pure ()
 
@@ -132,7 +133,7 @@ accumulateOnExpression = mapM_ accumulateOnAtom . getAnnotated
 --
 -- In case of an unregistered operator being encountered, a default fixity of `infixl 9` is registered.
 accumulateOnAtom :: Annotated P.Atom -> D.Sugar ()
-accumulateOnAtom (P.AOperator name :- _) = modify $ \st -> st { D.fixities = Map.insertWith (flip const) name (P.Infix P.L 9 name) (D.fixities st) }
+accumulateOnAtom (P.AOperator name :- _) = D.fixities %= Map.insertWith (flip const) name (P.Infix P.L 9 name)
 accumulateOnAtom (P.AList e :- _) = mapM_ accumulateOnExpression e
 accumulateOnAtom (P.ATuple e :- _) = mapM_ accumulateOnExpression e
 accumulateOnAtom (P.ALambda _ e :- _) = accumulateOnExpression e
@@ -154,7 +155,7 @@ accumulateOnPatterns = mapM_ accumulateOnPattern
 
 -- | Accumulates operator fixities in a 'P.Pattern'.
 accumulateOnPattern :: Annotated P.Pattern -> D.Sugar ()
-accumulateOnPattern (P.POperator name :- _) = modify $ \st -> st { D.fixities = Map.insertWith (flip const) name (P.Infix P.L 9 name) (D.fixities st) }
+accumulateOnPattern (P.POperator name :- _) = D.fixities %= Map.insertWith (flip const) name (P.Infix P.L 9 name)
 accumulateOnPattern (P.PCtor _ ps :- _) = mapM_ accumulateOnPatterns ps
 accumulateOnPattern (P.PList ps :- _) = mapM_ accumulateOnPatterns ps
 accumulateOnPattern (P.PTuple ps :- _) = mapM_ accumulateOnPatterns ps
@@ -205,7 +206,7 @@ syExpr fileName ((P.AOperator o :- _):xs) out ops = do
     handleOperator :: String -> [Annotated D.Expr] -> [String] -> D.Sugar ([Annotated D.Expr], [String])
     -- ^ Adds the operator on top of the operator stack, popping other operators if needed
     handleOperator o out ops = do
-        ops' <- gets D.fixities
+        ops' <- use D.fixities
 
         if null ops
         then pure (out, [o])
@@ -222,7 +223,7 @@ syExpr fileName ((P.AOperator o :- _):xs) out ops = do
                         in handleOperator o ((D.EApp (D.EApp (D.EId o1 :- Nothing) e2 :- Nothing) e1 :- Nothing) : es') os
                 else pure (out, o : os)
 syExpr fileName ((x :- p):xs) out ops = do
-    ops' <- gets D.fixities
+    ops' <- use D.fixities
 
     e <- case x of
         P.AId id' -> pure (D.EId id' :- p)
@@ -303,7 +304,7 @@ syPat ((P.POperator o :- p):xs) out ops = do
   where handleOperator :: String -> [Annotated D.Pattern] -> [String] -> D.Sugar ([Annotated D.Pattern], [String])
         -- ^ Adds the operator on top of the operator stack, popping other operators if needed
         handleOperator o out ops = do
-            ops' <- gets D.fixities
+            ops' <- use D.fixities
 
             if null ops
             then pure (out, [o])

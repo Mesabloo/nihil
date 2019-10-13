@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, TypeSynonymInstances #-}
+{-# LANGUAGE TypeFamilies, TypeSynonymInstances, TemplateHaskell #-}
 
 -- | This module holds all the types used for the type checking.
 module Blob.Language.TypeChecking.Types where
@@ -14,6 +14,7 @@ import Data.Maybe (fromMaybe)
 import Data.Composition ((.:))
 import Control.Monad.RWS
 import Data.Bifunctor
+import Control.Lens
 
 -- | A simple wrapper for a type variable.
 newtype TVar = TV String
@@ -89,8 +90,8 @@ type Infer a = RWST
 
 -- | The state used in the 'Infer' monad.
 data InferState
-    = InferState { count :: Int                             -- ^ A counter for generating new type variables
-                 , linearities :: Map.Map String Linearity  -- ^ A mapping from the variable names to their respective 'Linearity'
+    = InferState { _count :: Int                             -- ^ A counter for generating new type variables
+                 , _linearities :: Map.Map String Linearity  -- ^ A mapping from the variable names to their respective 'Linearity'
                  }
 
 -- | The available linearities.
@@ -116,12 +117,15 @@ type Solve = ExceptT TIError (Reader GlobalEnv)
 
 -- | The typing environment used. It holds:
 data GlobalEnv = GlobalEnv
-    { typeDeclCtx :: KindEnv        -- ^ A 'Kind' environment for type correctness checking
-    , typeDefCtx  :: CustomTypeEnv  -- ^ A 'CustomType' environment for data constructor existence checking
-    , defCtx      :: TypeEnv        -- ^ A 'Type' environment for type checking and function definition checking
-    , ctorCtx     :: TypeEnv        -- ^ A 'Type' environment for type checking and data constructor checking
+    { _typeDeclCtx :: KindEnv        -- ^ A 'Kind' environment for type correctness checking
+    , _typeDefCtx  :: CustomTypeEnv  -- ^ A 'CustomType' environment for data constructor existence checking
+    , _defCtx      :: TypeEnv        -- ^ A 'Type' environment for type checking and function definition checking
+    , _ctorCtx     :: TypeEnv        -- ^ A 'Type' environment for type checking and data constructor checking
     }
     deriving Show
+
+makeLenses ''InferState
+makeLenses ''GlobalEnv
 
 -- | The type checking monad
 type Check = StateT GlobalEnv (Except TIError)

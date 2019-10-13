@@ -13,6 +13,7 @@ import Text.PrettyPrint.Leijen hiding ((<$>), empty)
 import Data.Maybe
 import Data.List.Extra (snoc)
 import Blob.Language.Parsing.Annotation
+import Control.Lens hiding (snoc)
 
 -- | Evaluates an expression.
 evaluate :: Annotated Expr -> EvalEnv Value
@@ -20,18 +21,17 @@ evaluate (ELit (LInt v) :- _)    = pure $ VInt v
 evaluate (ELit (LDec v) :- _)    = pure $ VDec v
 evaluate (ELit (LChr v) :- _)    = pure $ VChr v
 evaluate (EId id' :- _)          = do
-    val <- asks vals
-    let look = Map.lookup id' val
+    look <- vals `views` Map.lookup id'
 
     pure $ fromMaybe (VCon id' []) look
 evaluate (ETuple es :- _)        = VTuple <$> mapM evaluate es
-evaluate (ELam x e :- _)         = VLam x e <$> asks vals
+evaluate (ELam x e :- _)         = VLam x e <$> view vals
     -- Do not unwrap the lambda, as an argument has not been given yet
 evaluate (ELet ss e :- _)    = do
     env' <- (catMaybes <$>) . forM ss $ \case
         Definition name expr :- _ -> Just . (name,) <$> evaluate expr
         _ -> pure Nothing
-    local (\env -> env { vals = Map.fromList env' <> vals env }) $
+    local (vals %~ (Map.fromList env' <>)) $
         evaluate e
 evaluate (EApp f x :- _)         = do
     x' <- evaluate x
@@ -39,7 +39,7 @@ evaluate (EApp f x :- _)         = do
     case f' of
         VLam x e c -> do
             vals' <- unpackPattern x' x <|> makeMatchError
-            local (\env -> env { vals = vals' <> c <> vals env }) $
+            local (vals %~ ((vals' <> c) <>)) $
                 evaluate e
         HLam f''   -> f'' x'
         VCon id' e -> pure $ VCon id' (snoc e x')
@@ -52,7 +52,7 @@ evaluate (EAnn e _ :- _) = evaluate e
 evalBranch :: Value -> Annotated Pattern -> Annotated Expr -> EvalEnv Value
 evalBranch e pat branch = do
     s <- unpackPattern e pat
-    local (\env -> env { vals = s <> vals env }) (evaluate branch)
+    local (vals %~ (s <>)) (evaluate branch)
 
 -- | Unpacks a pattern from a value.
 --

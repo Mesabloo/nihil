@@ -39,8 +39,7 @@ customOp = do
 
     pure (op :- Just (SourceSpan pInit pEnd))
   where
-    fixity = Infix <$> choice [ keyword "infix"  $> N
-                              , keyword "infixl" $> L
+    fixity = Infix <$> choice [ keyword "infixl" $> L
                               , keyword "infixr" $> R ]
 
 customDataType :: Parser (Annotated Statement)

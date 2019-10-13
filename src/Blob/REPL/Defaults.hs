@@ -10,11 +10,11 @@ import Control.Monad.State (liftIO)
 
 -- | The default 'REPLState'.
 initREPLState :: REPLState
-initREPLState = REPLState { ctx = initGlobalEnv
-                          , values = initEvalState
-                          , op = initSugarState
-                          , prompt = "> "
-                          , preload = [] }
+initREPLState = REPLState { _ctx = initGlobalEnv
+                          , _values = initEvalState
+                          , _op = initSugarState
+                          , _prompt = "> "
+                          , _preload = [] }
 
 -- | The welcome message when starting the REPL.
 initREPL :: IO ()

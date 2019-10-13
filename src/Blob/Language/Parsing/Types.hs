@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, RecordWildCards, FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies, FlexibleInstances #-}
 
 -- | This module holds the types for the parsing step.
 module Blob.Language.Parsing.Types where

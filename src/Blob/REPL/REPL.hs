@@ -12,7 +12,7 @@ module Blob.REPL.REPL
 import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException(..), RunIO(..), defaultSettings, withInterrupt, handleInterrupt)
 import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..))
 import Control.Monad.State (StateT(..), lift, get, liftIO, gets)
-import Blob.REPL.Types (REPLError, REPLState(..), REPL, Command(..), REPLOptions(..))
+import Blob.REPL.Types
 import Blob.REPL.Commands (command)
 import Blob.REPL.Execution
 import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..))
@@ -29,6 +29,7 @@ import Blob.REPL.Defaults
 import Blob.REPL.Logger
 import Data.Conf
 import Data.Maybe
+import Control.Lens
 
 -- | Runs the REPL with no options.
 runREPL :: REPL a -> IO ()
@@ -39,7 +40,7 @@ customRunREPL :: REPL a -> REPLOptions -> IO ()
 customRunREPL r opts = do
     initREPL
 
-    let fs = preloadFiles opts
+    let fs = opts ^. preloadFiles
     let s = initREPLState
     replState <- configState s fs
 
@@ -62,7 +63,8 @@ customRunREPL r opts = do
                 >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\".")
                 >> setSGR [Reset]
                 >> hFlush stdout
-            pure $ REPLState (ctx s) (values s) (op s) (fromMaybe "> " (getConf "prompt" config)) (fromMaybe [] (getConf "preload" config) <> fs)
+            pure $ s & prompt .~ fromMaybe "> " (getConf "prompt" config)
+                     & preload .~ (fromMaybe [] (getConf "preload" config) <> fs)
 
 -- | Loads some files in the REPL.
 loadFiles :: REPL ()
@@ -71,7 +73,7 @@ loadFiles = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
             liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".") >> setSGR [Reset] >> hFlush stdout
-    fs <- lift $ gets preload
+    fs <- use preload
     forM_ (zip [1..] fs) $ \(i, f) -> check i f fs *> catchError (replCheck (Load f)) (liftIO . logError)
 
 -- | The basic loop of the REPL.
@@ -79,10 +81,10 @@ replLoop :: REPL ()
 replLoop = do
     loadFiles
 
-    forever $ withInterrupt (handleInterrupt run run)
+    forever $ withInterrupt (handleInterrupt replLoop run)
   where
     run = do
-        p <- lift (gets prompt)
+        p <- use prompt
         input <- getInputLine p
 
         case input of
@@ -112,31 +114,3 @@ replCheck = \case
     Time expr           -> execTime expr
     Bench n expr        -> execBench n expr
     Env                 -> getEnv
-
-
-
-
-
-
-
-
-
-
-
-
-
-instance MonadException m => MonadException (ExceptT e m) where
-    controlIO f = ExceptT $ controlIO $ \(RunIO run) -> let
-                    run' = RunIO (fmap ExceptT . run . runExceptT)
-                    in runExceptT <$> f run'
-
-instance MonadException m => MonadException (StateT s m) where
-    controlIO f = StateT $ \s -> controlIO $ \(RunIO run) -> let
-                    run' = RunIO (fmap (StateT . const) . run . flip runStateT s)
-                    in flip runStateT s <$> f run'
-
-instance MonadError REPLError (InputT (StateT REPLState (ExceptT REPLError IO))) where
-    throwError = lift . lift . throwError
-    m `catchError` h = do
-        let s = runInputT defaultSettings m
-        lift $ s `catchError` (runInputT defaultSettings . h)

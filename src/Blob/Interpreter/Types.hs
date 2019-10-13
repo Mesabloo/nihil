@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module holds the types for the interpreter process.
 module Blob.Interpreter.Types where
 
@@ -8,6 +10,7 @@ import Control.Monad.Except
 import qualified Data.Map as Map
 import Text.PrettyPrint.Leijen
 import Data.List (intercalate)
+import Control.Lens
 
 -- | The data type providing any sort of value, for example:
 data Value
@@ -31,10 +34,10 @@ type EvalError = Doc
 
 -- | The state used in the 'EvalEnv' monad.
 data EvalState
-    = EvalState { vals :: Scope Value  -- ^ A mapping of all the values of all the variables known
-                , ctors :: [String]    -- ^ All the data type constructors existing in the current session
+    = EvalState { _vals :: Scope Value  -- ^ A mapping of all the values of all the variables known
+                , _ctors :: [String]    -- ^ All the data type constructors existing in the current session
                 }
-
+makeLenses ''EvalState
 
 
 

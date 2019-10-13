@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module contains all the types used in the lexing process of Blob.
 module Blob.Language.Lexing.Types where
 
@@ -5,6 +7,7 @@ import Text.Megaparsec hiding (State)
 import Data.Text
 import Data.Void
 import Control.Monad.State
+import Control.Lens
 
 -- | The 'Parser' monad, holding a state for various information.
 type Parser = ParsecT Void Text (State LexState)
@@ -33,7 +36,7 @@ type Token = ( Int
 
 -- | The state of the 'Parser' monad.
 data LexState
-    = LexState { currentIndent :: Int -- ^ the indentation level of the current line
+    = LexState { _currentIndent :: Int -- ^ the indentation level of the current line
                }
 
 -- | A simple record used to hold the position of a token in the source file.
@@ -42,6 +45,8 @@ data SourceSpan
                  , end :: SourcePos   -- ^ the end position of the source span
                  }
   deriving (Ord, Eq)
+
+makeLenses ''LexState
 
 instance Show SourceSpan where
     show (SourceSpan (SourcePos _ l1 c1) (SourcePos _ l2 c2)) =

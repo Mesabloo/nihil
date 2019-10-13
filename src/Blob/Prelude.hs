@@ -131,13 +131,13 @@ defaultTypeDefContext = Map.fromList [ ("[]", CustomScheme ["a"] . TSum $
 -- | The default 'GlobalEnv' for type checking.
 initGlobalEnv :: GlobalEnv
 initGlobalEnv =
-    GlobalEnv { typeDeclCtx = defaultTypeDeclContext
-              , typeDefCtx  = defaultTypeDefContext
-              , defCtx      = TypeEnv defaultDefContext
-              , ctorCtx     = TypeEnv defaultCtorsContext }
+    GlobalEnv { _typeDeclCtx = defaultTypeDeclContext
+              , _typeDefCtx  = defaultTypeDefContext
+              , _defCtx      = TypeEnv defaultDefContext
+              , _ctorCtx     = TypeEnv defaultCtorsContext }
 
 -- | The default 'EvalState' for the evaluation process.
 initEvalState :: EvalState
 initEvalState =
-    EvalState { vals  = defaultEnv
-              , ctors = Map.keys defaultCtorsContext }
+    EvalState { _vals  = defaultEnv
+              , _ctors = Map.keys defaultCtorsContext }
