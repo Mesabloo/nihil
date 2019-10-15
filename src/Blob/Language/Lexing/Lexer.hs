@@ -231,7 +231,7 @@ getPositionInSource p = do
 
 -- | The list of keywords of the language.
 kwords :: [Text.Text]
-kwords = [ "match", "with", "data", "type", "infixl", "infixr", "infix", "where", "let", "in" ]
+kwords = [ "match", "with", "data", "type", "infixl", "infixr", "where", "let", "in", "read", "kill", "make", "dupl" ]
 
 -----------------------------------------------------------------------------------------------------------
 

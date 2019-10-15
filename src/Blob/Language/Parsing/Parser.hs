@@ -349,6 +349,7 @@ exprNoApp = do
     (pInit, pEnd, a) <- getPositionInSource $
         choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match"
                , try tuple <?> "tuple", list <?> "list", let' <?> "let expression"
+               , specialIdentifier
                , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
                , ALit . LDec <$> try float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
@@ -358,6 +359,13 @@ exprNoApp = do
 
 
     pure $ a :- Just (SourceSpan pInit pEnd)
+
+specialIdentifier :: Parser Atom
+specialIdentifier =
+    choice [ AKill <$ keyword "kill"
+           , ARead <$ keyword "read"
+           , ADupl <$ keyword "dupl"
+           , AMake <$ keyword "make" ]
 
 app :: Parser (Annotated Atom)
 app = do

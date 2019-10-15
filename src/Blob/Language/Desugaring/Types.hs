@@ -36,7 +36,11 @@ data Expr
     | EMatch (Annotated Expr) [(Annotated Pattern, Annotated Expr)]   -- ^ A @match@ expression (pattern-matching)
     | EHole                                                           -- ^ A type hole
     | EAnn (Annotated Expr) (Annotated Type)                          -- ^ An annotated expression
-    | ELet [Annotated Statement] (Annotated Expr)       -- ^ A @let@ expression
+    | ELet [Annotated Statement] (Annotated Expr)                     -- ^ A @let@ expression
+    | EKill
+    | EDupl
+    | EMake
+    | ERead
     deriving (Show, Eq, Ord)
 
 -- | The 'Pattern' AST Node, either:

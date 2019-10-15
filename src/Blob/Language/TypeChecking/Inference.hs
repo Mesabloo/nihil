@@ -49,7 +49,7 @@ import Control.Lens
 -- | Runs the inference monad given as argument.
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
 runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
-  where initInfer = InferState { _count = 0, _linearities = mempty }
+  where initInfer = InferState { _count = 0 }
 
 -- | Solves the type for a given 'Expr' in a given 'GlobalEnv'.
 inferExpr :: GlobalEnv -> Annotated Expr -> Either TIError Scheme
@@ -103,20 +103,6 @@ inEnvMany list m = do
     let map' = Map.fromList list
     local (defCtx %~ TypeEnv . (map' `Map.union`) . getMap) m
 
--- | Extends the linearity state with a single entry.
-withLin :: (String, Linearity) -> Infer a -> Infer a
-withLin nl i = do
-    s <- use linearities
-    uncurry putLin nl
-    i <* (linearities .= s)
-
--- | Extends the linearity state with multiple entries.
-withLinMany :: [(String, Linearity)] -> Infer a -> Infer a
-withLinMany nls i = do
-    s <- use linearities
-    mapM_ (uncurry putLin) nls
-    i <* (linearities .= s)
-
 -- | Returns the type of a constant/function from the environment.
 lookupEnv :: String -> Infer Type
 lookupEnv x = do
@@ -125,20 +111,6 @@ lookupEnv x = do
     case env <|> env' of
         Nothing   ->  throwError $ makeUnboundVarError x
         Just s    ->  instantiate s
-
--- | Returns the 'Linearity' of a constant from the state.
-lookupLin :: String -> Infer (Maybe Linearity)
-lookupLin x = linearities `uses` Map.lookup x
-
--- | Puts a 'Linearity' into the state.
-putLin :: String -> Linearity -> Infer ()
-putLin x l = linearities %= Map.insert x l
-
--- | Gets the 'Linearity' from a 'Scheme'.
-getLinearity :: String -> Scheme -> (String, Linearity)
-getLinearity name (Scheme _ t) = (name,) $ case t of
-        TBang _ -> Unrestricted
-        _ -> Linear
 
 -- | Creates a new type variable with a given prefix.
 fresh :: String -> Infer Type
@@ -181,23 +153,28 @@ infer (e :- _) = case e of
     ELit (LInt _) -> pure (TInt, [])
     ELit (LDec _) -> pure (TFloat, [])
     ELit (LChr _) -> pure (TChar, [])
+    EKill -> do
+        t <- fresh "#"
+        pure (TBang t `TFun` TTuple [], [])
+    EDupl -> do
+        t <- fresh "#"
+        pure (TBang t `TFun` TTuple [TBang t, TBang t], [])
+    ERead -> do
+        t <- fresh "#"
+        pure (TBang t `TFun` t, [])
+    EMake -> do
+        t <- fresh "#"
+        pure (t `TFun` TBang t, [])
     EHole -> do
         tv <- fresh "_"
         tv' <- fresh "#"
         pure (tv, [(tv, tv')])
-    EId x -> do
-        t <- lookupEnv x
-        lookupLin x >>= \case
-            Nothing -> pure (t, []) -- non linear variable (function or operator, nobody cares about them)
-            Just Unrestricted -> pure (t, [])
-            Just Linear -> putLin x Used $> (t, [])
-            Just Used -> throwError $ makeTooMuchUsagesError x
+    EId x ->
+        (, []) <$> lookupEnv x
     ELam x e' -> do
         (pat, cs, env) <- inferPattern x
 
-        let lins = uncurry getLinearity <$> Map.toList env
-
-        (t, c) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e')
+        (t, c) <- inEnvMany (Map.toList env) (infer e')
 
         pure (pat `TFun` t, cs <> c)
     EApp e1 e2 -> do
@@ -233,9 +210,8 @@ infer (e :- _) = case e of
 
         let env = Map.map fst map'
             cs = concat . Map.elems $ Map.map snd map'
-            lins = uncurry getLinearity <$> Map.toList env
 
-        (t3, c3) <- inEnvMany (Map.toList env) (withLinMany lins $ infer e)
+        (t3, c3) <- inEnvMany (Map.toList env) (infer e)
         pure (t3, cs <> c3)
     EMatch e cases -> do
         (tExp, tCon) <- infer e
@@ -243,9 +219,7 @@ infer (e :- _) = case e of
         res <- (unzip3 <$>) . forM cases $ \(pat, expr) -> do
             (patTy, patsCons, env) <- inferPattern pat
 
-            let lins = uncurry getLinearity <$> Map.toList env
-
-            (exprTy, exprCons) <- inEnvMany (Map.toList env) (withLinMany lins $ infer expr)
+            (exprTy, exprCons) <- inEnvMany (Map.toList env) (infer expr)
             pure (exprTy, patTy, exprCons <> patsCons)
 
         let (ret:xs, patsTy, pCons) = res

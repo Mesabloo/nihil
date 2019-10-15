@@ -106,15 +106,7 @@ type Infer a = RWST
 -- | The state used in the 'Infer' monad.
 data InferState
     = InferState { _count :: Int                             -- ^ A counter for generating new type variables
-                 , _linearities :: Map.Map String Linearity  -- ^ A mapping from the variable names to their respective 'Linearity'
                  }
-
--- | The available linearities.
-data Linearity
-    = Unrestricted  -- ^ Non linear
-    | Linear        -- ^ Linear but unused
-    | Used          -- ^ Linear and used
-    deriving (Show, Eq)
 
 -- | A type constraint.
 --

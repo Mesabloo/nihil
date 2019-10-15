@@ -289,6 +289,10 @@ syExpr fileName ((x :- p):xs) out ops = do
             e2' <- syExpr fileName e2 [] []
             pure $ D.ELet ss' e2' :- p
         P.AWhere e ss -> syExpr fileName ((P.ALet ss e :- p):xs) out ops
+        P.ARead -> pure (D.ERead :- p)
+        P.ADupl -> pure (D.EDupl :- p)
+        P.AKill -> pure (D.EKill :- p)
+        P.AMake -> pure (D.EMake :- p)
         P.AOperator _ -> undefined -- ! should never happen
 
     syExpr fileName xs (e:out) ops

@@ -66,9 +66,3 @@ makeGADTWrongReturnTypeError ctorName actualType expectedType =
     <> text "  > In constructor: " <> text ctorName <> linebreak
     <> text "  > Expected type:  " <> pType (expectedType :- Nothing) <> linebreak
     <> text "  > Actual type:    " <> pType (actualType :- Nothing) <> linebreak
-
-makeTooMuchUsagesError :: String -> TIError
-makeTooMuchUsagesError name =
-    text ("- The symbol \"" <> name <> "\" has already been used once in the current expression.") <> linebreak
-    <> text "- Possible fix:" <> linebreak
-    <> text ("  > Make \"" <> name <> "\" non-linear by adding `!` to its type.") <> linebreak

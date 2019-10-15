@@ -91,6 +91,10 @@ data Atom
     | AAnn (Annotated Expr) (Annotated Type)                           -- ^ A type-annotated expression
     | ALet [Annotated Statement] (Annotated Expr)                      -- ^ A @let@ expression
     | AWhere (Annotated Expr) [Annotated Statement]                    -- ^ A @where@ expression
+    | ADupl
+    | ARead
+    | AKill
+    | AMake
     deriving (Show, Ord, Eq)
 
 -- | A simple pattern AST node, which might be:
