@@ -42,7 +42,6 @@ dependencies:
 - insert-ordered-containers
 # - JellyVM
 - invariant
-- umap
 - conf
 - lens
 

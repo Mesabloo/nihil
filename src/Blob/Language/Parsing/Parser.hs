@@ -1,3 +1,18 @@
+-- Blobc, a compiler for compiling Blob source code
+-- Copyright (c) 2019 Mesabloo
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+
+-- You should have received a copy of the GNU General Public License
+-- along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 {-# LANGUAGE LambdaCase, TupleSections #-}
 
 -- | This module holds all the parsing-specific functions
@@ -334,6 +349,7 @@ exprNoApp = do
     (pInit, pEnd, a) <- getPositionInSource $
         choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match"
                , try tuple <?> "tuple", list <?> "list", let' <?> "let expression"
+               , specialIdentifier
                , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
                , ALit . LDec <$> try float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
@@ -343,6 +359,13 @@ exprNoApp = do
 
 
     pure $ a :- Just (SourceSpan pInit pEnd)
+
+specialIdentifier :: Parser Atom
+specialIdentifier =
+    choice [ AKill <$ keyword "kill"
+           , ARead <$ keyword "read"
+           , ADupl <$ keyword "dupl"
+           , AMake <$ keyword "make" ]
 
 app :: Parser (Annotated Atom)
 app = do
