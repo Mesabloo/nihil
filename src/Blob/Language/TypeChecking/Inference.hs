@@ -141,7 +141,7 @@ rigidify t = let subst = Map.fromList . Set.toList $ Set.map (ap (,) TRigid) (ft
 -- | Transforms all the rigid type variables into free type variables in a given 'Type'.
 relax :: Type -> Type
 relax (TRigid n)    = TVar n
-relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
+relax (TFun t1 t2)  = TFun (first relax t1) (relax t2)
 relax (TTuple ts)   = TTuple (map relax ts)
 relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
 relax t = t
@@ -163,12 +163,12 @@ infer (e :- _) = case e of
 
         (t, c) <- inEnvMany (Map.toList env) (infer e')
 
-        pure (pat `TFun` t, cs <> c)
+        pure ((pat, 0) `TFun` t, cs <> c)
     EApp e1 e2 -> do
         (t1, c1) <- infer e1
         (t2, c2) <- infer e2
         tv <- fresh "#"
-        pure (tv, c1 <> c2 <> [(t1, t2 `TFun` tv)])
+        pure (tv, c1 <> c2 <> [(t1, (t2, 0) `TFun` tv)])
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldMap snd ts)
@@ -247,7 +247,7 @@ inferPattern (p :- _) = case p of
 
         (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
 
-        let cons' = zip ts ts'
+        let cons' = zip (fst <$> ts) ts'
 
         pure (r, cons' <> mconcat cons, env)
   where
@@ -270,12 +270,12 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     ord = zip (nub $ fv body) (map TV letters)
 
     fv (TVar a)    = [a]
-    fv (TFun a b)  = fv a <> fv b
+    fv (TFun a b)  = fv (fst a) <> fv b
     fv (TApp a b)  = fv a <> fv b
     fv (TTuple e)  = foldMap fv e
     fv _           = []
 
-    normtype (TFun a b)       = TFun (normtype a) (normtype b)
+    normtype (TFun a b)       = TFun (first normtype a) (normtype b)
     normtype (TApp a b)       = TApp (normtype a) (normtype b)
     normtype (TTuple e)       = TTuple (map normtype e)
     normtype (TVar a@(TV x')) =
@@ -306,7 +306,7 @@ unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
 unifies (TId i) t       = unifyAlias i t
 unifies t       (TId i) = unifyAlias i t
-unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies (TFun (t1, l1) t2) (TFun (t3, l2) t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TTuple e) (TTuple e')    = unifyMany e e'
 unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies a@(TApp _ _) t = unifyCustom a t
@@ -381,7 +381,7 @@ runHoleInspect subst =
 -- | Transforms a 'TP.Type' into a 'Type', for data type compatibility.
 tiType :: Annotated TP.Type -> Type
 tiType (TP.TId id' :- _)        = TId id'
-tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
+tiType (TP.TFun t1 t2 :- _)     = TFun (first tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
 tiType (TP.TRVar id' :- _)      = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
@@ -456,7 +456,7 @@ analyseTypeDecl k v = do
     ctorCtx %= (TypeEnv . (schemes `Map.union`) . getMap)
 
 -- | Unfold the parameters and the return type from a type.
-unfoldParams :: Type -> ([Type], Type)
+unfoldParams :: Type -> ([(Type, Integer)], Type)
 unfoldParams (TFun a b) = first (a:) (unfoldParams b)
 unfoldParams t = ([], t)
 
