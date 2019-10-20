@@ -32,10 +32,6 @@ import Control.Lens hiding (snoc)
 
 -- | Evaluates an expression.
 evaluate :: Annotated Expr -> EvalEnv Value
-evaluate (EKill :- p)            = evaluate (EId "kill" :- p)
-evaluate (EDupl :- p)            = evaluate (EId "dupl" :- p)
-evaluate (ERead :- p)            = evaluate (EId "read" :- p)
-evaluate (EMake :- p)            = evaluate (EId "make" :- p)
 evaluate (ELit (LInt v) :- _)    = pure $ VInt v
 evaluate (ELit (LDec v) :- _)    = pure $ VDec v
 evaluate (ELit (LChr v) :- _)    = pure $ VChr v
@@ -85,7 +81,6 @@ unpackPattern = curry $ \case
     (VCon id' v, PCtor id'' v' :- _)
         | id' == id''                -> mconcat <$> zipWithM unpackPattern v v'
     (val, PAnn p _ :- _)             -> unpackPattern val p
-    (val, PLinear p :- _)            -> unpackPattern val p
     (VTuple vs, PTuple ps :- _)
         | length vs == length ps     -> mconcat <$> zipWithM unpackPattern vs ps
     _                                -> empty
