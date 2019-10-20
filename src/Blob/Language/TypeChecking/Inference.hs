@@ -144,7 +144,6 @@ relax (TRigid n)    = TVar n
 relax (TFun t1 t2)  = TFun (relax t1) (relax t2)
 relax (TTuple ts)   = TTuple (map relax ts)
 relax (TApp t1 t2)  = TApp (relax t1) (relax t2)
-relax (TBang t1)  = TBang (relax t1)
 relax t = t
 
 -- | Infers the 'Type' and 'Constraint's for a given 'Expr'ession.
@@ -153,18 +152,6 @@ infer (e :- _) = case e of
     ELit (LInt _) -> pure (TInt, [])
     ELit (LDec _) -> pure (TFloat, [])
     ELit (LChr _) -> pure (TChar, [])
-    EKill -> do
-        t <- fresh "#"
-        pure (TBang t `TFun` TTuple [], [])
-    EDupl -> do
-        t <- fresh "#"
-        pure (TBang t `TFun` TTuple [TBang t, TBang t], [])
-    ERead -> do
-        t <- fresh "#"
-        pure (TBang t `TFun` t, [])
-    EMake -> do
-        t <- fresh "#"
-        pure (t `TFun` TBang t, [])
     EHole -> do
         tv <- fresh "_"
         tv' <- fresh "#"
@@ -247,16 +234,10 @@ inferPattern (p :- _) = case p of
         pats <- mapM inferPattern exp
         let (ts, cs, envs) = unzip3 pats
         pure (TTuple ts, mconcat cs, mconcat envs)
-    PLinear (PId id' :- _) -> do
-        t <- fresh "&"
-        pure (TBang t, [], Map.singleton id' (Scheme [] (TBang t)))
     PAnn p t -> do
         (t', cs, env) <- inferPattern p
         let t'' = tiType t
         pure (t'', (t'', t') : cs, env)
-    PLinear p -> do
-        t <- fresh "&"
-        inferPattern (PAnn p (untiType (TBang t) :- Nothing) :- Nothing)
     PCtor id' args -> do
         ctor <- instantiate =<< lookupCtor id'
         let (ts, r) = unfoldParams ctor
@@ -292,13 +273,11 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
     fv (TFun a b)  = fv a <> fv b
     fv (TApp a b)  = fv a <> fv b
     fv (TTuple e)  = foldMap fv e
-    fv (TBang t)   = fv t
     fv _           = []
 
     normtype (TFun a b)       = TFun (normtype a) (normtype b)
     normtype (TApp a b)       = TApp (normtype a) (normtype b)
     normtype (TTuple e)       = TTuple (map normtype e)
-    normtype (TBang t)        = TBang (normtype t)
     normtype (TVar a@(TV x')) =
         case Prelude.lookup a ord of
             Just x -> TRigid x
@@ -325,7 +304,6 @@ unifies :: Type -> Type -> Solve Subst
 unifies t1 t2 | t1 == t2          = pure nullSubst
 unifies (TVar v) t                = v `bind` t
 unifies t            (TVar v    ) = v `bind` t
-unifies (TBang t1) (TBang t2) = unifies t1 t2
 unifies (TId i) t       = unifyAlias i t
 unifies t       (TId i) = unifyAlias i t
 unifies (TFun t1 t2) (TFun t3 t4) = unifyMany [t1, t2] [t3, t4]
@@ -407,21 +385,7 @@ tiType (TP.TFun t1 t2 :- _)     = TFun (tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
 tiType (TP.TRVar id' :- _)      = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
-tiType (TP.TBang t :- _)        = TBang (tiType t)
 tiType (TP.TVar id' :- _)       = TVar (TV id')
-
--- | Transforms a 'Type' into a 'TP.Type', only used when type checking the pattern 'PLinear'.
-untiType :: Type -> TP.Type
-untiType (TId i) = TP.TId i
-untiType (TFun t1 t2) = TP.TFun (untiType t1 :- Nothing) (untiType t2 :- Nothing)
-untiType (TTuple ts) = TP.TTuple ((:- Nothing) . untiType <$> ts)
-untiType (TRigid (TV i)) = TP.TRVar i
-untiType (TApp t1 t2) = TP.TApp (untiType t1 :- Nothing) (untiType t2 :- Nothing)
-untiType (TBang t) = TP.TBang (untiType t :- Nothing)
-untiType (TVar (TV i)) = TP.TVar i
-untiType TInt = TP.TId "Integer"
-untiType TChar = TP.TId "Char"
-untiType TFloat = TP.TId "Double"
 
 -- | Transforms a 'TP.Scheme' into a 'Scheme', also for compatibility reasons.
 tiScheme :: TP.Scheme -> Scheme
