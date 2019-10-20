@@ -30,11 +30,7 @@ defaultEnv :: Scope Value
 defaultEnv = Map.fromList [ ("+", addF)
                           , ("-", subF)
                           , ("*", mulF)
-                          , ("/", divF)
-                          , ("kill", killF)
-                          , ("dupl", duplF)
-                          , ("read", readF)
-                          , ("make", makeF) ]
+                          , ("/", divF) ]
   where
     addF = HLam $ \case
         VInt x -> pure . HLam $ \case
@@ -80,29 +76,16 @@ defaultEnv = Map.fromList [ ("+", addF)
             _      -> throwError (text "Expected integer or float")
         _      -> throwError (text "Expected integer or float")
 
-    killF = HLam $ \_ -> pure $ VTuple []
-    duplF = HLam $ \x -> pure $ VTuple [x, x]
-    readF = HLam $ \x -> pure x
-    makeF = HLam $ \x -> pure x
-
 -- | The default types of the built-in functions.
 defaultDeclContext :: Map.Map String Scheme
-defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
-                                    -- (+) :: a -o a -o a
-                                  , ("-", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
-                                    -- (-) :: a -o a -o a
-                                  , ("*", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
-                                    -- (*) :: a -o a -o a
-                                  , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TVar $ TV "a") (TVar $ TV "a")))
-                                    -- (/) :: a -o a -o a
-                                  , ("kill", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [])
-                                    -- kill :: !a -o ()
-                                  , ("dupl", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TTuple [TBang (TVar $ TV "a"), TBang (TVar $ TV "a")])
-                                    -- dupl :: !a -o (!a, !a)
-                                  , ("read", Scheme [TV "a"] $ TBang (TVar $ TV "a") `TFun` TVar (TV "a"))
-                                    -- read :: !a -o a
-                                  , ("make", Scheme [TV "a"] $ (TVar $ TV "a") `TFun` TBang (TVar $ TV "a"))
-                                    -- make :: a -o !a
+defaultDeclContext = Map.fromList [ ("+", Scheme [TV "a"] $ TFun (TVar $ TV "a", 1) (TFun (TVar $ TV "a", 1) (TVar $ TV "a")))
+                                    -- (+) :: a|1| -> a|1| -> a
+                                  , ("-", Scheme [TV "a"] $ TFun (TVar $ TV "a", 1) (TFun (TVar $ TV "a", 1) (TVar $ TV "a")))
+                                    -- (-) :: a|1| -> a|1| -> a
+                                  , ("*", Scheme [TV "a"] $ TFun (TVar $ TV "a", 1) (TFun (TVar $ TV "a", 1) (TVar $ TV "a")))
+                                    -- (*) :: a|1| -> a|1| -> a
+                                  , ("/", Scheme [TV "a"] $ TFun (TVar $ TV "a", 1) (TFun (TVar $ TV "a", 1) (TVar $ TV "a")))
+                                    -- (/) :: a|1| -> a|1| -> a
                                   ]
 
 -- | A duplicate of the above default environment.
@@ -125,8 +108,8 @@ defaultTypeDeclContext = Map.fromList [ ("Integer", KType)
 
 -- | The default types of the built-in data type constructors.
 defaultCtorsContext :: Map.Map String Scheme
-defaultCtorsContext = Map.fromList [ (":", Scheme [TV "a"] $ TFun (TVar $ TV "a") (TFun (TApp (TId "[]") $ TVar $ TV "a") (TApp (TId "[]") . TVar $ TV "a")))
-                                        -- (:) :: a -o [a] -o [a]
+defaultCtorsContext = Map.fromList [ (":", Scheme [TV "a"] $ TFun (TVar $ TV "a", 1) (TFun (TApp (TId "[]") $ TVar $ TV "a", 1) (TApp (TId "[]") . TVar $ TV "a")))
+                                        -- (:) :: a|1| -> [a]|1| -> [a]
                                    , ("[]", Scheme [TV "a"] $ TApp (TId "[]") (TVar $ TV "a"))
                                         -- ([]) :: [a]
                                    , ("()", Scheme [] $ TId "()")
