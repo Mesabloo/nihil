@@ -74,13 +74,6 @@ pFixity (Infix assoc prec _) =
 -- | Expression pretty printing
 pExpression :: Annotated Expr -> Doc
 pExpression (ELit l :- _) = pLiteral l
-  where pLiteral (LDec d) = text (show d)
-        pLiteral (LInt i) = text (show i)
-        pLiteral (LChr c) = text (show c)
-pExpression (ERead :- _) = text "read"
-pExpression (EKill :- _) = text "kill"
-pExpression (EDupl :- _) = text "dupl"
-pExpression (EMake :- _) = text "make"
 pExpression (EId i :- _) = text i
 pExpression (EHole :- _) = text "_"
 pExpression (ELam arg e :- _) = parens $ text "\\" <+> pPattern arg <+> text "->" <+> pExpression e
@@ -98,6 +91,12 @@ pExpression (EAnn e t :- _) = parens $ pExpression e <+> text "::" <+> pType t
 pExpression (ELet (s:ss) e :- _) = align (text "let" <+> align (foldl (PP.<$>) (pStatement s) (pStatement <$> ss)) PP.<$> (text "in" <+> pExpression e))
 pExpression _ = text "error: the impossible happened while pretty printing!"
 
+-- | Literal pretty printing
+pLiteral :: Literal -> Doc
+pLiteral (LDec d) = text (show d)
+pLiteral (LInt i) = text (show i)
+pLiteral (LChr c) = text (show c)
+
 -- | Pattern pretty printing
 pPattern :: Annotated Pattern -> Doc
 pPattern (PInt i :- _) = text (show i)
@@ -107,7 +106,6 @@ pPattern (PId i :- _) = text i
 pPattern (Wildcard :- _) = text "_"
 pPattern (PTuple pats :- _) = parens . mconcat $ intersperse (text ", ") (map pPattern pats)
 pPattern (PAnn p t :- _) = parens $ pPattern p <+> text "::" <+> pType t
-pPattern (PLinear p :- _) = text "!" <> pPattern p
 pPattern (PCtor name args :- _) =
     let parenthesized = foldr ((<+>) . parenthesizeIfNeeded) empty args
     in text name <+> parenthesized
@@ -122,8 +120,7 @@ pType (t :- _) = case t of
     TVar tv -> text tv
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pType ts)
     TApp t1 t2 -> pType t1 <+> parenthesizeIfNeeded t2
-    TFun t1 t2 -> parenthesizeIfNeededF t1 <+> text "-o" <+> parenthesizeIfNeededF t2
-    TBang t1 -> text "!" <> parenthesizeIfNeeded t1
+    TFun (t1, l) t2 -> parenthesizeIfNeededF t1 <> text "|" <> pLiteral (LInt l) <> text "|" <+> text "->" <+> parenthesizeIfNeededF t2
   where parenthesizeIfNeeded (t :- p) = case t of
             TApp _ _ -> parens $ pType (t :- p)
             TFun _ _ -> parens $ pType (t :- p)
