@@ -124,8 +124,7 @@ symbol :: Parser Token
 symbol = do
     i <- use currentIndent
     (pInit, pEnd, s) <- getPositionInSource $
-        (LSymbol <$> lexeme (C.string "-o" <* notFollowedBy (satisfy $ liftA2 (&&) Ch.isPrint (not . Ch.isSpace))))
-        <|> (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→⊸λ⇒∷" :: String)))
+        (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→⊸λ⇒∷" :: String)))
         <|> (LSymbol . Text.pack <$> lexeme (some $ C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)) <?> "symbol")
 
     pure (i, SourceSpan pInit pEnd, Just s)

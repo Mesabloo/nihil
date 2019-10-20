@@ -274,16 +274,14 @@ type' = do
     (pInit, pEnd, (ty, optTy)) <- getPositionInSource $ do
         ft <- btype
         ot <- optional $ do
-            usage <- sameLineOrIndented iPos $
-                choice [ Just True <$ (symbol "-o" <|> symbol "⊸")
-                       , Nothing <$ (symbol "->" <|> symbol "→") ]
+            usage <- sameLineOrIndented iPos (between (symbol "|") (symbol "|") integer)
+            sameLineOrIndented iPos (symbol "->" <|> symbol "→")
             (usage,) <$> sameLineOrIndented iPos type'
         pure (ft, ot)
 
     case optTy of
         Nothing -> pure ty
-        Just (Nothing, ty') -> pure (TFun (TNonLinear ty :- Just (SourceSpan pInit pEnd)) ty' :- Just (SourceSpan pInit pEnd))
-        Just (Just _, ty') -> pure (TFun ty ty' :- Just (SourceSpan pInit pEnd))
+        Just (usage, ty') -> pure (TFun (ty, usage) ty' :- Just (SourceSpan pInit pEnd))
 
 btype :: Parser (Annotated Type)
 btype = do
@@ -295,10 +293,9 @@ btype = do
 atype :: Parser (Annotated Type)
 atype = do
     (pInit, pEnd, at) <- getPositionInSource $ do
-        fun <- try (symbol "!" $> TNonLinear) <|> pure getAnnotated
         (pInit, pEnd, at) <- getPositionInSource $
             choice [ gtycon, try tTuple, tList, TVar <$> identifier, getAnnotated <$> parens type' ]
-        pure $ fun (at :- Just (SourceSpan pInit pEnd))
+        pure $ getAnnotated (at :- Just (SourceSpan pInit pEnd))
     pure $ at :- Just (SourceSpan pInit pEnd)
   where
     tTuple = do
@@ -349,7 +346,6 @@ exprNoApp = do
     (pInit, pEnd, a) <- getPositionInSource $
         choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match"
                , try tuple <?> "tuple", list <?> "list", let' <?> "let expression"
-               , specialIdentifier
                , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
                , ALit . LDec <$> try float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
@@ -359,13 +355,6 @@ exprNoApp = do
 
 
     pure $ a :- Just (SourceSpan pInit pEnd)
-
-specialIdentifier :: Parser Atom
-specialIdentifier =
-    choice [ AKill <$ keyword "kill"
-           , ARead <$ keyword "read"
-           , ADupl <$ keyword "dupl"
-           , AMake <$ keyword "make" ]
 
 app :: Parser (Annotated Atom)
 app = do
@@ -472,7 +461,6 @@ patTerm = do
                     ,                 try patTuple
                     ,                 patList
                     , PLit . LStr <$> string
-                    , PLinear     <$> (symbol "!" *> patTerm)
                     , PParens     <$> parens pattern' ]
         optional (sameLineOrIndented iPos (symbol "::" <|> symbol "∷") *> sameLineOrIndented iPos type') <&> (p,)
 
