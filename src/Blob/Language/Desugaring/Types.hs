@@ -37,10 +37,6 @@ data Expr
     | EHole                                                           -- ^ A type hole
     | EAnn (Annotated Expr) (Annotated Type)                          -- ^ An annotated expression
     | ELet [Annotated Statement] (Annotated Expr)                     -- ^ A @let@ expression
-    | EKill
-    | EDupl
-    | EMake
-    | ERead
     deriving (Show, Eq, Ord)
 
 -- | The 'Pattern' AST Node, either:
@@ -53,7 +49,6 @@ data Pattern
     | PTuple [Annotated Pattern]                 -- ^ A tuple
     | PCtor String [Annotated Pattern]           -- ^ A data type constructor
     | PAnn (Annotated Pattern) (Annotated Type)  -- ^ A type-annotated pattern
-    | PLinear (Annotated Pattern)                -- ^ A non-linear pattern
     deriving (Show, Eq, Ord)
 
 -- | A literal, either:
@@ -92,11 +87,10 @@ data Scheme = Scheme [String] (Annotated Type)
 data Type
     = TId String                              -- ^ An identifier
     | TTuple [Annotated Type]                 -- ^ A tuple
-    | TFun (Annotated Type) (Annotated Type)  -- ^ A linear function
+    | TFun (Annotated Type, Integer) (Annotated Type)  -- ^ A linear function
     | TRVar String                            -- ^ A rigid type variable
     | TVar String                             -- ^ A free type variable (unused node in desugaring)
     | TApp (Annotated Type) (Annotated Type)  -- ^ A type application
-    | TBang (Annotated Type)                  -- ^ A non-linear type
     deriving (Eq, Ord, Show)
 
 -- | The 'CustomType' AST Node, either:
