@@ -107,7 +107,7 @@ kiCustomScheme (CustomScheme tvs t) = do
 
     let k = foldr KArr k' (fromJust . flip Map.lookup typeArgs <$> tvs)
     pure (s, applyKind s k)
-  where foldConstr (TFun t1 t2) = t1 : foldConstr t2
+  where foldConstr (TFun (t1, _) t2) = t1 : foldConstr t2
         foldConstr t = []
 
         kiConstrs [] = pure nullKindSubst
@@ -137,7 +137,7 @@ kiType (TTuple (t:ts)) = do
     s2 <- mguKind k KType
     (s3, _) <- kiType (TTuple ts)
     pure (concatKindSubsts [s3,s2,s1], KType)
-kiType (TFun t1 t2) = do
+kiType (TFun (t1, _) t2) = do
     (s1, k1) <- kiType t1
     (s2, k2) <- kiType t2
     s3 <- mguKind k1 KType
@@ -149,7 +149,6 @@ kiType (TApp f t) = do
     (s2, k2) <- local (applyKind s1 <$>) (kiType t)
     s3       <- mguKind (applyKind s2 k1) (KArr k2 kv)
     pure (concatKindSubsts [s3,s2,s1], applyKind s3 kv)
-kiType (TBang t) = kiType t
 kiType t = traceShow t undefined
 
 -- | Transforms a 'Scheme' into a pair composed of a 'KindSubst' and a 'Kind'.

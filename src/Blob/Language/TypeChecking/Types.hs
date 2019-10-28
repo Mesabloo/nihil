@@ -42,11 +42,10 @@ data Type
     | TInt            -- ^ The integer type (which is an alias defined in 'Blob.Prelude.defaultTypeDefContext')
     | TFloat          -- ^ The float type (also an alias defined in 'Blob.Prelude.defaultTypeDefContext')
     | TChar           -- ^ The char type (also an alias defined in 'Blob.Prelude.defaultTypeDefContext')
-    | TFun Type Type  -- ^ A linear function
+    | TFun (Type, Integer) Type  -- ^ A linear function
     | TTuple [Type]   -- ^ A tuple
     | TApp Type Type  -- ^ A type application
     | TId String      -- ^ A type identifier
-    | TBang Type      -- ^ A non-linear type
     deriving (Eq, Ord, Show)
 
 -- | A data type to represent the possible kinds in the language.
@@ -172,17 +171,15 @@ class Substitutable a where
 
 instance Substitutable Type where
     ftv (TVar n)      = Set.singleton n
-    ftv (TFun t1 t2)  = ftv t1 `Set.union` ftv t2
+    ftv (TFun (t1, _) t2)  = ftv t1 `Set.union` ftv t2
     ftv (TTuple ts)   = List.foldl (\acc t -> acc `Set.union` ftv t) mempty ts
     ftv (TApp t1 t2)  = ftv t1 `Set.union` ftv t2
-    ftv (TBang t1)    = ftv t1
     ftv _             = mempty
 
     apply s (TVar n)      = fromMaybe (TVar n) (Map.lookup n s)
-    apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
+    apply s (TFun (t1, l) t2)  = TFun (apply s t1, l) (apply s t2)
     apply s (TTuple ts)   = TTuple (List.map (apply s) ts)
     apply s (TApp t1 t2)  = TApp (apply s t1) (apply s t2)
-    apply s (TBang t1)    = TBang (apply s t1)
     apply _ t             = t
 
 instance Substitutable Scheme where

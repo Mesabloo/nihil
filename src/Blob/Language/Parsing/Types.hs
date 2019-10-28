@@ -91,10 +91,6 @@ data Atom
     | AAnn (Annotated Expr) (Annotated Type)                           -- ^ A type-annotated expression
     | ALet [Annotated Statement] (Annotated Expr)                      -- ^ A @let@ expression
     | AWhere (Annotated Expr) [Annotated Statement]                    -- ^ A @where@ expression
-    | ADupl
-    | ARead
-    | AKill
-    | AMake
     deriving (Show, Ord, Eq)
 
 -- | A simple pattern AST node, which might be:
@@ -108,7 +104,6 @@ data Pattern
     | PParens [Annotated Pattern]                -- ^ A parenthesized pattern
     | POperator String                           -- ^ An operator
     | PAnn [Annotated Pattern] (Annotated Type)  -- ^ A type-annotated pattern
-    | PLinear (Annotated Pattern)                -- ^ A non-linear pattern
     deriving (Show, Ord, Eq)
 
 -- | A simple literal AST node, which may be:
@@ -133,10 +128,9 @@ data Type
     = TId String                              -- ^ An identifier
     | TTuple [Annotated Type]                 -- ^ A tuple
     | TList [Annotated Type]                  -- ^ A list
-    | TFun (Annotated Type) (Annotated Type)  -- ^ A linear function
+    | TFun (Annotated Type, Integer) (Annotated Type)  -- ^ A linear function
     | TVar String                             -- ^ A rigid type variable
     | TApp [Annotated Type]                   -- ^ A type application
-    | TNonLinear (Annotated Type)             -- ^ A non-linear type
     deriving (Show, Eq, Ord)
 
 -- | A custom type AST node, which might be:

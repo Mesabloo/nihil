@@ -81,7 +81,6 @@ unpackPattern = curry $ \case
     (VCon id' v, PCtor id'' v' :- _)
         | id' == id''                -> mconcat <$> zipWithM unpackPattern v v'
     (val, PAnn p _ :- _)             -> unpackPattern val p
-    (val, PLinear p :- _)            -> unpackPattern val p
     (VTuple vs, PTuple ps :- _)
         | length vs == length ps     -> mconcat <$> zipWithM unpackPattern vs ps
     _                                -> empty

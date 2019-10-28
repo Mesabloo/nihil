@@ -31,17 +31,17 @@
 {- This will be enabled later, when we'll have some modules implemented -}
 
 data Maybe a
-    = Just a
-    | Nothing
+    = Just a   -- Just    :: a|1] -> Maybe a
+    | Nothing  -- Nothing :: Maybe a
 
 data Either a b
-    = Left a
-    | Right b
+    = Left a   -- Left  :: a|1| -> Either a b
+    | Right b  -- Right :: b|1| -> Either a b
 
 type String = [Char]
 
-id :: a -o a
+id :: a|1| -> a
 id x = x
 
-const :: a -o b -> a
-const a !b = a
+const :: a|1| -> b|0| -> a
+const a b = a

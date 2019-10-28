@@ -13,7 +13,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, TupleSections #-}
 
 -- | This module holds all the functions used in the desugaring process.
 module Blob.Language.Desugaring.Desugarer where
@@ -67,7 +67,7 @@ desugarCustomType fileName (name, tvs, ct :- p) = case ct of
         state' <- get
 
         let initialType = foldl (flip (:-) Nothing .: D.TApp) (D.TId name :- Nothing) (map (flip (:-) Nothing . D.TVar) tvs)
-            folded = foldr (flip (:-) Nothing .: D.TFun) initialType
+            folded = foldr (flip (:-) Nothing .: D.TFun . (, 1)) initialType
             m = Map.map (\cs -> do
                 cs' <- traverse (desugarType fileName) cs
                 pure (D.Scheme tvs $ folded cs')) s
@@ -96,10 +96,10 @@ desugarType fileName (P.TApp (t:ts) :- p) = do
 
         pure (D.TApp acc t2 :- Just (SourceSpan beg end)) ) t1 ts
 desugarType _ (P.TVar name :- p) = pure (D.TVar name :- p)
-desugarType fileName (P.TFun t1 t2 :- p) = do
+desugarType fileName (P.TFun (t1, l) t2 :- p) = do
     t1' <- desugarType fileName t1
     t2' <- desugarType fileName t2
-    pure (D.TFun t1' t2' :- p)
+    pure (D.TFun (t1', l) t2' :- p)
 desugarType fileName (P.TTuple ts :- p) = do
     ts' <- mapM (desugarType fileName) ts
 
@@ -109,8 +109,6 @@ desugarType fileName (P.TList ts :- p) =
         t' <- desugarType fileName t
 
         pure (D.TApp acc t' :- Nothing) ) (D.TId "[]" :- Nothing) ts
-desugarType fileName (P.TNonLinear t :- p) =
-    (:- p) . D.TBang <$> desugarType fileName t
 
 -- | Desugars a 'P.Expr' into a 'D.Expr'.
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
@@ -289,10 +287,6 @@ syExpr fileName ((x :- p):xs) out ops = do
             e2' <- syExpr fileName e2 [] []
             pure $ D.ELet ss' e2' :- p
         P.AWhere e ss -> syExpr fileName ((P.ALet ss e :- p):xs) out ops
-        P.ARead -> pure (D.ERead :- p)
-        P.ADupl -> pure (D.EDupl :- p)
-        P.AKill -> pure (D.EKill :- p)
-        P.AMake -> pure (D.EMake :- p)
         P.AOperator _ -> undefined -- ! should never happen
 
     syExpr fileName xs (e:out) ops
@@ -362,7 +356,6 @@ syPat ((x :- p):xs) out ops = do
             t' <- desugarType "" t
 
             pure $ D.PAnn p' t'
-        P.PLinear p -> D.PLinear <$> syPat [p] [] []
         P.POperator _ -> undefined -- ! Should never happen
 
     syPat xs ((pat :- p) : out) ops
