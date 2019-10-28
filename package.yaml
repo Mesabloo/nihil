@@ -77,3 +77,12 @@ executables:
     - Blob
 
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
+
+tests:
+  lexer:
+    main:        Main.hs
+    source-dirs: tests/Lexer
+    dependencies:
+    - Blob
+    - hspec
+    - HUnit
