@@ -33,7 +33,7 @@ import Control.Lens
 -- | The main function, used to transform a source file into a list of tokens.
 tokens :: Parser [Token]
 tokens = lexeme (indent *> optional (try blockCmnt <|> lineCmnt) *> many tks) <* eof
-  where tks = lexeme $ keyword <|> stringL <|> integerL <|> floatL <|> charL <|> symbol <|> identifier <|> identifier' <|> eolI <|> wildcard
+  where tks = lexeme $ try keyword <|> stringL <|> try floatL <|> integerL <|> charL <|> symbol <|> identifier <|> identifier' <|> eolI <|> wildcard
 
 -- | This function is used to calculate the indentation level of each line when EOL is encountered.
 eolI :: Parser Token
