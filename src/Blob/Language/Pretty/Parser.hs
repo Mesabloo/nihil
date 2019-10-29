@@ -49,8 +49,6 @@ pStatement (Declaration name t :- _) =
     text name <+> text "::" <+> pType t
 pStatement (Definition name e :- _) =
     text name <+> text "=" <+> pExpression e
--- pStatement (OpFixity name fix) =
---     text "OpDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> text "Fixity = " <> pFixity fix)
 pStatement (TypeDeclaration name _ custom :- _) =
     let printCustomType = \case
                               TAlias t -> pType t
@@ -61,15 +59,6 @@ pStatement (TypeDeclaration name _ custom :- _) =
                           t@(TSum _) :- _ -> text "Constructors = " <$$> printCustomType t
     in text "TypeDeclaration:" <$$> indent indentLevel (text "Id = \"" <> text name <> text "\"" <$$> printCustom custom)
 pStatement _ = text "-- Unimplemented pretty printing"
-
--- | Unused pretty printing
-pFixity :: Fixity -> Doc
-pFixity (Infix assoc prec _) =
-    let printAssoc = \case
-                         L -> text "infixl"
-                         R -> text "infixr"
-                         _ -> text "infix"
-    in printAssoc assoc <+> text (show prec)
 
 -- | Expression pretty printing
 pExpression :: Annotated Expr -> Doc
