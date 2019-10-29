@@ -31,7 +31,6 @@ import Control.Monad.Identity
 import Data.List (nub)
 import Text.PrettyPrint.Leijen (text, dot, linebreak, empty)
 import Control.Monad.Reader
-import MonadUtils (mapAndUnzip3M)
 import Control.Applicative ((<|>), liftA2)
 import Data.Bifunctor (first, second, bimap)
 import Data.These
@@ -40,16 +39,16 @@ import Blob.Language.KindChecking.Checker
 import Blob.Language.KindChecking.Types
 import Data.Align.Key (alignWithKey)
 import Blob.Language.Parsing.Annotation
-import Data.Functor.Invariant (invmap)
-import Debug.Trace
-import Data.Functor (($>), (<&>))
 import Data.Maybe
 import Control.Lens
+import Data.Composition ((.:))
+import Prelude hiding (lookup)
+import qualified Prelude (lookup)
 
 -- | Runs the inference monad given as argument.
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
 runInfer env m = runIdentity . runExceptT $ evalRWST m env initInfer
-  where initInfer = InferState { _count = 0 }
+  where initInfer = InferState 0
 
 -- | Solves the type for a given 'Expr' in a given 'GlobalEnv'.
 inferExpr :: GlobalEnv -> Annotated Expr -> Either TIError Scheme
@@ -73,17 +72,16 @@ inferDef env name def t1 =
             Right x -> case runHoleInspect x of
                 Left err -> throwError err
                 Right _ ->
-                    defCtx %= (TypeEnv . (Map.singleton name (closeOver (apply x t)) `Map.union`) . getMap)
+                    defCtx %= ((TypeEnv $ Map.singleton name (closeOver (apply x t))) `union`)
 
 
 -- | Returns the internal constraints used in solving for the type of an expression.
 constraintsExpr :: GlobalEnv -> Annotated Expr -> Either TIError ([Constraint], Subst, Type, Scheme)
-constraintsExpr env ex = case runInfer env (infer ex) of
-    Left err -> Left err
-    Right ((ty, c), _) -> case runSolve env c of
-        Left err -> Left err
-        Right subst -> Right (c, subst, ty, sc)
-          where sc = closeOver $ apply subst ty
+constraintsExpr env ex = do
+    (ty, c) <- fst <$> runInfer env (infer ex)
+    subst <- runSolve env c
+    pure (c, subst, ty, sc subst ty)
+  where sc = closeOver .: apply
 
 -- | Canonicalizes and returns the polymorphic toplevel type.
 closeOver :: Type -> Scheme
@@ -94,23 +92,54 @@ inEnv :: (String, Scheme) -> Infer a -> Infer a
 inEnv (x, sc) m =
     flip local m $ do
         env <- ask
-        let ctx = env ^. defCtx . to getMap
-        pure $ env & defCtx .~ (TypeEnv $ getMap (remove (TypeEnv ctx) x `extend` (x, sc)) `Map.union` ctx)
+        let ctx = env ^. defCtx
+        pure $ env & defCtx .~ (remove ctx x `extend` (x, sc) `union` ctx)
 
 -- | Extends the type environment with multiple entries.
 inEnvMany :: [(String, Scheme)] -> Infer a -> Infer a
 inEnvMany list m = do
-    let map' = Map.fromList list
-    local (defCtx %~ TypeEnv . (map' `Map.union`) . getMap) m
+    let env = TypeEnv $ Map.fromList list
+    local (defCtx %~ (env `union`)) m
 
 -- | Returns the type of a constant/function from the environment.
 lookupEnv :: String -> Infer Type
 lookupEnv x = do
-    env <- defCtx `views` (Map.lookup x . getMap)
-    env' <- ctorCtx `views` (Map.lookup x . getMap)
-    case env <|> env' of
-        Nothing   ->  throwError $ makeUnboundVarError x
-        Just s    ->  instantiate s
+    env <- defCtx `views` lookup x
+    env' <- ctorCtx `views` lookup x
+    maybe (throwError $ makeUnboundVarError x) instantiate (env <|> env')
+
+-- | Unwraps the underlying 'Map.Map' from a 'TypeEnv'.
+getMap :: TypeEnv -> Map.Map String Scheme
+getMap = (^. _TypeEnv)
+{-# INLINE getMap #-}
+
+-- | Extends a given 'TypeEnv' with a new function.
+extend :: TypeEnv -> (String, Scheme) -> TypeEnv
+extend = TypeEnv .: flip (uncurry Map.insert) . getMap
+
+-- | The empty substitution.
+nullSubst :: Subst
+nullSubst = mempty
+
+-- | A special way of composing substitutions together.
+compose :: Subst -> Subst -> Subst
+compose s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+
+-- | The empty unifier (no substitution, no constraint).
+emptyUnifier :: Unifier
+emptyUnifier = (nullSubst, [])
+
+-- | Removes an entry from the 'TypeEnv' given.
+remove :: TypeEnv -> String -> TypeEnv
+remove = TypeEnv .: flip Map.delete . getMap
+
+-- | Merges two 'TypeEnv's together.
+union :: TypeEnv -> TypeEnv -> TypeEnv
+union t1 t2 = TypeEnv (getMap t1 `Map.union` getMap t2)
+
+-- | Lookup into a 'TypeEnv'.
+lookup :: String -> TypeEnv -> Maybe Scheme
+lookup k t1 = Map.lookup k (getMap t1)
 
 -- | Creates a new type variable with a given prefix.
 fresh :: String -> Infer Type
@@ -118,8 +147,12 @@ fresh v = do
     s <- use count
     count += 1
 
-    let id' = v <> show s
-    pure . TVar $ TV id'
+    env <- defCtx `views` \t -> concat (fst . (^. _Scheme) <$> Map.elems (getMap t))
+    let newTVar = TV (v <> show s)
+
+    if newTVar `elem` env
+    then pure (TVar newTVar)
+    else fresh (newTVar ^. _TV)
 
 -- | Instantiate a 'Scheme' to produce a fresh 'Type'.
 instantiate :: Scheme -> Infer Type
@@ -245,7 +278,7 @@ inferPattern (p :- _) = case p of
         guard (length args == length ts)
             <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor \"" <> text id' <> text "\", but got " <> text (show $ length args) <> dot <> linebreak)
 
-        (ts', cons, env) <- invmap mconcat (: []) <$> mapAndUnzip3M inferPattern args
+        (ts', cons, env) <- fmap mconcat <$> mapAndUnzip3M inferPattern args
 
         let cons' = zip (fst <$> ts) ts'
 
@@ -258,6 +291,14 @@ inferPattern (p :- _) = case p of
         case env of
             Nothing -> throwError $ makeUnboundVarError id'
             Just x  -> pure x
+
+    -- | mapAndUnzipM for triples
+    mapAndUnzip3M :: Monad m => (a -> m (b, c, d)) -> [a] -> m ([b], [c], [d])
+    mapAndUnzip3M _ []     = return ([],[],[])
+    mapAndUnzip3M f (x:xs) = do
+        (r1,  r2,  r3)  <- f x
+        (rs1, rs2, rs3) <- mapAndUnzip3M f xs
+        return (r1:rs1, r2:rs2, r3:rs3)
 
 -- | An infinite stream of letters, looping on the alphabet.
 letters :: [String]
@@ -383,7 +424,6 @@ tiType :: Annotated TP.Type -> Type
 tiType (TP.TId id' :- _)        = TId id'
 tiType (TP.TFun t1 t2 :- _)     = TFun (first tiType t1) (tiType t2)
 tiType (TP.TTuple ts :- _)      = TTuple (map tiType ts)
-tiType (TP.TRVar id' :- _)      = TRigid (TV id')
 tiType (TP.TApp t1 t2 :- _)     = TApp (tiType t1) (tiType t2)
 tiType (TP.TVar id' :- _)       = TVar (TV id')
 
@@ -453,7 +493,7 @@ analyseTypeDecl k v = do
 
     typeDefCtx %= Map.insert k v
     typeDeclCtx %= Map.insert k kind
-    ctorCtx %= (TypeEnv . (schemes `Map.union`) . getMap)
+    ctorCtx %= (TypeEnv schemes `union`)
 
 -- | Unfold the parameters and the return type from a type.
 unfoldParams :: Type -> ([(Type, Integer)], Type)

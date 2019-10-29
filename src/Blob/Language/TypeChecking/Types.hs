@@ -35,6 +35,8 @@ import Control.Lens
 newtype TVar = TV String
     deriving (Eq, Ord, Show)
 
+makePrisms ''TVar
+
 -- | A data type for representing various types, such as:
 data Type
     = TVar TVar       -- ^ A substitutable type variable
@@ -76,11 +78,15 @@ type TIError = Doc
 data Scheme = Scheme [TVar] Type
     deriving (Eq, Ord, Show)
 
+makePrisms ''Scheme
+
 -- | The wrapper for a 'Type' environment.
 --
 -- It holds a mapping of variables with their 'Scheme's.
 newtype TypeEnv = TypeEnv (Map.Map String Scheme)
     deriving Show
+
+makePrisms ''TypeEnv
 
 -- | A type alias for a 'Kind' environment. Same as 'TypeEnv' but holds 'Kind's instead.
 type KindEnv = Map.Map String Kind
@@ -136,30 +142,6 @@ makeLenses ''GlobalEnv
 -- | The type checking monad
 type Check = StateT GlobalEnv (Except TIError)
 
--- | Unwraps the underlying 'Map.Map' from a 'TypeEnv'.
-getMap :: TypeEnv -> Map.Map String Scheme
-getMap (TypeEnv m) = m
-
--- | Extends a given 'TypeEnv' with a new function.
-extend :: TypeEnv -> (String, Scheme) -> TypeEnv
-extend = TypeEnv .: flip (uncurry Map.insert) . getMap
-
--- | The empty substitution.
-nullSubst :: Subst
-nullSubst = mempty
-
--- | A special way of composing substitutions together.
-compose :: Subst -> Subst -> Subst
-compose s1 s2 = Map.map (apply s1) s2 `Map.union` s1
-
--- | The empty unifier (no substitution, no constraint).
-emptyUnifier :: Unifier
-emptyUnifier = (nullSubst, [])
-
--- | Removes an entry from the 'TypeEnv' given.
-remove :: TypeEnv -> String -> TypeEnv
-remove = TypeEnv .: flip Map.delete . getMap
-
 -- | A type class for the substitutable types.
 class Substitutable a where
     -- | Applies a substitution to the given type.
@@ -191,8 +173,8 @@ instance Substitutable a => Substitutable [a] where
     apply = fmap . apply
 
 instance Substitutable TypeEnv where
-    ftv   = ftv . Map.elems . getMap
-    apply = TypeEnv .: flip (flip (Map.map . apply) . getMap)
+    ftv   = ftv . Map.elems . (^. _TypeEnv)
+    apply = TypeEnv .: flip (flip (Map.map . apply) . (^. _TypeEnv))
 
 instance (Substitutable a, Substitutable b) => Substitutable (a, b) where
     ftv (t1, t2) = ftv t1 `Set.union` ftv t2
@@ -205,3 +187,8 @@ instance Monoid TypeEnv where
 
 instance Semigroup TypeEnv where
     (<>) (TypeEnv env1) (TypeEnv env2) = TypeEnv $ env1 <> env2
+
+--------------------------------------------------------------------------------------------
+
+instance Functor ((,,) a b) where
+    fmap f (a, b, c) = (a, b, f c)
