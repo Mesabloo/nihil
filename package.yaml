@@ -15,33 +15,22 @@ dependencies:
 - text
 - base >= 4.7 && < 5
 - megaparsec >7
-- parser-combinators
 - ansi-terminal
 - wl-pprint
 - containers
 - mtl
-- transformers
-- unordered-containers
 - directory
 - haskeline
 - MissingH
-- multimap
 - these <= 0.7.6
 - criterion-measurement
 - bytestring
-- vector
 - extra
-- ghc
-- composition
 - keys
 - hashable
-- deepseq
-- QuickCheck
-- optparse-applicative
 - filepath
 - insert-ordered-containers
 # - JellyVM
-- invariant
 - conf
 - lens
 
@@ -75,6 +64,7 @@ executables:
     - -O3
     dependencies:
     - Blob
+    - optparse-applicative
 
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
 
@@ -85,4 +75,9 @@ tests:
     dependencies:
     - Blob
     - hspec
-    - HUnit
+  parser:
+    main:        Main.hs
+    source-dirs: tests/Parser
+    dependencies:
+    - Blob
+    - hspec
