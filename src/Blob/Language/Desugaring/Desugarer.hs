@@ -144,7 +144,7 @@ accumulateOnExpression = mapM_ accumulateOnAtom . getAnnotated
 
 -- | Accumulates operator fixities in a 'P.Atom'.
 --
--- In case of an unregistered operator being encountered, a default fixity of `infixl 9` is registered.
+-- In case of an unregistered operator being encountered, a default fixity of @infixl 9@ is registered.
 accumulateOnAtom :: Annotated P.Atom -> D.Sugar ()
 accumulateOnAtom (P.AOperator name :- _) = D.fixities %= Map.insertWith (flip const) name (P.Infix P.L 9 name)
 accumulateOnAtom (P.AList e :- _) = mapM_ accumulateOnExpression e

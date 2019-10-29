@@ -88,7 +88,6 @@ data Type
     = TId String                              -- ^ An identifier
     | TTuple [Annotated Type]                 -- ^ A tuple
     | TFun (Annotated Type, Integer) (Annotated Type)  -- ^ A linear function
-    | TRVar String                            -- ^ A rigid type variable
     | TVar String                             -- ^ A free type variable (unused node in desugaring)
     | TApp (Annotated Type) (Annotated Type)  -- ^ A type application
     deriving (Eq, Ord, Show)
