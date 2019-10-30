@@ -2,7 +2,7 @@
 
 <img src="./assets/icon.png" alt="Blob icon" align=right width=128px />
 
-[![license](https://img.shields.io/cran/l/blob?style=for-the-badge)](./COPYING)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING)
+[![license](https://img.shields.io/cran/l/blob?style=for-the-badge)](./COPYING.md)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING.md)
 
 [![stars](https://img.shields.io/github/stars/mesabloo/blob?color=%23fdaa33&style=for-the-badge)](https://github.com/mesabloo/blob/stargazers)    [![forks](https://img.shields.io/github/forks/mesabloo/blob?color=%23654321&label=Forks&style=for-the-badge)](https://github.com/mesabloo/blob/network/members)
 
