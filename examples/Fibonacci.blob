@@ -1,0 +1,8 @@
+module Fibonacci
+
+fibs :: Num a ⇒ a|1| → a
+fibs n = match n with
+    0  → 1
+    1  → 1
+    n' {- |2| -}
+       → fibs (n' - 2) + fibs (n' - 1)
