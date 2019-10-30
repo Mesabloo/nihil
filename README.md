@@ -31,9 +31,9 @@ Blob came to life after I had an idea: *“what if we could control how much res
 
 In the beginning, I was willing to make an esoteric language, poorly designed, but functional.
 
-Beginning with some C++, I built my own parser combinators library, an old crappy one, which in the end wasn't working that well, because of some strange things I am still not able to really understand.
+Beginning with some C++, I built my own parser combinators library, an old crappy one, which in the end wasn't working that well, because of some strange things I am still unable to really understand.
 
-[@felko](https://github.com/felko) introduced me to Haskell, and I wanted to give it a try since many months. That was the perfect time to do so, and so did I restart everything, but this time in Haskell. This led me here, to what I currently have right now, a fully functional basic compiler, mostly written by myself (except the kind checker, see [this pull request](https://github.com/Mesabloo/blob/pull/1)).
+[@felko](https://github.com/felko) introduced me to Haskell, and I wanted to give it a try for many months. That was the perfect time to do so, and so did I restart everything, but this time in Haskell. This led me here, to what I currently have right now, a fully functional basic compiler, mostly written by myself (except the kind checker, see [this pull request](https://github.com/Mesabloo/blob/pull/1)).
 
 ##  4. <a name='Roadmap'></a>Roadmap
 
@@ -84,5 +84,5 @@ Some code examples can be found in the [examples](./examples) folder.
 ##  8. <a name='Referencesinspirations'></a>References, inspirations
 
 * The [Granule project](https://github.com/granule-project/granule), a statically typed functional programming language with Graded Modal Types
-* [Piklet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
+* [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
 * [GHC](https://github.com/ghc/ghc), the Great Haskell Compiler
