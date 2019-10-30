@@ -3,21 +3,22 @@
 <img src="./assets/icon.png" alt="Blob icon" align=right width=128px />
 
 [![license](https://img.shields.io/cran/l/blob?style=for-the-badge)](./COPYING)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING)
+
 [![stars](https://img.shields.io/github/stars/mesabloo/blob?color=%23fdaa33&style=for-the-badge)](https://github.com/mesabloo/blob/stargazers)    [![forks](https://img.shields.io/github/forks/mesabloo/blob?color=%23654321&label=Forks&style=for-the-badge)](https://github.com/mesabloo/blob/network/members)
 
-##  1. <a name='Tableofcontents'></a>Table of contents
+## <a name='Tableofcontents'></a>Table of contents
 
 <!-- Automatically generated table of contents -->
-* 1. [Table of contents](#Tableofcontents)
-* 2. [About blob](#Aboutblob)
-* 3. [Why blob?](#Whyblob)
-* 4. [Roadmap](#Roadmap)
-* 5. [Unicode](#Unicode)
-* 6. [Examples](#Examples)
-* 7. [Contributors](#Contributors)
-* 8. [References, inspirations](#Referencesinspirations)
+*  [Table of contents](#Tableofcontents)
+*  [About blob](#Aboutblob)
+*  [Why blob?](#Whyblob)
+*  [Roadmap](#Roadmap)
+*  [Unicode](#Unicode)
+*  [Examples](#Examples)
+*  [Contributors](#Contributors)
+*  [References, inspirations](#Referencesinspirations)
 
-##  2. <a name='Aboutblob'></a>About blob
+## <a name='Aboutblob'></a>About blob
 
 [![programming language](https://img.shields.io/github/languages/top/mesabloo/blob?color=%20%235e5086&style=for-the-badge)](https://github.com/Mesabloo/blob/search?l=haskell)    [![code size](https://img.shields.io/github/languages/code-size/mesabloo/blob?color=%23123456&style=for-the-badge)]()    [![code quality](https://img.shields.io/codacy/grade/b59f597dc40340f9bd0bea33d1ada69a/master?style=for-the-badge)]()
 
@@ -25,7 +26,7 @@ Blob is a small functional programming language entirely written using Haskell.
 
 It is not aimed at being a used programming language, but more like a proof of concept, and to prove to myself I can achieve some great things.
 
-##  3. <a name='Whyblob'></a>Why blob?
+## <a name='Whyblob'></a>Why blob?
 
 Blob came to life after I had an idea: *“what if we could control how much resources are used?”*
 
@@ -35,7 +36,7 @@ Beginning with some C++, I built my own parser combinators library, an old crapp
 
 [@felko](https://github.com/felko) introduced me to Haskell, and I wanted to give it a try for many months. That was the perfect time to do so, and so did I restart everything, but this time in Haskell. This led me here, to what I currently have right now, a fully functional basic compiler, mostly written by myself (except the kind checker, see [this pull request](https://github.com/Mesabloo/blob/pull/1)).
 
-##  4. <a name='Roadmap'></a>Roadmap
+## <a name='Roadmap'></a>Roadmap
 
 The ultimate goal is to provide these features:
 - Basic features:
@@ -48,7 +49,7 @@ The ultimate goal is to provide these features:
   - [x] Kinds
   - [x] GADTs
   - [ ] Type classes and instances
-  - [ ] Graded modal types (only the `!n` modality)
+  - [ ] Quantitive types
   - [ ] Modules
 - Advanced future features (not in the prototype):
   - [ ] Rank N types / `forall`
@@ -59,7 +60,7 @@ The ultimate goal is to provide these features:
   - [ ] Dependent types
   - [ ] Algebraic effects ?
 
-##  5. <a name='Unicode'></a>Unicode
+## <a name='Unicode'></a>Unicode
 
 Blob supports some unicode equivalent to ASCII characters:
 
@@ -69,20 +70,21 @@ Blob supports some unicode equivalent to ASCII characters:
 | `=>`  |   `⇒`   |
 | `\`   |   `λ`   |
 | `::`  |   `∷`   |
+|`forall`|  `∀`   |
 
-##  6. <a name='Examples'></a>Examples
+## <a name='Examples'></a>Examples
 
 Some code examples can be found in the [examples](./examples) folder.
 
-##  7. <a name='Contributors'></a>Contributors
+## <a name='Contributors'></a>Contributors
 
 | User                               | What has been done                      |
 |:------------------------------------------------:|:---------------------------------:|
 | <img src="https://avatars.githubusercontent.com/felko" height=30px align=center> [`@felko`](https://github.com/felko) | Kind checker ; various help about many subjects (parsing, typechecking...)<br>Huge thanks for all the help given. |
 | <img src="https://avatars.githubusercontent.com/mesabloo" height=30px align=center> [`@mesabloo`](https://github.com/mesabloo) | Compiler, REPL, and Interpreter |
 
-##  8. <a name='Referencesinspirations'></a>References, inspirations
+## <a name='Referencesinspirations'></a>References, inspirations
 
 * The [Granule project](https://github.com/granule-project/granule), a statically typed functional programming language with Graded Modal Types
 * [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
-* [GHC](https://github.com/ghc/ghc), the Great Haskell Compiler
+* [GHC](https://github.com/ghc/ghc), the *Great* Haskell Compiler
