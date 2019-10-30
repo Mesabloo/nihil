@@ -33,7 +33,17 @@ import Control.Lens
 -- | The main function, used to transform a source file into a list of tokens.
 tokens :: Parser [Token]
 tokens = lexeme (indent *> optional (try blockCmnt <|> lineCmnt) *> many tks) <* eof
-  where tks = lexeme $ try keyword <|> stringL <|> try floatL <|> integerL <|> charL <|> symbol <|> identifier <|> identifier' <|> eolI <|> wildcard
+  where tks = lexeme $ choice
+            [ try keyword
+            , stringL
+            , try floatL
+            , integerL
+            , charL
+            , symbol
+            , identifier
+            , identifier'
+            , eolI
+            , wildcard ]
 
 -- | This function is used to calculate the indentation level of each line when EOL is encountered.
 eolI :: Parser Token
@@ -124,7 +134,7 @@ symbol :: Parser Token
 symbol = do
     i <- use currentIndent
     (pInit, pEnd, s) <- getPositionInSource $
-        (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→⊸λ⇒∷" :: String)))
+        (LSymbol . Text.pack . (: []) <$> lexeme (oneOf ("()[]{},;\\→λ⇒∷" :: String)))
         <|> (LSymbol . Text.pack <$> lexeme (some $ C.symbolChar <|> oneOf ("!#$%&.<=>?^~|@*/-:" :: String)) <?> "symbol")
 
     pure (i, SourceSpan pInit pEnd, Just s)
