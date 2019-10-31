@@ -85,3 +85,17 @@ tests:
     dependencies:
     - Blob
     - hspec
+  jit:
+    main:        Main.hs
+    source-dirs: tests/JIT
+    ghc-options:
+    - -g
+    - -dcore-lint
+    - -debug
+    - -ddump-stg
+    - -ddump-simpl
+    - -ddump-cmm
+    - -dppr-debug
+    - -ddump-to-file
+    dependencies:
+    - Blob
