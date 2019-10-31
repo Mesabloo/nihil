@@ -33,6 +33,10 @@ dependencies:
 # - JellyVM
 - conf
 - lens
+- binary
+- vector
+- unix
+- template-haskell
 
 name: Blob
 version: 0.1.0.0
