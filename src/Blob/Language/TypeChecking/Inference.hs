@@ -44,6 +44,7 @@ import Control.Lens
 import Data.Composition ((.:))
 import Prelude hiding (lookup)
 import qualified Prelude (lookup)
+import Debug.Trace
 
 -- | Runs the inference monad given as argument.
 runInfer :: GlobalEnv -> Infer (Type, [Constraint]) -> Either TIError ((Type, [Constraint]), [Constraint])
@@ -150,7 +151,7 @@ fresh v = do
     env <- defCtx `views` \t -> concat (fst . (^. _Scheme) <$> Map.elems (getMap t))
     let newTVar = TV (v <> show s)
 
-    if newTVar `elem` env
+    if newTVar `notElem` env
     then pure (TVar newTVar)
     else fresh (newTVar ^. _TV)
 
@@ -201,7 +202,7 @@ infer (e :- _) = case e of
         (t1, c1) <- infer e1
         (t2, c2) <- infer e2
         tv <- fresh "#"
-        pure (tv, c1 <> c2 <> [(t1, (t2, 0) `TFun` tv)])
+        traceShow (t1, t2) $ pure (tv, c1 <> c2 <> [(t1, (t2, 1) `TFun` tv)])
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldMap snd ts)
