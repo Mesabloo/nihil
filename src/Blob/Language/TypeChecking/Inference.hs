@@ -202,7 +202,7 @@ infer (e :- _) = case e of
         (t1, c1) <- infer e1
         (t2, c2) <- infer e2
         tv <- fresh "#"
-        traceShow (t1, t2) $ pure (tv, c1 <> c2 <> [(t1, (t2, 1) `TFun` tv)])
+        pure (tv, c1 <> c2 <> [(t1, (t2, 1) `TFun` tv)])
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldMap snd ts)
