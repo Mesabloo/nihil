@@ -75,17 +75,15 @@ mmapPrivate = MmapOption (unMmapFlags mapPrivate)
 
 instance Monoid ProtOption where
     mempty = protNone
-    mappend (ProtOption a) (ProtOption b) = ProtOption (a .|. b)
 
 instance Semigroup ProtOption where
-    (<>) = mappend
+    (<>) (ProtOption a) (ProtOption b) = ProtOption (a .|. b)
 
 instance Monoid MmapOption where
     mempty = mmapNone
-    mappend (MmapOption a) (MmapOption b) = MmapOption (a .|. b)
 
 instance Semigroup MmapOption where
-    (<>) = mappend
+  (<>) (MmapOption a) (MmapOption b) = MmapOption (a .|. b)
 
 ----------------------------------------------------------------------------
 

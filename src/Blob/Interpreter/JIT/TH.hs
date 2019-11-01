@@ -23,7 +23,8 @@ mkRegFuns = do
     decs <- forM cons $ \case
         NormalC name _ -> do
             let lower = mkName (toLower <$> nameBase name)
-            pure (Just $ genFun lower name)
+            pure (Just [ genDecl lower,  genFun lower name ])
         _ -> pure Nothing
-    pure (catMaybes decs)
+    pure (concat $ catMaybes decs)
   where genFun low n = ValD (VarP low) (NormalB $ ConE (mkName "Reg") `AppE` ConE n) []
+        genDecl low  = SigD low (ConT (mkName "Value"))

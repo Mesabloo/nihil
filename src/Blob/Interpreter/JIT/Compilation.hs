@@ -48,7 +48,7 @@ jit :: Ptr Word8 -> [Word8] -> IO (IO Int)
 jit mem machCode = do
     code <- codePtr machCode
     withForeignPtr (vecPtr code) $
-        \ptr -> copyBytes mem ptr (8*6)
+        \ptr -> copyBytes mem ptr (length machCode)
 
     pure (getFunction mem)
 
