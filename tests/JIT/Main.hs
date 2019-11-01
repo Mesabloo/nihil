@@ -14,9 +14,12 @@ main = do
     putStrLn ""
     let jitsize = 256 * 1024 -- 256 KiB
 
+    printf <- extern "printf"
+    s <- asciz "Hello, World!\n"
+
     mem <- allocateMemory jitsize
 
-    let x = assemble mem arith
+    let x = assemble mem (arith printf s)
     case x of
         Left err -> print err
         Right st -> do
@@ -34,9 +37,12 @@ dump :: [Word8] -> IO ()
 dump ls = print (showH <$> ls)
   where showH n = showHex n ""
 
-arith :: X86 ()
-arith = do
-    mov rax (Int 18)
-    inc rax
-    inc rax
+arith :: Word32 -> Word32 -> X86 ()
+arith printf msg = do
+    push rbp
+    mov rbp rsp
+    mov rdi (Addr msg)
+    call (Addr printf)
+    pop rbp
+    mov rax (Int 0)
     ret
