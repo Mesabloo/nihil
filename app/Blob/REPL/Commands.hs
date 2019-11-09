@@ -39,7 +39,8 @@ commands = [  ":help", ":h", ":?"
            , ":reset", ":r"
            ,  ":time"
            , ":bench"
-           ,   ":env" ]
+           ,   ":env"
+           ,     ":!" ]
 
 -- | The 'Help' command parser.
 --
@@ -60,8 +61,7 @@ load :: Parser Command
 load = do
     C.space *> (try . hidden) (keyword "load" <|> keyword "l") <* C.space <?> "߷"
 
-    end <- observing . lookAhead $ eof
-    case end of
+    observing (lookAhead eof) >>= \case
         Right _ -> fail "Missing argument \"[file]\""
         Left _  -> do
             file <- anySingle `someTill` eof
@@ -85,8 +85,7 @@ getType :: Parser Command
 getType = do
     C.space *> (try . hidden) (keyword "type" <|> keyword "t") <* C.space <?> "߷"
 
-    end <- observing . lookAhead $  eof
-    case end of
+    observing (lookAhead eof) >>= \case
         Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> GetType <$> (anySingle `someTill` eof)
 
@@ -97,8 +96,7 @@ getKind :: Parser Command
 getKind = do
     C.space *> (try . hidden) (keyword "kind" <|> keyword "k") <* C.space <?> "߷"
 
-    end <- observing . lookAhead $ eof
-    case end of
+    observing (lookAhead eof) >>= \case
         Right _ -> fail "Missing argument \"[type]\""
         Left _  -> GetKind <$> (anySingle `someTill` eof)
 
@@ -109,8 +107,7 @@ time :: Parser Command
 time = do
     C.space *> (try . hidden) (keyword "time") <* C.space <?> "߷"
 
-    end <- observing . lookAhead $ eof
-    case end of
+    observing (lookAhead eof) >>= \case
         Right _ -> fail "Missing argument \"[expr]\""
         Left _  -> Time <$> (anySingle `someTill` eof)
 
@@ -121,8 +118,7 @@ bench :: Parser Command
 bench = do
     C.space *> (try . hidden) (keyword "bench") <* C.space <?> "߷"
 
-    end <- observing . lookAhead $ eof
-    case end of
+    observing (lookAhead eof) >>= \case
         Right _ -> fail "Missing arguments \"[n] [expr]\""
         Left _  -> do
             n    <- L.decimal
@@ -137,10 +133,21 @@ bench = do
 env :: Parser Command
 env = C.space *> (try . hidden) (keyword "env") <* C.space $> Env <?> "߷"
 
+-- | The 'Shell' command parser.
+--
+-- @:!@
+shell :: Parser Command
+shell = do
+    C.space *> (try . hidden) (keyword "!") <* C.space <?> "߷"
+
+    observing (lookAhead eof) >>= \case
+        Right _ -> fail "Missing argument \"[command]\""
+        Left _  -> Shell <$> (anySingle `someTill` eof)
+
 -- | The global command parser.
 command :: Parser Command
 command = do { try (C.space *> C.string ":")
-             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env] <* eof
+             ; cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env, shell] <* eof
              ; case cmd of
                 Left err ->
                     if "߷" `isInfixOf` parseErrorTextPretty err

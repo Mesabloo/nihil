@@ -129,3 +129,4 @@ replCheck = \case
     Time expr           -> execTime expr
     Bench n expr        -> execBench n expr
     Env                 -> getEnv
+    Shell c             -> shell c

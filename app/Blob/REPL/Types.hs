@@ -43,6 +43,7 @@ data Command = GetType String
              | Time String
              | Bench Integer String
              | Env
+             | Shell String
     deriving (Eq, Ord, Show)
 
 -- | The state used in the 'REPL'.

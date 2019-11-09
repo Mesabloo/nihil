@@ -50,35 +50,45 @@ import Criterion.Measurement (secs, getTime)
 import Blob.Interpreter.Types
 import Blob.Prelude
 import Control.Lens hiding (op)
+import System.Process (callCommand)
+import Control.Exception (handle, SomeException)
 
 helpCommand :: IO ()
 helpCommand = do
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":help\" \":h\" \":?\"" >> setSGR [Reset]
-        >> putStrLn ": show this menu." >> setSGR [Reset]
+    let colorCommand action = do
+            setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity]
+            action
+            setSGR [Reset]
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":quit\" \":q\"" >> setSGR [Reset]
-        >> putStrLn ": exit the REPL." >> setSGR [Reset]
+    colorCommand (putStr "\":help\" \":h\" \":?\"")
+        >> putStrLn ": show this menu."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":load [file]\" \":l [file]\"" >> setSGR [Reset]
-        >> putStrLn ": load a file into the REPL for further use." >> setSGR [Reset]
+    colorCommand (putStr "\":quit\" \":q\"")
+        >> putStrLn ": exit the REPL."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":type [expr]\" \":t [expr]\"" >> setSGR [Reset]
-        >> putStrLn ": get the type of an expression." >> setSGR [Reset]
+    colorCommand (putStr "\":load [file]\" \":l [file]\"")
+        >> putStrLn ": load a file into the REPL for further use."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":kind [type]\" \":k [type]\"" >> setSGR [Reset]
-        >> putStrLn ": get the kind of a type." >> setSGR [Reset]
+    colorCommand (putStr "\":type [expr]\" \":t [expr]\"")
+        >> putStrLn ": get the type of an expression."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":reset {symbols}\" \":r {symbols}\"" >> setSGR [Reset]
-        >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols." >> setSGR [Reset]
+    colorCommand (putStr "\":kind [type]\" \":k [type]\"")
+        >> putStrLn ": get the kind of a type."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":time [expr]\"" >> setSGR [Reset]
-        >> putStrLn ": print the execution time of an expression." >> setSGR [Reset]
+    colorCommand (putStr "\":reset {symbols}\" \":r {symbols}\"")
+        >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":bench [n] [expr]\"" >> setSGR [Reset]
-        >> putStrLn ": make some benchmark on an expression." >> setSGR [Reset]
+    colorCommand (putStr "\":time [expr]\"")
+        >> putStrLn ": print the execution time of an expression."
 
-    setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity] >> putStr "\":env\"" >> setSGR [Reset]
-        >> putStrLn ": print the whole current environment" >> setSGR [Reset]
+    colorCommand (putStr "\":bench [n] [expr]\"")
+        >> putStrLn ": make some benchmark on an expression."
+
+    colorCommand (putStr "\":env\"")
+        >> putStrLn ": print the whole current environment"
+
+    colorCommand (putStr "\":! [command]\"")
+        >> putStrLn ": execute a shell command from the REPL"
 
     putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
 
@@ -296,6 +306,11 @@ resetOne :: String -> REPL ()
 resetOne x = do
     ctx . defCtx %= (TypeEnv . Map.delete x . getMap)
     values . vals %= Map.delete x
+
+shell :: String -> REPL ()
+shell = liftIO . handle handleException . callCommand
+  where handleException :: SomeException -> IO ()
+        handleException _ = pure ()
 
 
 
