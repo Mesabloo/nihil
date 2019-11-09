@@ -16,6 +16,7 @@ It allows anyone to write/execute some blob code, imports libraries (WIP), load 
 | `:time [expr]`      |               | Print the execution time of the evaluation of an expression
 | `:bench [n] [expr]` |               | Create a bench of an expression ran `n` times
 | `:env`              |               | Print the whole current environment
+| `:! [command]`      |               | Execute a shell command directly inside the REPL
 
 ### How to run
 
