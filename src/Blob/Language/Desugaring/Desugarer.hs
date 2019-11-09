@@ -112,10 +112,7 @@ desugarType fileName (P.TList ts :- p) =
 
 -- | Desugars a 'P.Expr' into a 'D.Expr'.
 desugarExpression :: String -> Annotated P.Expr -> D.Sugar (Annotated D.Expr)
-desugarExpression fileName expr = do
-    let (e :- p) = expr
-
-    syExpr fileName e [] []
+desugarExpression fileName (e :- p) = syExpr fileName e [] []
 
 
 -- operators accumulator
@@ -234,7 +231,7 @@ syExpr fileName ((P.AOperator o :- _):xs) out ops = do
                     else
                         let (e1:e2:es') = out
                         in handleOperator o ((D.EApp (D.EApp (D.EId o1 :- Nothing) e2 :- Nothing) e1 :- Nothing) : es') os
-                else pure (out, o : os)
+                else pure (out, o : ops)
 syExpr fileName ((x :- p):xs) out ops = do
     ops' <- use D.fixities
 
