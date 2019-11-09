@@ -15,12 +15,9 @@ dependencies:
 - text
 - base >= 4.7 && < 5
 - megaparsec >7
-- ansi-terminal
 - wl-pprint
 - containers
 - mtl
-- directory
-- haskeline
 - MissingH
 - these <= 0.7.6
 - criterion-measurement
@@ -28,10 +25,8 @@ dependencies:
 - extra
 - keys
 - hashable
-- filepath
 - insert-ordered-containers
 # - JellyVM
-- conf
 - lens
 
 name: Blob
@@ -52,8 +47,6 @@ executables:
     - -with-rtsopts=-N
     - -Wall
     - -Wextra
-    - -Wno-unused-do-bind
-    - -Wno-name-shadowing
     - -O2
     - -optc-O3
     - -fasm
@@ -65,6 +58,12 @@ executables:
     dependencies:
     - Blob
     - optparse-applicative
+    - process
+    - conf
+    - directory
+    - haskeline
+    - ansi-terminal
+    - filepath
 
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
 
