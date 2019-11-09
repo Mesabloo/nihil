@@ -48,7 +48,8 @@ customOp = do
         f <- fixity
         prec <- sameLineOrIndented iPos integer <?> "operator precedence"
         guard (prec <= 9) <|> fail "Operator precedence should be < 10 and > 0"
-        op <- sameLineOrIndented iPos (opSymbol <|> parens opSymbol) <?> "operator"
+
+        op <- sameLineOrIndented iPos (ticks identifier <|> opSymbol <|> parens opSymbol) <?> "operator"
 
         pure $ OpFixity op (f prec op :- Nothing)
 
@@ -231,6 +232,9 @@ parens p = symbol "(" *> p <* symbol ")"
 brackets :: Parser a -> Parser a
 brackets p = symbol "[" *> p <* symbol "]"
 
+ticks :: Parser a -> Parser a
+ticks p = symbol "`" *> p <* symbol "`"
+
 integer :: Parser Integer
 integer = "integer" <??> sat >>= \(_, _, LInteger i) -> pure i
   where sat = satisfy $ \(_, _, t) -> case t of
@@ -371,8 +375,8 @@ app = do
 
 operator :: Parser (Annotated Atom)
 operator = do
-    (pInit, pEnd, op) <- getPositionInSource
-        opSymbol
+    (pInit, pEnd, op) <- getPositionInSource $
+        ticks identifier <|> opSymbol
     pure (AOperator op :- Just (SourceSpan pInit pEnd))
 
 hole :: Parser Atom
@@ -500,4 +504,4 @@ runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks
 
 -- | The list of reserved operators in the language.
 rOps :: [String]
-rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒", "!" ]
+rOps = [ "=", "::", "\\", "->", "-o", "=>", ",", "∷", "→", "⊸", "⇒", "`" ]
