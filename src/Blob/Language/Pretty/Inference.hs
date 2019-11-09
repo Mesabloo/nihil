@@ -36,14 +36,11 @@ pType (t :- _) = case t of
     TFloat -> text "Double"
     TChar -> text "Char"
     TTuple ts -> parens . mconcat $ intersperse (text ", ") (map (pType . flip (:-) Nothing) ts)
-    TFun (t1, l) t2 -> parenthesizeIfNeededF t1 <> text "|" <> text (show l) <> text "|" <+> text "->" <+> pType (t2 :- Nothing)
+    TFun (t1, l) t2 -> parenthesizeIfNeeded t1 <> text "|" <> text (show l) <> text "|" <+> text "->" <+> pType (t2 :- Nothing)
     TApp t1 t2 -> pType (t1 :- Nothing) <+> parenthesizeIfNeeded t2
   where parenthesizeIfNeeded t = case t of
             TFun _ _ -> parens $ pType (t :- Nothing)
             TApp _ _ -> parens $ pType (t :- Nothing)
-            _ -> pType (t :- Nothing)
-        parenthesizeIfNeededF t = case t of
-            TFun _ _ -> parens $ pType (t :- Nothing)
             _ -> pType (t :- Nothing)
 
 -- | Kind pretty printing
