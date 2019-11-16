@@ -5,6 +5,8 @@ library:
   - -O2
   - -optc-O3
   - -fasm
+  - -Wno-unused-do-bind
+  - -Wno-orphans
   cpp-options:
   - -DNDEBUG
   - -O3
@@ -38,7 +40,7 @@ github: mesabloo/Blob
 license: GPL-3.0
 
 executables:
-  Blob-exe:
+  Blobc:
     source-dirs: app
     main: Main.hs
     ghc-options:
@@ -50,6 +52,8 @@ executables:
     - -O2
     - -optc-O3
     - -fasm
+    - -Wno-unused-do-bind
+    - -Wno-orphans
     # - -prof
     # - -fprof-auto
     cpp-options:
