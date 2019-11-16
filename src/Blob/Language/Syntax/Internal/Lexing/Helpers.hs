@@ -17,7 +17,7 @@ module Blob.Language.Syntax.Internal.Lexing.Helpers
 (lexeme, getPositionInSource, space') where
 
 import Blob.Language.Syntax.Lexer (Lexer)
-import Blob.Language.Syntax.SourceSpan (SourceSpan(..))
+import Blob.Language.Syntax.Internal.Lexing.SourceSpan (SourceSpan(..))
 import Blob.Language.Syntax.Rules.Lexing.Comment
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Char as Ch

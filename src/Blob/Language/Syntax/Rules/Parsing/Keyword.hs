@@ -1,0 +1,34 @@
+-- Blobc, a compiler for compiling Blob source code
+-- Copyright (c) 2019 Mesabloo
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+
+-- You should have received a copy of the GNU General Public License
+-- along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+module Blob.Language.Syntax.Rules.Parsing.Keyword where
+
+import Blob.Language.Syntax.Tokens.Lexeme (isKeyword, Lexeme(LKeyword))
+import Blob.Language.Syntax.Parser (Parser)
+import Blob.Language.Syntax.Tokens.Token (Token(..), getLexeme)
+import Text.Megaparsec (satisfy, (<?>))
+import qualified Data.Text as Text
+import Control.Lens ((^?), _Just, (^.), to)
+import Control.Applicative (empty)
+import Data.Maybe (fromJust)
+
+keyword :: String -> Parser Token
+keyword s = (satisfy isKW >>= check) <?> ("keyword \"" <> s <> "\"")
+  where
+    isKW k = (isKeyword <$> getLexeme k) ^? _Just ^. to fromJust
+
+    check t@(Token _ _ (Just (LKeyword w)))
+        | s == Text.unpack w = pure t
+    check _                  = empty

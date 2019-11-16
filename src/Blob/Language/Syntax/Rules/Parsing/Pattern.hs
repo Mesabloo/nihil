@@ -13,23 +13,14 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE TemplateHaskell #-}
+module Blob.Language.Syntax.Rules.Parsing.Pattern where
 
-module Blob.Language.Syntax.SourceSpan where
+import Blob.Language.Syntax.Parser (Parser)
+import Blob.Language.Syntax.Internal.Parsing.Located
+import Blob.Language.Syntax.Internal.Parsing.AST
+import Blob.Language.Syntax.Rules.Parsing.Patterns.Operator
+import Blob.Language.Syntax.Rules.Parsing.Patterns.Atom
+import Text.Megaparsec (some, try, (<|>))
 
-import Control.Lens (makeLenses)
-import Text.Megaparsec (SourcePos(..), unPos)
-
-
--- | A simple record used to hold the position of a token in the source file.
-data SourceSpan
-    = SourceSpan { begin :: SourcePos -- ^ the beginning position of the source span
-                 , end :: SourcePos   -- ^ the end position of the source span
-                 }
-  deriving (Ord, Eq)
-
-makeLenses ''SourceSpan
-
-instance Show SourceSpan where
-    show (SourceSpan (SourcePos _ l1 c1) (SourcePos _ l2 c2)) =
-        "(" <> show (unPos l1) <> ":" <> show (unPos c1) <> ") => (" <> show (unPos l2) <> ":" <> show (unPos c2) <> ")"
+pattern' :: Parser [Located Pattern]
+pattern' = some (try patOperator <|> patTerm)
