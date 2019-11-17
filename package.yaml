@@ -7,6 +7,8 @@ library:
   - -fasm
   - -Wno-unused-do-bind
   - -Wno-orphans
+  - -Wno-name-shadowing
+  - -Wno-unused-matches
   cpp-options:
   - -DNDEBUG
   - -O3
@@ -48,12 +50,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
-    - -Wextra
     - -O2
     - -optc-O3
     - -fasm
     - -Wno-unused-do-bind
     - -Wno-orphans
+    - -Wno-name-shadowing
+    - -Wno-unused-matches
     # - -prof
     # - -fprof-auto
     cpp-options:
