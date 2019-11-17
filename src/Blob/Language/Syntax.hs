@@ -21,11 +21,20 @@ import Blob.Language.Syntax.Tokens.Token (Token(..))
 import Blob.Language.Syntax.Parser (Parser)
 import Blob.Language.Syntax.Internal.Parsing.AST (Program)
 import Blob.Language.Syntax.Rules.Parsing.Program (program)
+import Blob.Language.Syntax.Desugarer (Desugarer, SugarState)
+import qualified Blob.Language.Syntax.Internal.Parsing.AST as P (Program)
+import qualified Blob.Language.Syntax.Internal.Desugaring.CoreAST as D (Program)
+import Blob.Language.Syntax.Internal.Parsing.Located (Located)
+import Blob.Language.Syntax.Rules.Desugaring.Program (desugarProgram)
+import Blob.Language.Syntax.Internal.Desugaring.Accumulator.Program (accumulateOnProgram)
 import Text.Megaparsec (ParseErrorBundle, runParserT, runParser)
-import Control.Monad.State (evalState)
+import Control.Monad.State (evalState, runStateT)
+import Control.Monad.Except (runExcept)
 import Data.Text (Text)
 import Data.Void (Void)
 import Data.Maybe (mapMaybe)
+import Data.Composition ((.:))
+import Text.PrettyPrint.Leijen (Doc)
 
 -- | A simple wrapper function for running the lexer with some text as input.
 runLexer :: Text -> String -> Either (ParseErrorBundle Text Void) [Token]
@@ -41,3 +50,14 @@ runParser' :: Parser a -> [Token] -> String -> Either (ParseErrorBundle [Token] 
 runParser' p tks fileName = Text.Megaparsec.runParser p fileName (mapMaybe f tks)
   where f (Token _ _ Nothing)   = Nothing
         f (Token indent spos x) = Just (Token indent spos x)
+
+-- | Runs the entire desugaring process on a given 'P.Program'.
+runDesugarer :: String -> Located P.Program -> Desugarer (Located D.Program)
+runDesugarer fileName program = do
+    accumulateOnProgram program
+
+    desugarProgram fileName program
+
+-- | Runs an action in the 'D.Sugar' monad with a given state.
+runSugar :: Desugarer a -> SugarState -> Either Doc (a, SugarState)
+runSugar = runExcept .: runStateT
