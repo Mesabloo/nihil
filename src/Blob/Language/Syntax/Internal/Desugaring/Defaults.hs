@@ -21,8 +21,8 @@ import qualified Blob.Language.Syntax.Internal.Parsing.AST as P (Fixity(..), Ass
 
 initSugarState :: SugarState
 initSugarState = SugarState $ Map.fromList
-    [ ("*", P.Infix P.L 7)
-    , ("/", P.Infix P.L 7)
-    , ("+", P.Infix P.L 6)
-    , ("-", P.Infix P.L 6)
-    , (":", P.Infix P.L 5) ]
+    [ ("*", P.Infix P.L 7 "*")
+    , ("/", P.Infix P.L 7 "/")
+    , ("+", P.Infix P.L 6 "+")
+    , ("-", P.Infix P.L 6 "-")
+    , (":", P.Infix P.L 5 ":") ]
