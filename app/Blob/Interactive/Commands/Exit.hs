@@ -1,4 +1,4 @@
--- iBlob, a REPL using the Blob programming language's interpreter.
+-- Blobc, a compiler for compiling Blob source code
 -- Copyright (c) 2019 Mesabloo
 
 -- This program is free software: you can redistribute it and/or modify
@@ -13,17 +13,24 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
--- | This module holds some functions for logging stuff.
---
--- It should be either completed or deleted.
-module Blob.REPL.Logger where
+module Blob.Interactive.Commands.Exit where
 
-import Blob.REPL.Types
+import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import System.Console.ANSI
+import Text.Megaparsec (try, hidden, (<|>), (<?>))
+import qualified Text.Megaparsec.Char as C
+import Data.Functor (($>))
+import System.Exit (exitSuccess)
 
--- | Shows a message in red.
-logError :: Show a => a -> IO ()
-logError a = do
-    setSGR [SetColor Foreground Vivid Red]
-    putStr (show a)
+-- | The 'Exit' command parser.
+--
+-- Either @:quit@ or @:q@.
+exit :: CommandParser Command
+exit = C.space *> (try . hidden) (keyword "quit" <|> keyword "q") <* C.space $> Exit <?> "߷"
+
+exitCommand :: IO ()
+exitCommand = do
+    setSGR [SetColor Foreground Vivid Green]
+    putStrLn "See you soon!"
     setSGR [Reset]
+    exitSuccess

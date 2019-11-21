@@ -1,4 +1,4 @@
--- iBlob, a REPL using the Blob programming language's interpreter.
+-- Blobc, a compiler for compiling Blob source code
 -- Copyright (c) 2019 Mesabloo
 
 -- This program is free software: you can redistribute it and/or modify
@@ -15,45 +15,26 @@
 
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses #-}
 
--- | This module holds the types for the REPL.
-module Blob.REPL.Types where
+module Blob.Interactive.REPL where
 
-import Blob.Language.Desugaring.Types (SugarState)
-import Blob.Language.TypeChecking.Types (GlobalEnv)
+import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv)
+import Blob.Language.Syntax.Desugarer (SugarState)
+import Blob.Interpreter.Evaluator (EvalState)
 import Text.PrettyPrint.Leijen (Doc)
 import Control.Monad.State (StateT(..), lift, MonadState(..))
 import Control.Monad.Except (ExceptT(..), MonadError(..), runExceptT)
 import System.Console.Haskeline (InputT, MonadException(..), RunIO(..), runInputT, defaultSettings)
-import Blob.Interpreter.Types
-import Data.Void
-import Text.Megaparsec (Parsec)
-import Control.Lens
-
-
--- | The command line parser.
-type Parser = Parsec Void String
-
-data Command = GetType String
-             | GetKind String
-             | Help
-             | Code String
-             | Load String
-             | Exit
-             | ResetEnv [String]
-             | Time String
-             | Bench Integer String
-             | Env
-             | Shell String
-    deriving (Eq, Ord, Show)
+import Control.Lens (makeLenses)
 
 -- | The state used in the 'REPL'.
 data REPLState
-    = REPLState { _ctx :: GlobalEnv        -- ^ The 'GlobalEnv' used for running the type inference process
-                , _values :: EvalState     -- ^ The 'EvalState' used for running the interpreter
-                , _op :: SugarState        -- ^ The 'SugarState' used for running the desugaring process
-                , _prompt :: String        -- ^ The prompt symbol (defaults to @"> "@)
-                , _preload :: [FilePath]   -- ^ The files to preload
-                }
+    = REPLState
+    { _ctx :: GlobalEnv        -- ^ The 'GlobalEnv' used for running the type inference process
+    , _values :: EvalState     -- ^ The 'EvalState' used for running the interpreter
+    , _op :: SugarState        -- ^ The 'SugarState' used for running the desugaring process
+    , _prompt :: String        -- ^ The prompt symbol (defaults to @"> "@)
+    , _preload :: [FilePath]   -- ^ The files to preload
+    }
 makeLenses ''REPLState
 
 -- | The 'REPL' monad.
@@ -67,6 +48,8 @@ data REPLOptions
     = REPLOptions { _preloadFiles :: [FilePath]  -- ^ Files to preload
                   }
 makeLenses ''REPLOptions
+
+------------------------------------------------------------------------
 
 instance MonadException m => MonadException (ExceptT e m) where
     controlIO f = ExceptT $ controlIO $ \(RunIO run) ->

@@ -24,6 +24,7 @@ import Blob.Language.TypeChecking.Internal.Substitution (apply)
 import Blob.Language.TypeChecking.Internal.Kind (Kind)
 import Blob.Language.TypeChecking.Internal.Environment (KindEnv, GlobalEnv)
 import Blob.Language.TypeChecking.TypeChecker (TIError, Check)
+import Blob.Language.TypeChecking.Internal.Constraint (KindConstraint)
 import Control.Monad.Except (runExcept)
 import Control.Monad.RWS (evalRWST)
 import Control.Monad.State (runStateT)
@@ -31,6 +32,12 @@ import Control.Monad.State (runStateT)
 runKI :: KindEnv -> KI Kind -> Either KIError Kind
 runKI env k = do
     (kind, c) <- runExcept (evalRWST k env initKindState)
+    sub       <- runKindSolver env c
+    pure (apply @_ @_ @String sub kind)
+
+runKI' :: KindEnv -> KI (Kind, [KindConstraint]) -> Either KIError Kind
+runKI' env k = do
+    (kind, c) <- fst <$> runExcept (evalRWST k env initKindState)
     sub       <- runKindSolver env c
     pure (apply @_ @_ @String sub kind)
 

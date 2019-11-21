@@ -1,4 +1,4 @@
--- iBlob, a REPL using the Blob programming language's interpreter.
+-- Blobc, a compiler for compiling Blob source code
 -- Copyright (c) 2019 Mesabloo
 
 -- This program is free software: you can redistribute it and/or modify
@@ -13,38 +13,41 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, LambdaCase #-}
+{-# LANGUAGE LambdaCase #-}
 
--- | This module contains all the functions related to the internal functionnalities of the REPL.
-module Blob.REPL.REPL
-( runREPL
-, customRunREPL
-, replLoop
-, REPLError
-, REPLOptions(..)
-) where
+module Blob.Interactive where
 
-import System.Console.Haskeline (getInputLine, runInputT, InputT, MonadException(..), RunIO(..), defaultSettings, withInterrupt, handleInterrupt)
-import Control.Monad.Except (runExceptT, throwError, catchError, MonadError, ExceptT(..))
-import Control.Monad.State (StateT(..), lift, get, liftIO, gets)
-import Blob.REPL.Types
-import Blob.REPL.Commands (command)
-import Blob.REPL.Execution
-import System.Console.ANSI (setSGR, SGR(..), ColorIntensity(..), Color(..), ConsoleLayer(..))
-import Text.Megaparsec.Error (ParseErrorBundle(..), bundleErrors, parseErrorTextPretty)
-import Text.Megaparsec (runParser)
+import Blob.Interactive.Command (CommandParser, Command(..))
+import Blob.Interactive.REPL (REPL, REPLState, REPLOptions(..), REPLError, preload, prompt, preloadFiles)
+import Blob.Interactive.Commands.Bench
+import Blob.Interactive.Commands.Code
+import Blob.Interactive.Commands.Exit
+import Blob.Interactive.Commands.GetEnv
+import Blob.Interactive.Commands.GetKind
+import Blob.Interactive.Commands.GetType
+import Blob.Interactive.Commands.Help
+import Blob.Interactive.Commands.Load
+import Blob.Interactive.Commands.Reset
+import Blob.Interactive.Commands.Shell
+import Blob.Interactive.Commands.Time
+import Blob.Interactive.Defaults
+import Blob.Interactive.Commands.Errors.UnknownCommand (makeCommandError)
+import Text.Megaparsec (observing, try, choice, parseErrorTextPretty, runParser, ParseErrorBundle(..), bundleErrors, (<|>), eof)
+import qualified Text.Megaparsec.Char as C
 import System.IO (hFlush, stdout)
 import Control.Monad (forever, forM_)
 import System.Directory (doesFileExist, getCurrentDirectory, canonicalizePath, getHomeDirectory)
 import Data.List.NonEmpty (toList)
 import Data.String.Utils (strip)
-import Data.Char (toUpper)
 import System.FilePath.Posix ((</>))
-import Blob.REPL.Defaults
-import Blob.REPL.Logger
 import Data.Conf
 import Data.Maybe
 import Control.Lens
+import System.Console.Haskeline (getInputLine, runInputT, defaultSettings, withInterrupt, handleInterrupt)
+import Control.Monad.Except (runExceptT, catchError)
+import Control.Monad.State (StateT(..), liftIO)
+import Data.List (isInfixOf)
+import System.Console.ANSI
 
 -- | Runs the REPL with no options.
 runREPL :: REPL a -> IO ()
@@ -91,6 +94,13 @@ loadFiles = do
     fs <- use preload
     forM_ (zip [1..] fs) $ \(i, f) -> check i f fs *> catchError (replCheck (Load f)) (liftIO . logError)
 
+logError :: REPLError -> IO ()
+logError err = do
+    setSGR [SetColor Foreground Vivid Red]
+    print err
+    setSGR [Reset]
+    hFlush stdout
+
 -- | The basic loop of the REPL.
 replLoop :: REPL ()
 replLoop = do
@@ -123,10 +133,26 @@ replCheck = \case
     Exit                -> liftIO exitCommand
     ResetEnv ids        -> resetEnv ids loadFiles
     Load file           -> loadFile file
-    GetType expr        -> getType expr
-    GetKind typeExpr    -> getKind typeExpr
+    GetType expr        -> getType' expr
+    GetKind typeExpr    -> getKind' typeExpr
     Code stat           -> execCode stat
     Time expr           -> execTime expr
     Bench n expr        -> execBench n expr
     Env                 -> getEnv
-    Shell c             -> shell c
+    Shell c             -> shell' c
+
+-- | The global command parser.
+command :: CommandParser Command
+command =
+    do
+        try (C.space *> C.string ":")
+        cmd <- observing . try $ choice [help, exit, load, time, getType, getKind, reset, bench, env, shell] <* eof
+        case cmd of
+            Left err ->
+                if "߷" `isInfixOf` parseErrorTextPretty err
+                then do
+                    msg <- makeCommandError
+                    fail msg
+                else fail $ parseErrorTextPretty err
+            Right x  -> pure x
+    <|> C.space *> code

@@ -1,4 +1,4 @@
--- iBlob, a REPL using the Blob programming language's interpreter.
+-- Blobc, a compiler for compiling Blob source code
 -- Copyright (c) 2019 Mesabloo
 
 -- This program is free software: you can redistribute it and/or modify
@@ -13,23 +13,24 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
--- | This modules holds default values for some constants used in the REPL.
-module Blob.REPL.Defaults where
+module Blob.Interactive.Defaults where
 
-import Blob.REPL.Types
-import System.Console.ANSI
-import System.IO
-import Blob.Prelude
-import Blob.Language.Desugaring.Defaults
+import Blob.Prelude (initGlobalEnv, initEvalState)
+import Blob.Language.Syntax.Internal.Desugaring.Defaults (initSugarState)
+import Blob.Interactive.REPL (REPLState(..))
 import Control.Monad.State (liftIO)
+import System.Console.ANSI
+import System.IO (hFlush, stdout)
 
 -- | The default 'REPLState'.
 initREPLState :: REPLState
-initREPLState = REPLState { _ctx = initGlobalEnv
-                          , _values = initEvalState
-                          , _op = initSugarState
-                          , _prompt = "> "
-                          , _preload = [] }
+initREPLState =
+    REPLState
+        initGlobalEnv
+        initEvalState
+        initSugarState
+        "> "
+        []
 
 -- | The welcome message when starting the REPL.
 initREPL :: IO ()
