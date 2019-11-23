@@ -30,7 +30,6 @@ dependencies:
 - keys
 - hashable
 - insert-ordered-containers
-# - JellyVM
 - lens
 
 name: Blob
