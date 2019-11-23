@@ -49,13 +49,13 @@ getEnv = do
                     putStr "\t"
                     putStr (show . yellow $ text name)
                     putStr " :: "
-                    print (show . cyan $ pretty kind)
+                    print (cyan $ pretty kind)
         showFuns        = forM_ funs' $
                 \(name, Scheme _ type') -> do
                     putStr "\t"
                     putStr (show . yellow $ text name)
                     putStr " :: "
-                    print (show . cyan $ pretty type')
+                    print (cyan $ pretty type')
 
     liftIO $ putStrLn "Types:" *> showKinds *> putStrLn ""
     liftIO $ putStrLn "Functions:" *> showFuns
