@@ -36,7 +36,7 @@ data Value
 instance Pretty Value where
     pretty (VInt i)     = text (show i)
     pretty (VDec d)     = text (show d)
-    pretty (VChr c)     = text "'" <> text (show c) <> text "'"
+    pretty (VChr c)     = text (show c)
     pretty (VVar id')   = text id'
     pretty (VTuple vs)  =
         parens (mconcat $ intersperse (text ", ") (pretty <$> vs))
@@ -50,4 +50,4 @@ instance Pretty Value where
             | otherwise = parens (pretty v)
         parenthesizeIfNeeded v =
             pretty v
-    pretty _ = error "No instance Show for type: a -> b" -- text ""
+    pretty _ = text "No instance Show for type: a -> b" -- text ""
