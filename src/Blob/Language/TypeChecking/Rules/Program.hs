@@ -43,7 +43,7 @@ import Data.These
 import Control.Monad.Except (throwError, liftEither)
 import Control.Monad.State (get)
 import Control.Monad.Reader (local, ask)
-import Control.Monad.Writer (listen)
+import Control.Monad.Writer (listen, tell)
 import Data.Bifunctor (first, second, bimap)
 import Control.Applicative (liftA2)
 import Control.Monad (void)
@@ -53,13 +53,14 @@ import Data.Align.Key (alignWithKey)
 -- | Infers the definition of a function given a 'GlobalEnv', the name of the function and its value as an 'Expr'.
 inferDef :: GlobalEnv -> String -> Located TP.Expr -> Maybe Type -> Check ()
 inferDef env name def t1 =
-    let res = runTI env $
-            do var <- fresh "#"
-               (t, c) <- inEnv (name, Scheme [] var) $ infer def
-               pure (t, c <> [t :^~: var])
+    let res = runTI env $ do
+            var <- fresh "#"
+            t <- inEnv (name, Scheme [] var) $ infer def
+            tell [t :^~: var]
+            pure t
     in case res of
         Left err -> throwError err
-        Right ((t,c),_) -> case runTypeSolver env ((maybe id (\t2 -> ((t :^~: t2) :)) t1) c) of
+        Right (t, c) -> case runTypeSolver env ((maybe id (\t2 -> ((t :^~: t2) :)) t1) c) of
             Left err -> throwError err
             Right x -> case runHoleInspect x of
                 Left err -> throwError err

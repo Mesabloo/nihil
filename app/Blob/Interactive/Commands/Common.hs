@@ -51,7 +51,7 @@ time f = do
 -- | Solves the type for a given 'Expr' in a given 'GlobalEnv'.
 inferExpr :: GlobalEnv -> Located Expr -> Either TIError Scheme
 inferExpr env ex = do
-    (ty, c) <- fst <$> runTI env (infer ex)
+    (ty, c) <- runTI env (infer ex)
     subst <- runTypeSolver env c
     runHoleInspect subst
     pure . closeOver $ apply subst ty

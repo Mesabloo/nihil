@@ -35,8 +35,9 @@ import Control.Monad.Except (throwError, runExceptT)
 import Control.Monad.Reader (local, ask)
 import Control.Monad.RWS (evalRWST)
 import Control.Monad.Identity (runIdentity)
+import Control.Monad.Writer (tell, listen)
 import Control.Lens ((^.), (.~), views, (%~), use, (+=))
-import Control.Monad (guard, forM)
+import Control.Monad (guard, forM, mapAndUnzipM)
 import Control.Applicative ((<|>))
 import Data.Function ((&))
 import Data.Composition ((.:))
@@ -98,97 +99,97 @@ relax (TApp t1 t2) = TApp (relax t1) (relax t2)
 relax t            = t
 
 -- | Infers the 'Type' and 'TypeConstraint's for a given 'Expr'ession.
-infer :: Located Expr -> TI (Type, [TypeConstraint])
+infer :: Located Expr -> TI Type
 infer (e :@ _) = case e of
-    ELit (LInt _) -> pure (TInt, [])
-    ELit (LDec _) -> pure (TFloat, [])
-    ELit (LChr _) -> pure (TChar, [])
+    ELit (LInt _) -> pure TInt
+    ELit (LDec _) -> pure TFloat
+    ELit (LChr _) -> pure TChar
     EHole -> do
         tv <- fresh "_"
         tv' <- fresh "h"
-        pure (tv, [tv :^~: tv'])
-    EId x ->
-        (, []) <$> lookupEnv x
+        tell [tv :^~: tv']
+        pure tv
+    EId x -> lookupEnv x
     ELam x e' -> do
-        (pat, cs, env) <- inferPattern x
+        (pat, env) <- inferPattern x
 
-        (t, c) <- inEnvMany (Map.toList env) (infer e')
+        t <- inEnvMany (Map.toList env) (infer e')
 
-        pure ((pat, 0) `TFun` t, cs <> c)
+        pure ((pat, 0) `TFun` t)
     EApp e1 e2 -> do
-        (t1, c1) <- infer e1
-        (t2, c2) <- infer e2
+        t1 <- infer e1
+        t2 <- infer e2
         tv <- fresh "a"
-        pure (tv, c1 <> c2 <> [t1 :^~: TFun (t2, 1) tv])
+        tell [t1 :^~: TFun (t2, 1) tv]
+        pure tv
     ETuple es -> do
         ts <- mapM infer es
-        pure (TTuple $ map fst ts, foldMap snd ts)
+        pure (TTuple ts)
     EAnn e t -> do
-        (t', c) <- infer e
-        pure (t', (t' :^~: tiType t) : c)
+        t' <- infer e
+        tell [t' :^~: tiType t]
+        pure t'
     ELet stts e -> do
         let inferStatement name = \case
                 This def ->
                     do  var <- fresh "d"
-                        (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                        pure (Scheme [] t, c <> [t :^~: var])
+                        t <- inEnv (name, Scheme [] var) $ infer def
+                        tell [t :^~: var]
+                        pure (Scheme [] t)
                 That _ -> throwError $ makeBindLackError name
                 These def decl ->
                     do  var <- fresh "d"
-                        (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                        (s, cs) <- pure (Scheme [] t, c <> [t :^~: var])
-                        pure (s, (t :^~: tiType decl) : cs)
+                        t <- inEnv (name, Scheme [] var) $ infer def
+                        tell [t :^~: var, t :^~: tiType decl]
+                        pure (Scheme [] t)
 
             sepStatements' [] = ([], [])
             sepStatements' ((Definition name def :@ _):xs) = first ((name, def) :) $ sepStatements' xs
             sepStatements' ((Declaration name decl :@ _):xs) = second ((name, decl) :) $ sepStatements' xs
             sepStatements' (_:xs) = sepStatements' xs
-        map' <- sequence $ uncurry (alignWithKey inferStatement)
+        env <- sequence $ uncurry (alignWithKey inferStatement)
                     (bimap Map.fromList Map.fromList $ sepStatements' stts)
 
-        let env = Map.map fst map'
-            cs = concat . Map.elems $ Map.map snd map'
-
-        (t3, c3) <- inEnvMany (Map.toList env) (infer e)
-        pure (t3, cs <> c3)
+        t3 <- inEnvMany (Map.toList env) (infer e)
+        pure t3
     EMatch e cases -> do
-        (tExp, tCon) <- infer e
+        tExp <- infer e
 
-        res <- (unzip3 <$>) . forM cases $ \(pat, expr) -> do
-            (patTy, patsCons, env) <- inferPattern pat
+        res <- (unzip <$>) . forM cases $ \(pat, expr) -> do
+            (patTy, env) <- inferPattern pat
 
-            (exprTy, exprCons) <- inEnvMany (Map.toList env) (infer expr)
-            pure (exprTy, patTy, exprCons <> patsCons)
+            exprTy <- inEnvMany (Map.toList env) (infer expr)
+            pure (exprTy, patTy)
 
-        let (ret:xs, patsTy, pCons) = res
+        let (ret:xs, patsTy) = res
             types = uncurry (:^~:) <$> zipFrom ret xs <> zipFrom tExp patsTy
-            cons = mconcat pCons
 
-        pure (ret, types <> cons <> tCon)
+        tell types
+        pure ret
       where
         zipFrom :: a -> [b] -> [(a, b)]
         zipFrom = zip . repeat
 
 -- | Infers the 'Type', the 'TypeConstraint's and a mapping for the types of each pattern variale from a 'Pattern'.
-inferPattern :: Located Pattern -> TI (Type, [TypeConstraint], Map.Map String Scheme)
+inferPattern :: Located Pattern -> TI (Type, Map.Map String Scheme)
 inferPattern (p :@ _) = case p of
     Wildcard -> do
         t <- fresh "p"
-        pure (t, [], mempty)
-    PInt _ -> pure (TInt, [], mempty)
-    PDec _ -> pure (TFloat, [], mempty)
-    PChr _ -> pure (TChar, [], mempty)
+        pure (t, mempty)
+    PInt _ -> pure (TInt, mempty)
+    PDec _ -> pure (TFloat, mempty)
+    PChr _ -> pure (TChar, mempty)
     PId id' -> do
         t <- fresh "p"
-        pure (t, [], Map.singleton id' (Scheme [] t))
+        pure (t, Map.singleton id' (Scheme [] t))
     PTuple exp -> do
-        pats <- mapM inferPattern exp
-        let (ts, cs, envs) = unzip3 pats
-        pure (TTuple ts, mconcat cs, mconcat envs)
+        (ts, envs) <- unzip <$> mapM inferPattern exp
+        pure (TTuple ts, mconcat envs)
     PAnn p t -> do
-        (t', cs, env) <- inferPattern p
+        (t', env) <- inferPattern p
         let t'' = tiType t
-        pure (t'', (t'' :^~: t') : cs, env)
+        tell [t'' :^~: t']
+        pure (t'',  env)
     PCtor id' args -> do
         ctor <- instantiate =<< lookupCtor id'
         let (ts, r) = unfoldParams ctor
@@ -196,11 +197,12 @@ inferPattern (p :@ _) = case p of
         guard (length args == length ts)
             <|> throwError (makeMissingConstructorPatternArgumentError id' (length ts) (length args))
 
-        (ts', cons, env) <- fmap mconcat <$> mapAndUnzip3M inferPattern args
+        (ts', env) <- fmap mconcat <$> mapAndUnzipM inferPattern args
 
         let cons' = uncurry (:^~:) <$> zip (fst <$> ts) ts'
 
-        pure (r, cons' <> mconcat cons, env)
+        tell cons'
+        pure (r, env)
   where
     -- | Returns the 'Scheme' of a constructor.
     lookupCtor :: String -> TI Scheme
@@ -209,14 +211,6 @@ inferPattern (p :@ _) = case p of
         case env of
             Nothing -> throwError $ makeUnboundVarError id'
             Just x  -> pure x
-
-    -- | mapAndUnzipM for triples
-    mapAndUnzip3M :: Monad m => (a -> m (b, c, d)) -> [a] -> m ([b], [c], [d])
-    mapAndUnzip3M _ []     = return ([],[],[])
-    mapAndUnzip3M f (x:xs) = do
-        (r1,  r2,  r3)  <- f x
-        (rs1, rs2, rs3) <- mapAndUnzip3M f xs
-        return (r1:rs1, r2:rs2, r3:rs3)
 
 -- | Unfold the parameters and the return type from a type.
 unfoldParams :: Type -> ([(Type, Integer)], Type)
@@ -261,6 +255,6 @@ extend = TypeEnv .: flip (uncurry Map.insert) . (^. _TypeEnv)
 
 
 -- | Runs the inference monad given as argument.
-runTI :: GlobalEnv -> TI (Type, [TypeConstraint]) -> Either TIError ((Type, [TypeConstraint]), [TypeConstraint])
+runTI :: GlobalEnv -> TI a -> Either TIError (a, [TypeConstraint])
 runTI env m = runIdentity . runExceptT $ evalRWST m env initInfer
   where initInfer = TIState 0
