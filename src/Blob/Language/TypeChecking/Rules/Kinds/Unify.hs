@@ -34,7 +34,7 @@ instance Unifiable Kind Solve where
     unify k (KVar (KV n))           = bind n k
     unify KType KType               = pure mempty
     unify (KArr l1 r1) (KArr l2 r2) =
-        unifyMany [l1, l2] [r1, r2]
+        unifyMany [l1, r1] [l2, r2]
     unify k1 k2                     =
         throwError (makeUnifyError k1 k2)
 

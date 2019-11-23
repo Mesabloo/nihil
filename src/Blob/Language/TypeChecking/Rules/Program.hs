@@ -43,6 +43,7 @@ import Data.These
 import Control.Monad.Except (throwError, liftEither)
 import Control.Monad.State (get)
 import Control.Monad.Reader (local, ask)
+import Control.Monad.Writer (listen)
 import Data.Bifunctor (first, second, bimap)
 import Control.Applicative (liftA2)
 import Control.Monad (void)
@@ -101,8 +102,9 @@ analyseTypeDecl :: String -> CustomScheme -> Check ()
 analyseTypeDecl k v = do
     kind <- checkKI $ do
         var        <- Kind.fresh "r"
-        (t, cs)    <- local (_KindEnv %~ Map.insert k var) (Kind.kiCustomScheme v)
+        t          <- local (_KindEnv %~ Map.insert k var) (Kind.kiCustomScheme v)
         env        <- ask
+        cs         <- snd <$> listen (pure ())
         subst      <- liftEither $ runKindSolver env ([var :*~: t] <> cs)
         pure $ apply subst var
 

@@ -57,7 +57,7 @@ getKind' typeExpr = do
     (t, _) <- rethrowEither id $ runSugar (desugarType "interactive" t) (st ^. op)
 
     let t1 = tiType t
-    (kind, _) <- rethrowEither id $ runKI (st ^. ctx . typeDeclCtx) (infer t1)
+    kind <- rethrowEither id $ runKI (st ^. ctx . typeDeclCtx) (infer t1)
 
     liftIO $ do
         putStr (show . yellow $ pretty t1)

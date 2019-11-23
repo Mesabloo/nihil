@@ -27,34 +27,34 @@ import qualified Data.Map as Map
 import Control.Lens ((^.), use, (+=), (%~))
 import Control.Monad.Reader (asks, local)
 import Control.Monad.Except (throwError)
+import Control.Monad.Writer (tell)
 import Debug.Trace (traceShow)
 import Data.Maybe (fromJust)
 
-infer :: Type -> KI (Kind, [KindConstraint])
+infer :: Type -> KI Kind
 infer (TId n) =
-    asks (Map.lookup n . (^. _KindEnv))
-    >>= maybe err (pure . (,mempty))
+    asks (Map.lookup n . (^. _KindEnv)) >>= maybe err pure
   where err = throwError (makeUndefinedTypeError n)
 infer( TVar n) =
-    asks (Map.lookup (n ^. _TV) . (^. _KindEnv))
-    >>= maybe err (pure . (,mempty))
+    asks (Map.lookup (n ^. _TV) . (^. _KindEnv)) >>= maybe err pure
   where err = throwError (makeUndefinedTypeError (n ^. _TV))
 infer (TRigid n) =
-    asks (Map.lookup (n ^. _TV) . (^. _KindEnv))
-    >>= maybe err (pure . (,mempty))
+    asks (Map.lookup (n ^. _TV) . (^. _KindEnv)) >>= maybe err pure
   where err = throwError (makeUndefinedTypeError (n ^. _TV))
 infer (TTuple ts) = do
-    ret <- mapM infer ts
-    pure (KType, foldMap snd ret)
+    mapM infer ts
+    pure KType
 infer (TFun (t1, _) t2) = do
-    (k1, s1) <- infer t1
-    (k2, s2) <- infer t2
-    pure (KType, s1 <> s2)
+    k1 <- infer t1
+    k2 <- infer t2
+    tell [k1 :*~: KType, k2 :*~: KType]
+    pure KType
 infer (TApp f t) = do
+    k1 <- infer f
+    k2 <- infer t
     kv <- fresh "k"
-    (k1, s1) <- infer f
-    (k2, s2) <- infer t
-    pure (kv, s1 <> s2 <> [k1 :*~: (k2 `KArr` kv)])
+    tell [k1 :*~: (k2 `KArr` kv)]
+    pure kv
 infer t = traceShow t undefined
 
 fresh :: String -> KI Kind
@@ -70,36 +70,35 @@ fresh k = do
     else fresh newKVar
 
 -- | Kind checking for custom types.
-kiCustomScheme :: CustomScheme -> KI (Kind, [KindConstraint])
+kiCustomScheme :: CustomScheme -> KI Kind
 kiCustomScheme (CustomScheme tvs t) = do
-    typeArgs <- Map.fromList <$> mapM (\ v -> (v,) <$> fresh "k") tvs
-    (k', s) <- local (_KindEnv %~ Map.union typeArgs) $ case t of
+    typeArgs <- Map.fromList <$> mapM ((<$> fresh "k") . (,)) tvs
+    k' <- local (_KindEnv %~ Map.union typeArgs) $ case t of
         -- If it is a sum type, kind checking all of its constructors
-        TSum constrs -> (KType,) <$> kiConstrs (Map.toList constrs)
+        TSum constrs -> KType <$ kiConstrs (Map.toList constrs)
         -- If it is a type alias, kind check the type
         TAlias t -> infer t
         _ -> undefined
 
     let k = foldr KArr k' (fromJust . flip Map.lookup typeArgs <$> tvs)
-    pure (k, s)
+    pure k
   where foldConstr (TFun (t1, _) t2) = t1 : foldConstr t2
         foldConstr t = []
 
-        kiConstrs [] = pure mempty
+        kiConstrs [] = pure ()
         kiConstrs ((n, Scheme _ c):cs) = do
-            s1 <- kiConstr n (foldConstr c)
-            s2 <- kiConstrs cs
-            pure (s2 <> s1)
+            kiConstr n (foldConstr c)
+            kiConstrs cs
 
-        kiConstr _ [] = pure mempty
+        kiConstr _ [] = pure ()
         kiConstr n (t:ts) = do
-            (k, s1) <- infer t
-            s3 <- kiConstr n ts
-            pure (s3 <> s1)
+            k <- infer t
+            tell [k :*~: KType]
+            kiConstr n ts
 
 
 -- | Transforms a 'Scheme' into a pair composed of a 'KindSubst' and a 'Kind'.
-kiScheme :: Scheme -> KI (Kind, [KindConstraint])
+kiScheme :: Scheme -> KI (Kind)
 kiScheme (Scheme vars t) = do
     nvars <- mapM (const $ fresh "k") vars
     let s = Map.fromList (zipWith (\(TV v) n -> (v, n)) vars nvars)
