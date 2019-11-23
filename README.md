@@ -87,4 +87,4 @@ Some code examples can be found in the [examples](./examples) folder.
 
 * The [Granule project](https://github.com/granule-project/granule), a statically typed functional programming language with Graded Modal Types
 * [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
-* [GHC](https://github.com/ghc/ghc), the *Great* Haskell Compiler
+* [GHC](https://github.com/ghc/ghc), the *Great* ~~Glasgow~~ Haskell Compiler
