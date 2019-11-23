@@ -48,9 +48,9 @@ execCode stat = do
     st <- get
     x <- rethrowEither (text . errorBundlePretty) $ runLexer (Text.pack stat) "interactive"
 
-    rethrowEither printParseError (runParser' (eitherP (try (expression <* eof)) (program <* eof)) x "interactive")
+    rethrowEither printParseError (runParser' (eitherP (try program) expression <* eof) x "interactive")
      >>= \case
-        Left e -> do
+        Right e -> do
             (e, _) <- rethrowEither id $ runSugar
                 ( do { accumulateOnExpression e
                      ; desugarExpression "interactive" e } ) (st ^. op)
@@ -66,7 +66,7 @@ execCode stat = do
                         >> setSGR [Reset]
                         >> hFlush stdout
 
-        Right p  -> do
+        Left p  -> do
             (p'@(Program ss :@ _), state') <- rethrowEither id $ runSugar (runDesugarer "interactive" (p :@ Nothing)) (st ^. op)
 
             op .= state'

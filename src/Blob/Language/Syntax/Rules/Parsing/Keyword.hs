@@ -15,20 +15,20 @@
 
 module Blob.Language.Syntax.Rules.Parsing.Keyword where
 
-import Blob.Language.Syntax.Tokens.Lexeme (isKeyword, Lexeme(LKeyword))
+import Blob.Language.Syntax.Tokens.Lexeme (Lexeme(LKeyword))
 import Blob.Language.Syntax.Parser (Parser)
 import Blob.Language.Syntax.Tokens.Token (Token(..), getLexeme)
 import Text.Megaparsec (satisfy, (<?>))
 import qualified Data.Text as Text
 import Control.Lens ((^?), _Just, (^.), to)
-import Control.Applicative (empty)
 import Data.Maybe (fromJust)
 
 keyword :: String -> Parser Token
-keyword s = (satisfy isKW >>= check) <?> ("keyword \"" <> s <> "\"")
+keyword s = satisfy isKW <?> ("keyword \"" <> s <> "\"")
   where
-    isKW k = (isKeyword <$> getLexeme k) ^? _Just ^. to fromJust
-
-    check t@(Token _ _ (Just (LKeyword w)))
-        | s == Text.unpack w = pure t
-    check _                  = empty
+    isKW k =
+        let t = getLexeme k ^? _Just ^. to fromJust
+        in case t of
+            LKeyword w
+                | s == Text.unpack w -> True
+            _                        -> False

@@ -15,7 +15,7 @@
 
 module Blob.Language.Syntax.Rules.Parsing.Symbol where
 
-import Blob.Language.Syntax.Tokens.Lexeme (isSymbol, Lexeme(LSymbol))
+import Blob.Language.Syntax.Tokens.Lexeme (Lexeme(LSymbol))
 import Blob.Language.Syntax.Parser (Parser)
 import Blob.Language.Syntax.Tokens.Token (Token(..), getLexeme)
 import Text.Megaparsec (satisfy, (<?>))
@@ -26,27 +26,34 @@ import Data.Maybe (fromJust)
 import qualified Data.Char as Ch
 
 symbol :: String -> Parser Token
-symbol s = (satisfy isSym >>= check) <?> ("symbol \"" <> s <> "\"")
+symbol s = satisfy isSym <?> ("symbol \"" <> s <> "\"")
   where
-    isSym k = (isSymbol <$> getLexeme k) ^? _Just ^. to fromJust
-    check t@(Token _ _ (Just (LSymbol w)))
-        | s == Text.unpack w = pure t
-    check _                  = empty
+    isSym k =
+        let sym = getLexeme k ^? _Just ^. to fromJust
+        in case sym of
+            LSymbol w
+                | s == Text.unpack w -> True
+            _                        -> False
 
 opSymbol :: Parser String
-opSymbol = (satisfy isSym >>= getSym >>= check . Text.unpack) <?> "operator"
+opSymbol = (satisfy isOp >>= getSym) <?> "operator"
   where
-    isSym s = (isSymbol <$> getLexeme s) ^? _Just ^. to fromJust
-    getSym (Token _ _ (Just (LSymbol s)))
-        | isOperator s = pure s
-    getSym _           = empty
+    isOp s =
+        let sym = getLexeme s ^? _Just ^. to fromJust
+        in case sym of
+            LSymbol s
+                | (liftA2 (&&) isOperator (check . Text.unpack)) s -> True
+            _                                                      -> False
+
+    getSym (Token _ _ (Just (LSymbol s))) = pure (Text.unpack s)
+    getSym _                              = empty
 
     isOperator :: Text.Text -> Bool
-    isOperator = Text.all (liftA2 (||) Ch.isSymbol (`elem` "!#$%&.<=>?^~|@*/-:"))
+    isOperator = Text.all (liftA2 (||) Ch.isSymbol (`elem` "!#$%&.<=>?^~|@*/-+:"))
 
-    check :: String -> Parser String
-    check x | x `elem` rOps = fail ("Reserved operator \"" <> x <> "\"")
-            | otherwise = pure x
+    check :: String -> Bool
+    check x = x `notElem` rOps -- | x `elem` rOps = False -- fail ("Reserved operator \"" <> x <> "\"")
+            -- | otherwise = True -- pure x
 
 -- | The list of reserved operators in the language.
 rOps :: [String]

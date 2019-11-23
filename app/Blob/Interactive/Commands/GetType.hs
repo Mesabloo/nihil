@@ -20,10 +20,10 @@ module Blob.Interactive.Commands.GetType where
 import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.REPL (REPL, ctx, op)
 import Blob.Interactive.Commands.Common
-import Blob.Language (runLexer, runParser', runSugar, Located, Expr)
+import Blob.Language (runLexer, runParser', runSugar)
 import Blob.Language.PrettyPrinting.Pretty (pretty)
 import Blob.Language.PrettyPrinting.CoreAST ()
-import Blob.Language.TypeChecking.Internal.Type (Scheme(..), TVar)
+import Blob.Language.TypeChecking.Internal.Type (Scheme(..))
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)
 import Blob.Language.Syntax.Internal.Desugaring.Accumulator.Expression (accumulateOnExpression)
 import Blob.Language.Syntax.Rules.Desugaring.Expression (desugarExpression)

@@ -59,7 +59,7 @@ instance Stream [Token] where
                | otherwise = Just (splitAt n s)
     takeWhile_ = span
     showTokens Proxy = concatMap show
-    reachOffset n p | n <= 0 = (pstateSourcePos p, "placeholder, will not be shown.", p)
+    reachOffset n p | n <= 0 = (pstateSourcePos p, "<error>", p)
                     | otherwise = reachOffset (n - 1) (f p)
       where f ps = PosState (if null (pstateInput ps) then [] else let _:xs = pstateInput ps in xs)
                             (pstateOffset ps + fromEnum (null (pstateInput ps)))

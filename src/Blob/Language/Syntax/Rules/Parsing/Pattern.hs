@@ -20,7 +20,7 @@ import Blob.Language.Syntax.Internal.Parsing.Located
 import Blob.Language.Syntax.Internal.Parsing.AST
 import Blob.Language.Syntax.Rules.Parsing.Patterns.Operator
 import Blob.Language.Syntax.Rules.Parsing.Patterns.Atom
-import Text.Megaparsec (some, try, (<|>))
+import Text.Megaparsec (some, (<|>))
 
 pattern' :: Parser [Located Pattern]
-pattern' = some (try patOperator <|> patTerm)
+pattern' = some (patOperator <|> patTerm)

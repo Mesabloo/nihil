@@ -34,7 +34,7 @@ import Blob.Language.Syntax.Rules.Parsing.Expressions.Application
 import Text.Megaparsec (try, (<|>), choice, (<?>))
 
 atom :: Parser (Located Atom)
-atom = try operator <|> expr
+atom = operator <|> expr
   where expr = try app <|> exprNoApp
 
 exprNoApp :: Parser (Located Atom)
@@ -43,7 +43,7 @@ exprNoApp = do
         choice [ hole <?> "type hole", lambda <?> "lambda", match <?> "match"
                , try tuple <?> "tuple", list <?> "list", let' <?> "let expression"
                , AId <$> choice [ identifier, try (parens opSymbol), typeIdentifier ] <?> "identifier"
-               , ALit . LDec <$> try float <?> "floating point number"
+               , ALit . LDec <$> float <?> "floating point number"
                , ALit . LInt <$> integer <?> "integer"
                , ALit . LChr <$> char <?> "character"
                , ALit . LStr <$> string <?> "string"

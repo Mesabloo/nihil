@@ -37,6 +37,6 @@ symbol = do
     i <- use currentIndent
     (span', s) <- getPositionInSource $
         (LSymbol . Text.pack . (: []) <$> lexeme (oneOf "()[]{},;\\→λ⇒∷`"))
-        <|> (LSymbol . Text.pack <$> lexeme (some $ C.symbolChar <|> oneOf "!#$%&.<=>?^~|@*/-:") <?> "symbol")
+        <|> (LSymbol . Text.pack <$> lexeme (some $ C.symbolChar <|> oneOf "!#$%&.<=>?^~|@*/-+:") <?> "symbol")
 
     pure (Token i span' (Just s))

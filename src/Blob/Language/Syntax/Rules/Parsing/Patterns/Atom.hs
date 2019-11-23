@@ -35,8 +35,8 @@ patTerm :: Parser (Located Pattern)
 patTerm = do
     iPos <- getPositionAndIndent
     (span', (term, ty)) <- getPositionInSource $ do
-        p <- choice [ PHole       <$ hole
-                    , PLit . LDec <$> try float
+        p <- choice [ PHole       <$  hole
+                    , PLit . LDec <$> float
                     , PLit . LInt <$> integer
                     , PLit . LChr <$> char
                     , PId         <$> identifier
