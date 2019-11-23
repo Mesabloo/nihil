@@ -20,7 +20,7 @@ module Blob.Interactive.Commands.GetKind where
 import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.Commands.Common
 import Blob.Interactive.REPL (REPL, ctx, op)
-import Blob.Language (runLexer, runParser', runSugar, runKI')
+import Blob.Language (runLexer, runParser', runSugar, runKI)
 import Blob.Language.TypeChecking.Rules.Kinds.Infer (infer)
 import Blob.Language.PrettyPrinting.Pretty (pretty)
 import Blob.Language.PrettyPrinting.Kinds ()
@@ -60,7 +60,7 @@ getKind' typeExpr = do
     (t, _) <- rethrowEither id $ runSugar (desugarType "interactive" t) (st ^. op)
 
     let t1 = tiType t
-    kind <- rethrowEither id $ runKI' (st ^. ctx . typeDeclCtx) (infer t1)
+    (kind, _) <- rethrowEither id $ runKI (st ^. ctx . typeDeclCtx) (infer t1)
 
     liftIO $ setSGR [SetColor Foreground Vivid Yellow]
         >> putStr (show (pretty t1))

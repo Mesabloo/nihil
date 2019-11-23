@@ -14,7 +14,7 @@
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FlexibleContexts
-           , TypeApplications #-}
+           , TypeApplications, TypeFamilies #-}
 
 module Blob.Language.TypeChecking.Solver.TypeSolver where
 
@@ -23,7 +23,6 @@ import Blob.Language.TypeChecking.Internal.Substitution.Types (TypeSubst)
 import Blob.Language.TypeChecking.Internal.Constraint (TypeConstraint(..))
 import Blob.Language.TypeChecking.Internal.Unification (unify)
 import Blob.Language.TypeChecking.Internal.Substitution
-import Blob.Language.TypeChecking.Internal.Type (TVar)
 import Blob.Language.TypeChecking.Rules.Types.Unify ()
 import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv)
 import Control.Monad.Except (runExceptT)
@@ -35,12 +34,14 @@ solve (su, cs) = case cs of
     []                -> pure su
     ((t1 :^~: t2):cs) -> do
         su' <- unify t1 t2
-        solve (su' <> su, apply @_ @_ @TVar su' cs)
+        solve (su' <> su, apply su' cs)
 
 runTypeSolver :: GlobalEnv -> [TypeConstraint] -> Either TIError TypeSubst
 runTypeSolver ge cs = runReader (runExceptT (solve st)) ge
   where st = (mempty, cs)
 
-instance Substitutable TypeSubst TypeConstraint TVar where
-    fv (a :^~: b)      = fv @TypeSubst a `Set.union` fv @TypeSubst b
-    apply s (a :^~: b) = apply @_ @_ @TVar s a :^~: apply @_ @_ @TVar s b
+instance Substitutable TypeConstraint where
+    type Subst TypeConstraint = TypeSubst
+
+    fv (a :^~: b)      = fv a `Set.union` fv b
+    apply s (a :^~: b) = apply s a :^~: apply s b

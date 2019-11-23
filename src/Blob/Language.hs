@@ -17,7 +17,7 @@ module Blob.Language
 ( Located.Located(..), Located.located
 , CoreAST.Program(..), CoreAST.Statement(..), CoreAST.Expr(..), CoreAST.Pattern(..), CoreAST.Literal(..), CoreAST.Type(..)
 , Syntax.runLexer, Syntax.runParser, Syntax.runParser', Syntax.runSugar, Syntax.runDesugarer
-, Program.tiProgram, TypeChecking.runCheck, TypeChecking.runKI, TypeChecking.runKI'
+, Program.tiProgram, TypeChecking.runCheck, TypeChecking.runKI
 , Pretty.Pretty, Pretty.pretty ) where
 
 import qualified Blob.Language.Syntax.Internal.Parsing.Located as Located

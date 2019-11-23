@@ -85,9 +85,9 @@ fresh v = do
 -- | Instantiate a 'Scheme' to produce a fresh 'Type'.
 instantiate :: Scheme -> TI Type
 instantiate (Scheme as t) = do
-    as' <- mapM (const $ fresh "@") as
+    as' <- mapM (const $ fresh "a") as
     let s = Subst . Map.fromList $ zip as as'
-    pure $ apply @_ @_ @TVar s (relax t)
+    pure $ apply s (relax t)
 
 -- | Transforms all the rigid type variables into free type variables in a given 'Type'.
 relax :: Type -> Type
@@ -105,8 +105,8 @@ infer (e :@ _) = case e of
     ELit (LChr _) -> pure (TChar, [])
     EHole -> do
         tv <- fresh "_"
-        tv' <- fresh "#"
-        pure (tv, [(tv :^~: tv')])
+        tv' <- fresh "h"
+        pure (tv, [tv :^~: tv'])
     EId x ->
         (, []) <$> lookupEnv x
     ELam x e' -> do
@@ -118,25 +118,25 @@ infer (e :@ _) = case e of
     EApp e1 e2 -> do
         (t1, c1) <- infer e1
         (t2, c2) <- infer e2
-        tv <- fresh "#"
-        pure (tv, c1 <> c2 <> [(t1 :^~: TFun (t2, 1) tv)])
+        tv <- fresh "a"
+        pure (tv, c1 <> c2 <> [t1 :^~: TFun (t2, 1) tv])
     ETuple es -> do
         ts <- mapM infer es
         pure (TTuple $ map fst ts, foldMap snd ts)
     EAnn e t -> do
         (t', c) <- infer e
-        pure (t', (tiType t :^~: t') : c)
+        pure (t', (t' :^~: tiType t) : c)
     ELet stts e -> do
         let inferStatement name = \case
                 This def ->
-                    do  var <- fresh "&"
+                    do  var <- fresh "d"
                         (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                        pure (Scheme [] t, c <> [(t :^~: var)])
+                        pure (Scheme [] t, c <> [t :^~: var])
                 That _ -> throwError $ makeBindLackError name
                 These def decl ->
-                    do  var <- fresh "&"
+                    do  var <- fresh "d"
                         (t, c) <- inEnv (name, Scheme [] var) $ infer def
-                        (s, cs) <- pure (Scheme [] t, c <> [(t :^~: var)])
+                        (s, cs) <- pure (Scheme [] t, c <> [t :^~: var])
                         pure (s, (t :^~: tiType decl) : cs)
 
             sepStatements' [] = ([], [])
@@ -173,13 +173,13 @@ infer (e :@ _) = case e of
 inferPattern :: Located Pattern -> TI (Type, [TypeConstraint], Map.Map String Scheme)
 inferPattern (p :@ _) = case p of
     Wildcard -> do
-        t <- fresh "&"
+        t <- fresh "p"
         pure (t, [], mempty)
     PInt _ -> pure (TInt, [], mempty)
     PDec _ -> pure (TFloat, [], mempty)
     PChr _ -> pure (TChar, [], mempty)
     PId id' -> do
-        t <- fresh "&"
+        t <- fresh "p"
         pure (t, [], Map.singleton id' (Scheme [] t))
     PTuple exp -> do
         pats <- mapM inferPattern exp

@@ -14,7 +14,7 @@
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, TypeApplications
-           , FlexibleContexts #-}
+           , FlexibleContexts, TypeFamilies #-}
 
 module Blob.Language.TypeChecking.Internal.Substitution.Types where
 
@@ -31,6 +31,7 @@ import Data.Bifunctor (first)
 import Data.Composition ((.:))
 
 newtype TypeSubst = Subst (Map.Map TVar Type)
+  deriving (Show)
 
 makePrisms ''TypeSubst
 
@@ -38,21 +39,23 @@ unpack :: TypeSubst -> Map.Map TVar Type
 unpack = (^. _Subst)
 {-# INLINE unpack #-}
 
-instance Substitutable TypeSubst Type TVar where
-    fv (TVar n)            = Set.singleton n
-    fv ((t1, _) `TFun` t2) = fv @TypeSubst t1 `Set.union` fv @TypeSubst t2
-    fv (TTuple ts)         = foldr (Set.union . fv @TypeSubst) mempty ts
-    fv (TApp t1 t2)        = fv @TypeSubst t1 `Set.union` fv @TypeSubst t2
+instance Substitutable Type where
+    type Subst Type = TypeSubst
+
+    fv (TVar n)            = Set.singleton (n ^. _TV)
+    fv ((t1, _) `TFun` t2) = fv t1 `Set.union` fv t2
+    fv (TTuple ts)         = foldr (Set.union . fv) mempty ts
+    fv (TApp t1 t2)        = fv t1 `Set.union` fv t2
     fv _                   = mempty
 
     apply s (TVar n)          = fromMaybe (TVar n) (Map.lookup n (unpack s))
-    apply s (TFun (t1, l) t2) = (apply @_ @_ @TVar s t1, l) `TFun` apply @_ @_ @TVar s t2
-    apply s (TTuple ts)       = TTuple (apply @_ @_ @TVar s <$> ts)
-    apply s (TApp t1 t2)      = apply @_ @_ @TVar s t1 `TApp` apply @_ @_ @TVar s t2
+    apply s (TFun (t1, l) t2) = (apply s t1, l) `TFun` apply s t2
+    apply s (TTuple ts)       = TTuple (apply s <$> ts)
+    apply s (TApp t1 t2)      = apply s t1 `TApp` apply s t2
     apply _ t                 = t
 
 instance Semigroup TypeSubst where
-    s1 <> s2 = Subst $ Map.map (apply @_ @_ @TVar s1) (unpack s2) `Map.union` unpack s1
+    s1 <> s2 = Subst $ Map.map (apply s1) (unpack s2) `Map.union` unpack s1
 
 instance Monoid TypeSubst where
     mempty = Subst mempty
@@ -85,21 +88,21 @@ normalize (Scheme _ body) = Scheme (map snd ord) (normtype body)
 
 -- | Creates a 'Scheme' from a 'Type' by putting all the free type variables from the 'Type' into the 'Scheme'.
 generalize :: TypeEnv -> Type -> Scheme
-generalize env t = Scheme as t
-  where as = Set.toList $ fv @TypeSubst t `Set.difference` fv @TypeSubst env
+generalize env t = Scheme (TV <$> as) t
+  where as = Set.toList $ fv t `Set.difference` fv env
 
 -- | Canonicalizes and returns the polymorphic toplevel type.
 closeOver :: Type -> Scheme
 closeOver = normalize . generalize mempty
 
-instance Substitutable TypeSubst TypeEnv TVar where
-    fv    = fv @TypeSubst . Map.elems . (^. _TypeEnv)
-    apply = TypeEnv .: flip (flip (Map.map . apply @_ @_ @TVar) . (^. _TypeEnv))
+instance Substitutable TypeEnv where
+    type Subst TypeEnv = TypeSubst
 
-instance Substitutable TypeSubst a TVar => Substitutable TypeSubst [a] TVar where
-    fv    = foldr (Set.union . fv @TypeSubst) mempty
-    apply = fmap . apply @_ @_ @TVar
+    fv    = fv . Map.elems . (^. _TypeEnv)
+    apply = TypeEnv .: flip (flip (Map.map . apply) . (^. _TypeEnv))
 
-instance Substitutable TypeSubst Scheme TVar where
-    fv (Scheme vars t)      = fv @TypeSubst t Set.\\ Set.fromList vars
-    apply s (Scheme vars t) = Scheme vars (apply @_ @_ @TVar (foldr ((_Subst %~) . Map.delete) s vars) t)
+instance Substitutable Scheme where
+    type Subst Scheme = TypeSubst
+
+    fv (Scheme vars t)      = fv t Set.\\ Set.fromList ((^. _TV) <$> vars)
+    apply s (Scheme vars t) = Scheme vars (apply (foldr ((_Subst %~) . Map.delete) s vars) t)

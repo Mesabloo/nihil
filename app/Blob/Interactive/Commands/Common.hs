@@ -19,7 +19,7 @@ module Blob.Interactive.Commands.Common where
 
 import Blob.Interactive.REPL (REPLError, REPL)
 import Blob.Language (Located, Expr)
-import Blob.Language.TypeChecking.Internal.Type (TVar, Scheme)
+import Blob.Language.TypeChecking.Internal.Type (Scheme)
 import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv)
 import Blob.Language.TypeChecking.TypeChecker (TIError)
 import Blob.Language.TypeChecking.Solver.TypeHoleSolver (runHoleInspect)
@@ -54,4 +54,4 @@ inferExpr env ex = do
     (ty, c) <- fst <$> runTI env (infer ex)
     subst <- runTypeSolver env c
     runHoleInspect subst
-    pure . closeOver $ apply @_ @_ @TVar subst ty
+    pure . closeOver $ apply subst ty

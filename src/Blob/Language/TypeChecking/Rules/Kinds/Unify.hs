@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Except (throwError)
 
-instance Unifiable Kind KindSubst Solve where
+instance Unifiable Kind Solve where
     unify (KVar (KV n)) k           = bind n k
     unify k (KVar (KV n))           = bind n k
     unify KType KType               = pure mempty
@@ -39,6 +39,6 @@ instance Unifiable Kind KindSubst Solve where
         throwError (makeUnifyError k1 k2)
 
 bind :: String -> Kind -> Solve KindSubst
-bind u k | k == KVar (KV u)               = pure mempty
-         | u `Set.member` fv @KindSubst k = throwError $ makeInfiniteKindError u k
-         | otherwise                      = pure (Subst $ Map.singleton u k)
+bind u k | k == KVar (KV u)    = pure mempty
+         | u `Set.member` fv k = throwError $ makeInfiniteKindError u k
+         | otherwise           = pure (Subst $ Map.singleton u k)

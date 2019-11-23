@@ -19,4 +19,6 @@ import Blob.Language.TypeChecking.Internal.Type
 import Blob.Language.TypeChecking.Internal.Kind
 
 data TypeConstraint = Type :^~: Type
+  deriving Show
 data KindConstraint = Kind :*~: Kind
+  deriving Show

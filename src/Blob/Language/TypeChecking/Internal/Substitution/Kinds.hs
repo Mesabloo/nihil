@@ -14,7 +14,7 @@
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE TemplateHaskell, MultiParamTypeClasses, FlexibleInstances
-           , TypeApplications, GeneralizedNewtypeDeriving #-}
+           , TypeApplications, GeneralizedNewtypeDeriving, TypeFamilies #-}
 
 module Blob.Language.TypeChecking.Internal.Substitution.Kinds where
 
@@ -36,21 +36,19 @@ unpack :: KindSubst -> Map.Map String Kind
 unpack = (^. _Subst)
 {-# INLINE unpack #-}
 
-instance Substitutable KindSubst Kind String where
+instance Substitutable Kind where
+    type Subst Kind = KindSubst
+
     fv KType          = Set.empty
-    fv (k1 `KArr` k2) = fv @KindSubst k1 <> fv @KindSubst k2
+    fv (k1 `KArr` k2) = fv k1 <> fv k2
     fv (KVar v)       = Set.singleton (v ^. _KV)
 
     apply _ KType          = KType
     apply s (KVar n)       = fromMaybe (KVar n) (Map.lookup (n ^. _KV) (unpack s))
-    apply s (k1 `KArr` k2) = apply @_ @_ @String s k1 `KArr` apply @_ @_ @String s k2
+    apply s (k1 `KArr` k2) = apply s k1 `KArr` apply s k2
 
 instance Semigroup KindSubst where
-    s1 <> s2 = Subst $ Map.map (apply @_ @_ @String s1) (unpack s2) `Map.union` unpack s1
+    s1 <> s2 = Subst $ Map.map (apply s1) (unpack s2) `Map.union` unpack s1
 
 instance Monoid KindSubst where
     mempty = Subst mempty
-
-instance Substitutable KindSubst (Kind, a) String where
-    fv (k, _)       = fv @KindSubst k
-    apply s (k, cs) = (apply @_ @_ @String s k, cs)

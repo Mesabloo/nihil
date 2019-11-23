@@ -14,7 +14,7 @@
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, FlexibleContexts
-           , TypeApplications #-}
+           , TypeApplications, TypeFamilies #-}
 
 module Blob.Language.TypeChecking.Solver.KindSolver where
 
@@ -34,16 +34,14 @@ solve (su, cs) = case cs of
     []                -> pure su
     ((t1 :*~: t2):cs) -> do
         su' <- unify t1 t2
-        solve (su' <> su, apply @_ @_ @String su' cs)
+        solve (su' <> su, apply su' cs)
 
 runKindSolver :: KindEnv -> [KindConstraint] -> Either KIError KindSubst
 runKindSolver ke cs = runReader (runExceptT (solve st)) ke
   where st = (mempty, cs)
 
-instance Substitutable KindSubst a String => Substitutable KindSubst [a] String where
-    fv    = foldr (Set.union . fv @KindSubst) mempty
-    apply = fmap . apply @_ @_ @String
+instance Substitutable KindConstraint where
+    type Subst KindConstraint = KindSubst
 
-instance Substitutable KindSubst KindConstraint String where
-    fv (a :*~: b)      = fv @KindSubst a `Set.union` fv @KindSubst b
-    apply s (a :*~: b) = apply @_ @_ @String s a :*~: apply @_ @_ @String s b
+    fv (a :*~: b)      = fv a `Set.union` fv b
+    apply s (a :*~: b) = apply s a :*~: apply s b

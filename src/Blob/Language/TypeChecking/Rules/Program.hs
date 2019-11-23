@@ -13,7 +13,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE TypeApplications, FlexibleContexts #-}
+{-# LANGUAGE TypeApplications, FlexibleContexts, TypeFamilies #-}
 
 module Blob.Language.TypeChecking.Rules.Program where
 
@@ -36,15 +36,13 @@ import qualified Blob.Language.TypeChecking.Rules.Kinds.Infer as Kind
 import qualified Blob.Language.TypeChecking.KindChecker as Kind
 import Blob.Language.TypeChecking.Solver.KindSolver (runKindSolver)
 import Blob.Language.TypeChecking (runKI)
-import Blob.Language.TypeChecking.Internal.Kind (Kind)
-import Blob.Language.TypeChecking.Internal.Defaults.KindState (initKindState)
+import Blob.Language.TypeChecking.Internal.Substitution.Kinds (KindSubst)
 import qualified Data.Map as Map
 import qualified Data.Map.Unordered as UMap
 import Data.These
-import Control.Monad.Except (throwError, liftEither, runExcept)
+import Control.Monad.Except (throwError, liftEither)
 import Control.Monad.State (get)
 import Control.Monad.Reader (local, ask)
-import Control.Monad.RWS (evalRWST)
 import Data.Bifunctor (first, second, bimap)
 import Control.Applicative (liftA2)
 import Control.Monad (void)
@@ -65,7 +63,7 @@ inferDef env name def t1 =
             Right x -> case runHoleInspect x of
                 Left err -> throwError err
                 Right _ ->
-                    defCtx %= ((TypeEnv $ Map.singleton name (closeOver (apply @_ @_ @TVar x t))) `union`)
+                    defCtx %= ((TypeEnv $ Map.singleton name (closeOver (apply x t))) `union`)
 
 
 -- | Separate statements depending on whether they are a function definition or function declaration.
@@ -93,7 +91,7 @@ handleStatement name (These def typ) = do
     let ti     = tiType typ
     let gen'ed = closeOver (relax ti)
     GlobalEnv env _ _ _ <- get
-    checkKI' $ Kind.kiScheme gen'ed
+    checkKI $ Kind.kiScheme gen'ed
 
     e <- get
     inferDef e name def (Just ti)
@@ -106,7 +104,7 @@ analyseTypeDecl k v = do
         (t, cs)    <- local (_KindEnv %~ Map.insert k var) (Kind.kiCustomScheme v)
         env        <- ask
         subst      <- liftEither $ runKindSolver env ([var :*~: t] <> cs)
-        pure $ apply @_ @_ @String subst var
+        pure $ apply subst var
 
     let (CustomScheme tvs t) = v
     schemes <- case t of
@@ -143,16 +141,7 @@ tiProgram (TP.Program stmts :@ _) = do
 
 -------------------------------------------------------------------------
 
-checkKI :: Kind.KI Kind -> Check Kind
+checkKI :: (Substitutable a, Subst a ~ KindSubst) => Kind.KI a -> Check a
 checkKI action = do
     GlobalEnv env _ _ _ <- get
     liftEither $ runKI env action
-
-checkKI' :: Kind.KI (Kind, [KindConstraint]) -> Check (Kind, [KindConstraint])
-checkKI' action = do
-    GlobalEnv env _ _ _ <- get
-    liftEither $ f env action
-  where f env k = do
-            (kind, c) <- runExcept (evalRWST k env initKindState)
-            sub       <- runKindSolver env c
-            pure (apply @_ @_ @String sub kind)

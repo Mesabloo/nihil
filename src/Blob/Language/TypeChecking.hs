@@ -13,33 +13,26 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications, TypeFamilies #-}
 
 module Blob.Language.TypeChecking where
 
 import Blob.Language.TypeChecking.KindChecker (KI, KIError)
 import Blob.Language.TypeChecking.Internal.Defaults.KindState (initKindState)
 import Blob.Language.TypeChecking.Solver.KindSolver (runKindSolver)
-import Blob.Language.TypeChecking.Internal.Substitution (apply)
-import Blob.Language.TypeChecking.Internal.Kind (Kind)
+import Blob.Language.TypeChecking.Internal.Substitution (apply, Substitutable, Subst)
+import Blob.Language.TypeChecking.Internal.Substitution.Kinds (KindSubst)
 import Blob.Language.TypeChecking.Internal.Environment (KindEnv, GlobalEnv)
 import Blob.Language.TypeChecking.TypeChecker (TIError, Check)
-import Blob.Language.TypeChecking.Internal.Constraint (KindConstraint)
 import Control.Monad.Except (runExcept)
 import Control.Monad.RWS (evalRWST)
 import Control.Monad.State (runStateT)
 
-runKI :: KindEnv -> KI Kind -> Either KIError Kind
+runKI :: (Substitutable a, Subst a ~ KindSubst) => KindEnv -> KI a -> Either KIError a
 runKI env k = do
     (kind, c) <- runExcept (evalRWST k env initKindState)
     sub       <- runKindSolver env c
-    pure (apply @_ @_ @String sub kind)
-
-runKI' :: KindEnv -> KI (Kind, [KindConstraint]) -> Either KIError Kind
-runKI' env k = do
-    (kind, c) <- fst <$> runExcept (evalRWST k env initKindState)
-    sub       <- runKindSolver env c
-    pure (apply @_ @_ @String sub kind)
+    pure (apply sub kind)
 
 runCheck :: GlobalEnv -> Check a -> Either TIError (a, GlobalEnv)
 runCheck e c = runExcept (runStateT c e)

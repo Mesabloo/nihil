@@ -33,18 +33,18 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Lens (views)
 
-instance Unifiable Type TypeSubst Solve where
+instance Unifiable Type Solve where
     -- | Unifies two types into a single substitution.
     unify t1 t2 | t1 == t2          = pure mempty
     unify (TVar v) t                = v `bind` t
     unify t            (TVar v    ) = v `bind` t
-    unify (TId i) t       = unifyAlias i t
-    unify t       (TId i) = unifyAlias i t
+    unify (TId i) t                 = unifyAlias i t
+    unify t       (TId i)           = unifyAlias i t
     unify (TFun (t1, l1) t2) (TFun (t3, l2) t4) = unifyMany [t1, t2] [t3, t4]
     unify (TTuple e) (TTuple e')    = unifyMany e e'
     unify (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
-    unify a@(TApp _ _) t = unifyCustom a t
-    unify t a@(TApp _ _) = unifyCustom a t
+    unify a@(TApp _ _) t            = unifyCustom a t
+    unify t a@(TApp _ _)            = unifyCustom a t
     unify t1           t2           =
         let (Scheme _ st1) = closeOver t1
             (Scheme _ st2) = closeOver t2
@@ -57,7 +57,7 @@ unifyCustom a@(TApp t1 t2) t3 = go t1 [t2]
         go (TId i) args = typeDefCtx `views` Map.lookup i >>= \case
             Just (CustomScheme tvs (TAlias t)) ->
                 let sub = Subst $ Map.fromList (zipWith (\k v -> (TV k, v)) tvs args)
-                in unify (apply @_ @_ @TVar sub t) t3
+                in unify (apply sub t) t3
             Just _ ->
                 let (Scheme _ st3) = closeOver t3
                 in throwError $ makeUnifyError a st3
@@ -90,4 +90,4 @@ bind a t | t == TVar a     = case a of
   where
     -- | Checks whether we formed an infinite type of not.
     occursCheck :: TVar -> Type -> Bool
-    occursCheck a t = a `Set.member` fv @TypeSubst t
+    occursCheck a t = a `Set.member` Set.map TV (fv t)
