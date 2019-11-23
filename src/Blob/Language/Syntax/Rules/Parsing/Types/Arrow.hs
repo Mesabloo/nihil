@@ -32,7 +32,7 @@ type' = do
     (span', (ty, optTy)) <- getPositionInSource $ do
         ft <- btype
         ot <- optional $ do
-            usage <- sameLineOrIndented iPos (between (symbol "|") (symbol "|") integer)
+            usage <- sameLineOrIndented iPos (symbol "#" {- keep this for now; parsing seems to be quite difficult -} *> integer) -- (between (symbol "|") (symbol "|") integer)
             sameLineOrIndented iPos (symbol "->" <|> symbol "→")
             (usage,) <$> sameLineOrIndented iPos type'
         pure (ft, ot)

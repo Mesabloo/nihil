@@ -40,8 +40,8 @@ data Either a b
 
 type String = [Char]
 
-id :: a|1| -> a
+id :: a#1 -> a
 id x = x
 
-const :: a|1| -> b|0| -> a
+const :: a#1 -> b#0 -> a
 const a b = a
