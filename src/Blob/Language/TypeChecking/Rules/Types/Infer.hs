@@ -28,6 +28,7 @@ import Blob.Language.TypeChecking.Internal.Errors.BindLack
 import Blob.Language.TypeChecking.Internal.Errors.UnboundVariable
 import Blob.Language.TypeChecking.Internal.Substitution.Types
 import Blob.Language.TypeChecking.Internal.Substitution
+import Blob.Language.TypeChecking.Internal.Errors.MissingConstructorArguments
 import qualified Data.Map as Map
 import Data.These
 import Control.Monad.Except (throwError, runExceptT)
@@ -42,7 +43,6 @@ import Data.Composition ((.:))
 import Data.Bifunctor (first, second, bimap)
 import Data.Align.Key (alignWithKey)
 import Prelude hiding (lookup)
-import Text.PrettyPrint.ANSI.Leijen (text, dot, linebreak)
 
 -- | Extends the type environment with a single entry.
 inEnv :: (String, Scheme) -> TI a -> TI a
@@ -194,7 +194,7 @@ inferPattern (p :@ _) = case p of
         let (ts, r) = unfoldParams ctor
 
         guard (length args == length ts)
-            <|> throwError (text "Expected " <> text (show $ length ts) <> text " arguments to constructor \"" <> text id' <> text "\", but got " <> text (show $ length args) <> dot <> linebreak)
+            <|> throwError (makeMissingConstructorPatternArgumentError id' (length ts) (length args))
 
         (ts', cons, env) <- fmap mconcat <$> mapAndUnzip3M inferPattern args
 
