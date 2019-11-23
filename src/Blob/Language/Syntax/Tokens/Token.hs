@@ -13,7 +13,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE FlexibleInstances, TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances, TypeFamilies, LambdaCase #-}
 
 module Blob.Language.Syntax.Tokens.Token where
 
@@ -22,6 +22,7 @@ import Blob.Language.Syntax.Internal.Lexing.SourceSpan
 import qualified Text.Megaparsec as M (Token, Tokens)
 import Text.Megaparsec hiding (Token)
 import Data.Proxy
+import Control.Lens ((^.))
 
 -- | A type alias representing a token, regrouping the following information:
 --
@@ -31,7 +32,7 @@ import Data.Proxy
 --
 -- - The token class (possibly none)
 data Token = Token Int SourceSpan (Maybe Lexeme)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
 
 getIndentationLevel :: Token -> Int
 getIndentationLevel (Token i _ _) = i
@@ -41,6 +42,14 @@ getSourceSpan (Token _ s _) = s
 
 getLexeme :: Token -> Maybe Lexeme
 getLexeme (Token _ _ l) = l
+
+instance Show Token where
+  show (Token _ span' l) =
+      let (SourcePos file lbeg cbeg) = span' ^. begin
+          getToken = \case
+              Nothing -> "EOL"
+              Just x  -> show x
+      in getToken l <> " at " <> file <> ":" <> show (unPos lbeg) <> ":" <> show (unPos cbeg)
 
 ----------------------------------------------------------------
 

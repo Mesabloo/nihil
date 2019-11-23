@@ -15,7 +15,7 @@
 
 module Blob.Language.Syntax.Tokens.Lexeme where
 
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 
 
 -- | The 'Lexeme' class, which is either:
@@ -29,7 +29,7 @@ data Lexeme
     | LLowIdentifier Text  -- ^ an identifier beginning with a lowercase letter | function or constant name
     | LUpIdentifier Text   -- ^ an identifier beginning with an uppercase letter | a type name or data type constructor
     | LWildcard            -- ^ the wildcard pattern | @_@
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
 
 isKeyword :: Lexeme -> Bool
 isKeyword (LKeyword _) = True
@@ -66,3 +66,14 @@ isUpIdentifier                 _ = False
 isWildcard :: Lexeme -> Bool
 isWildcard LWildcard = True
 isWildcard         _ = False
+
+instance Show Lexeme where
+    show (LKeyword w)       = "keyword " <> unpack w
+    show (LString s)        = "string \"" <> unpack s <> "\""
+    show (LInteger i)       = "integer " <> show i
+    show (LFloat d)         = "double " <> show d
+    show (LChar c)          = "character '" <> [c] <> "'"
+    show (LSymbol s)        = "symbol \"" <> unpack s <> "\""
+    show (LLowIdentifier i) = "identifier \"" <> unpack i <> "\""
+    show (LUpIdentifier i)  = "identifier \"" <> unpack i <> "\""
+    show LWildcard          = "hole"
