@@ -37,6 +37,7 @@ import qualified Blob.Language.TypeChecking.KindChecker as Kind
 import Blob.Language.TypeChecking.Solver.KindSolver (runKindSolver)
 import Blob.Language.TypeChecking (runKI)
 import Blob.Language.TypeChecking.Internal.Substitution.Kinds (KindSubst)
+import Blob.Language.TypeChecking.Internal.Kind
 import qualified Data.Map as Map
 import qualified Data.Map.Unordered as UMap
 import Data.These
@@ -46,7 +47,7 @@ import Control.Monad.Reader (local, ask)
 import Control.Monad.Writer (listen, tell)
 import Data.Bifunctor (first, second, bimap)
 import Control.Applicative (liftA2)
-import Control.Monad (void)
+import Control.Monad (void, forM)
 import Control.Lens ((%=), (%~))
 import Data.Align.Key (alignWithKey)
 
@@ -100,16 +101,16 @@ handleStatement name (These def typ) = do
 
 -- | Kind checks a type declaration.
 analyseTypeDecl :: String -> CustomScheme -> Check ()
-analyseTypeDecl k v = do
+analyseTypeDecl k v@(CustomScheme tvs t) = do
     kind <- checkKI $ do
-        var        <- Kind.fresh "r"
-        t          <- local (_KindEnv %~ Map.insert k var) (Kind.kiCustomScheme v)
-        env        <- ask
-        cs         <- snd <$> listen (pure ())
-        subst      <- liftEither $ runKindSolver env ([var :*~: t] <> cs)
+        args  <- forM tvs (const $ Kind.fresh "k")
+        let var = foldr KArr KType args
+        k     <- local (_KindEnv %~ Map.insert k var) (Kind.kiCustomScheme v)
+        env   <- ask
+        cs    <- snd <$> listen (pure ())
+        subst <- liftEither $ runKindSolver env ([var :*~: k] <> cs)
         pure $ apply subst var
 
-    let (CustomScheme tvs t) = v
     schemes <- case t of
         TSum ctors -> do
             let typeDef = foldl (\acc t -> acc `TApp` TVar (TV t)) (TId k) tvs
