@@ -15,7 +15,7 @@
 
 module Blob.Language.TypeChecking.Internal.Errors.Unification where
 
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeUnifyError :: Pretty a => a -> a -> Doc
 makeUnifyError _1 _2 =

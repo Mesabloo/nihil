@@ -16,11 +16,11 @@
 module Blob.Interactive.Commands.Exit where
 
 import Blob.Interactive.Command (CommandParser, keyword, Command(..))
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<|>), (<?>))
 import qualified Text.Megaparsec.Char as C
 import Data.Functor (($>))
 import System.Exit (exitSuccess)
+import Text.PrettyPrint.ANSI.Leijen (green, text)
 
 -- | The 'Exit' command parser.
 --
@@ -30,7 +30,5 @@ exit = C.space *> (try . hidden) (keyword "quit" <|> keyword "q") <* C.space $> 
 
 exitCommand :: IO ()
 exitCommand = do
-    setSGR [SetColor Foreground Vivid Green]
-    putStrLn "See you soon!"
-    setSGR [Reset]
+    print (green $ text "See you soon!")
     exitSuccess

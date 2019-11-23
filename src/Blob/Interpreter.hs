@@ -25,7 +25,7 @@ import Blob.Language (Expr(..), Pattern(..), Located(..), Literal(..), Statement
 import Control.Monad.Reader (runReaderT, local)
 import Control.Monad.Except (throwError, runExceptT)
 import Control.Monad (zipWithM, forM)
-import Text.PrettyPrint.Leijen (text, pretty)
+import Text.PrettyPrint.ANSI.Leijen (text, pretty)
 import Control.Applicative ((<|>), empty)
 import Control.Lens (views, (%~), view, (^.))
 import qualified Data.Map as Map

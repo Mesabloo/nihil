@@ -15,7 +15,7 @@
 
 module Blob.Language.Syntax.Internal.Desugaring.Errors.UnexpectedOperator where
 
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeUnexpectedOperatorError :: String -> Doc
 makeUnexpectedOperatorError o = text "Unexpected infix operator \"" <> text o <> text "\"" <> dot <> linebreak

@@ -21,7 +21,7 @@ import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.REPL (REPL, ctx, op)
 import Blob.Interactive.Commands.Common
 import Blob.Language (runLexer, runParser', runSugar)
-import Text.PrettyPrint.Leijen (pretty)
+import Text.PrettyPrint.ANSI.Leijen (pretty, text, cyan, yellow)
 import Blob.Language.PrettyPrinting.CoreAST ()
 import Blob.Language.TypeChecking.Internal.Type (Scheme(..))
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)
@@ -31,9 +31,6 @@ import Text.Megaparsec (try, hidden, (<|>), (<?>), observing, lookAhead, eof, an
 import qualified Text.Megaparsec.Char as C
 import Control.Lens ((^.))
 import Control.Monad.State (get, liftIO)
-import Text.PrettyPrint.Leijen (text)
-import System.IO (hFlush, stdout)
-import System.Console.ANSI
 import qualified Data.Text as Text
 
 -- | The 'GetType' command parser.
@@ -60,11 +57,7 @@ getType' expr = do
 
     (Scheme _ type') <- rethrowEither id $ inferExpr (st ^. ctx) e
 
-    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-        >> putStr (show (pretty e))
-        >> setSGR [Reset]
-        >> putStr " :: "
-        >> setSGR [SetColor Foreground Vivid Cyan]
-        >> print (pretty type')
-        >> setSGR [Reset]
-        >> hFlush stdout
+    liftIO $ do
+        putStr (show . yellow $ pretty e)
+        putStr " :: "
+        print (cyan $ pretty type')

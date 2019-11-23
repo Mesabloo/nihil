@@ -25,15 +25,13 @@ import Blob.Language (runLexer, runParser', runSugar)
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)
 import Blob.Language.Syntax.Internal.Desugaring.Accumulator.Expression (accumulateOnExpression)
 import Blob.Language.Syntax.Rules.Desugaring.Expression (desugarExpression)
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<?>), observing, lookAhead, eof, anySingle, someTill, errorBundlePretty)
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Text as Text
 import Control.Lens ((^.))
 import Control.Monad.State (get, liftIO)
-import Text.PrettyPrint.Leijen (text)
-import System.IO (hFlush, stdout)
+import Text.PrettyPrint.ANSI.Leijen (text, yellow, integer, linebreak)
 import Criterion.Measurement (secs)
 import Control.Monad (replicateM)
 
@@ -77,12 +75,10 @@ execBench n expr = do
             let sigma = sum $ ((^ (2 :: Integer)) . subtract avg) <$> t
             in sqrt (sigma / fromIntegral n)
 
-    liftIO $ do
-        setSGR [SetColor Foreground Vivid Yellow]
-        putStrLn $ "Results for " <> show n <> " runs:"
-        putStrLn $ "> Minimum: " <> secs min
-        putStrLn $ "> Maximum: " <> secs max
-        putStrLn $ "> Average: " <> secs avg
-        putStrLn $ "> Std dev: " <> secs stddev
-        setSGR [Reset]
-        hFlush stdout
+    liftIO $
+        print . yellow $
+            text "Results for " <> integer n <> text " runs:" <> linebreak <>
+            text "> Minimum: " <> text (secs min) <> linebreak <>
+            text "> Maximum: " <> text (secs max) <> linebreak <>
+            text "> Average: " <> text (secs avg) <> linebreak <>
+            text "> Std dev: " <> text (secs stddev) <> linebreak

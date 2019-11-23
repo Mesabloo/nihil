@@ -34,7 +34,7 @@ import Data.Text (Text)
 import Data.Void (Void)
 import Data.Maybe (mapMaybe)
 import Data.Composition ((.:))
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 -- | A simple wrapper function for running the lexer with some text as input.
 runLexer :: Text -> String -> Either (ParseErrorBundle Text Void) [Token]

@@ -16,7 +16,7 @@
 module Blob.Language.TypeChecking.Internal.Errors.UndefinedType where
 
 import Blob.Language.TypeChecking.KindChecker (KIError)
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeUndefinedTypeError :: String -> KIError
 makeUndefinedTypeError s = text "Undefined kind of type \"" <> text s <> text "\"" <> dot <> linebreak

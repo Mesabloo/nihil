@@ -16,7 +16,7 @@
 module Blob.Language.TypeChecking.Internal.Errors.BindLack where
 
 import Blob.Language.TypeChecking.TypeChecker (TIError)
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeBindLackError :: String -> TIError
 makeBindLackError id' =

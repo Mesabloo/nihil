@@ -19,7 +19,7 @@ module Blob.Language.Syntax.Desugarer where
 
 import Control.Monad.State (StateT)
 import Control.Monad.Except (Except)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Data.Map as Map
 import qualified Blob.Language.Syntax.Internal.Parsing.AST as P (Fixity)
 import Control.Lens (makeLenses)

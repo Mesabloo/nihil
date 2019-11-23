@@ -18,7 +18,7 @@ module Blob.Language.TypeChecking.Internal.Errors.InfiniteType where
 import Blob.Language.TypeChecking.Internal.Type
 import Blob.Language.TypeChecking.TypeChecker (TIError)
 import Blob.Language.PrettyPrinting.Types ()
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeInfiniteTypeError :: TVar -> Type -> TIError
 makeInfiniteTypeError (TV s) t1 =

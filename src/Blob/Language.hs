@@ -25,4 +25,4 @@ import qualified Blob.Language.Syntax.Internal.Desugaring.CoreAST as CoreAST
 import qualified Blob.Language.Syntax as Syntax
 import qualified Blob.Language.TypeChecking as TypeChecking
 import qualified Blob.Language.TypeChecking.Rules.Program as Program
-import qualified Text.PrettyPrint.Leijen as Pretty
+import qualified Text.PrettyPrint.ANSI.Leijen as Pretty

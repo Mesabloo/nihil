@@ -22,19 +22,16 @@ import Blob.Interactive.Commands.Common
 import Blob.Interactive.REPL (REPL, ctx, op)
 import Blob.Language (runLexer, runParser', runSugar, runKI)
 import Blob.Language.TypeChecking.Rules.Kinds.Infer (infer)
-import Text.PrettyPrint.Leijen (pretty)
+import Text.PrettyPrint.ANSI.Leijen (pretty, text, yellow, cyan)
 import Blob.Language.PrettyPrinting.Kinds ()
 import Blob.Language.PrettyPrinting.Types ()
 import Blob.Language.Syntax.Rules.Parsing.Types.Arrow (type')
 import Blob.Language.TypeChecking.Internal.Environment (typeDeclCtx)
 import Blob.Language.Syntax.Rules.Desugaring.Types.Type (desugarType)
 import Blob.Language.TypeChecking.Rules.Types.Infer (tiType)
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<|>), (<?>), anySingle, someTill, observing, lookAhead, eof, errorBundlePretty)
 import qualified Text.Megaparsec.Char as C
-import System.IO (hFlush, stdout)
 import Control.Monad.State (get, liftIO)
-import Text.PrettyPrint.Leijen (text)
 import qualified Data.Text as Text
 import Control.Lens ((^.))
 
@@ -62,11 +59,7 @@ getKind' typeExpr = do
     let t1 = tiType t
     (kind, _) <- rethrowEither id $ runKI (st ^. ctx . typeDeclCtx) (infer t1)
 
-    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-        >> putStr (show (pretty t1))
-        >> setSGR [Reset]
-        >> putStr " :: "
-        >> setSGR [SetColor Foreground Vivid Cyan]
-        >> print (pretty kind)
-        >> setSGR [Reset]
-        >> hFlush stdout
+    liftIO $ do
+        putStr (show . yellow $ pretty t1)
+        putStr " :: "
+        print (cyan $ pretty kind)

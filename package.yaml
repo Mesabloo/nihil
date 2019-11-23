@@ -19,7 +19,7 @@ dependencies:
 - text
 - base >= 4.7 && < 5
 - megaparsec >7
-- wl-pprint
+- ansi-wl-pprint
 - containers
 - mtl
 - MissingH
@@ -41,7 +41,7 @@ github: mesabloo/Blob
 license: GPL-3.0
 
 executables:
-  Blobc:
+  iBlob:
     source-dirs: app
     main: Main.hs
     ghc-options:
@@ -68,7 +68,7 @@ executables:
     - conf
     - directory
     - haskeline
-    - ansi-terminal
+    - ansi-wl-pprint
     - filepath
 
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>

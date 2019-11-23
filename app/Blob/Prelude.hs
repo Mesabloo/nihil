@@ -26,7 +26,7 @@ import Blob.Language.TypeChecking.Internal.Type
 import Blob.Language.TypeChecking.Internal.Kind
 import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv(..), TypeEnv(..), KindEnv(..))
 import qualified Data.Map as Map
-import Text.PrettyPrint.Leijen (text)
+import Text.PrettyPrint.ANSI.Leijen (text)
 import Control.Monad.Except (throwError)
 
 -- | The default environment used when evaluatingan expression.

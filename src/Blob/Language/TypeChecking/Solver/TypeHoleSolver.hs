@@ -21,7 +21,7 @@ import Blob.Language.TypeChecking.TypeChecker (TIError)
 import Blob.Language.TypeChecking.Internal.Errors.TypeHole
 import qualified Data.Map as Map
 import Control.Monad.Except (throwError)
-import Text.PrettyPrint.Leijen (empty)
+import Text.PrettyPrint.ANSI.Leijen (empty)
 
 -- | Runs the type hole solver.
 runHoleInspect :: TypeSubst -> Either TIError ()

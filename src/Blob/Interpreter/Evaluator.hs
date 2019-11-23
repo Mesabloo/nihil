@@ -21,7 +21,7 @@ import {-# SOURCE #-} Blob.Interpreter.Value
 import Blob.Interpreter.Scope
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.Except (ExceptT)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Lens (makeLenses)
 
 -- | The 'EvalEnv' monad used for evaluation.

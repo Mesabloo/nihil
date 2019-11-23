@@ -15,7 +15,7 @@
 
 module Blob.Interpreter.Errors.IncompleteMatch where
 
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeMatchError :: Doc
 makeMatchError = text "Non-exhaustive patterns in pattern matching" <> dot <> linebreak

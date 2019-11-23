@@ -20,7 +20,7 @@ module Blob.Language.TypeChecking.TypeChecker where
 import Blob.Language.TypeChecking.Internal.Constraint (TypeConstraint)
 import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv)
 import Control.Lens (makeLenses)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.RWS (RWST)
 import Control.Monad.Except (Except, ExceptT)
 import Control.Monad.Reader (Reader)

@@ -19,10 +19,9 @@ import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.REPL (REPL, ctx)
 import Blob.Language.TypeChecking.Internal.Environment (TypeEnv(..), KindEnv(..), defCtx, ctorCtx, typeDeclCtx)
 import Blob.Language.TypeChecking.Internal.Type (Scheme(..))
-import Text.PrettyPrint.Leijen (pretty)
+import Text.PrettyPrint.ANSI.Leijen (pretty, text, cyan, yellow)
 import Blob.Language.PrettyPrinting.Types ()
 import Blob.Language.PrettyPrinting.Kinds ()
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<?>))
 import qualified Text.Megaparsec.Char as C
 import Data.Functor (($>))
@@ -48,17 +47,15 @@ getEnv = do
         showKinds       = forM_ types' $
                 \(name, kind) -> do
                     putStr "\t"
-                    setSGR [SetColor Foreground Vivid Yellow] *> putStr name
-                    setSGR [Reset] *> putStr " :: "
-                    setSGR [SetColor Foreground Vivid Cyan] *> print (pretty kind)
-                    setSGR [Reset]
+                    putStr (show . yellow $ text name)
+                    putStr " :: "
+                    print (show . cyan $ pretty kind)
         showFuns        = forM_ funs' $
                 \(name, Scheme _ type') -> do
                     putStr "\t"
-                    setSGR [SetColor Foreground Vivid Yellow] *> putStr name
-                    setSGR [Reset] *> putStr " :: "
-                    setSGR [SetColor Foreground Vivid Cyan] *> print (pretty type')
-                    setSGR [Reset]
+                    putStr (show . yellow $ text name)
+                    putStr " :: "
+                    print (show . cyan $ pretty type')
 
     liftIO $ putStrLn "Types:" *> showKinds *> putStrLn ""
     liftIO $ putStrLn "Functions:" *> showFuns

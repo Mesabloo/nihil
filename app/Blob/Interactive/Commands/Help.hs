@@ -16,10 +16,10 @@
 module Blob.Interactive.Commands.Help where
 
 import Blob.Interactive.Command (CommandParser, keyword, Command(..))
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<|>), (<?>))
 import qualified Text.Megaparsec.Char as C
 import Data.Functor (($>))
+import Text.PrettyPrint.ANSI.Leijen (text, bold, magenta)
 
 -- | The 'Help' command parser.
 --
@@ -29,39 +29,36 @@ help = C.space *> (try . hidden) (keyword "?" <|> keyword "help" <|> keyword "h"
 
 helpCommand :: IO ()
 helpCommand = do
-    let colorCommand action = do
-            setSGR [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity]
-            action
-            setSGR [Reset]
+    let colorCommand = putStr . show . bold . magenta
 
-    colorCommand (putStr "\":help\" \":h\" \":?\"")
+    colorCommand (text "\":help\" \":h\" \":?\"")
         >> putStrLn ": show this menu."
 
-    colorCommand (putStr "\":quit\" \":q\"")
+    colorCommand (text "\":quit\" \":q\"")
         >> putStrLn ": exit the REPL."
 
-    colorCommand (putStr "\":load [file]\" \":l [file]\"")
+    colorCommand (text "\":load [file]\" \":l [file]\"")
         >> putStrLn ": load a file into the REPL for further use."
 
-    colorCommand (putStr "\":type [expr]\" \":t [expr]\"")
+    colorCommand (text "\":type [expr]\" \":t [expr]\"")
         >> putStrLn ": get the type of an expression."
 
-    colorCommand (putStr "\":kind [type]\" \":k [type]\"")
+    colorCommand (text "\":kind [type]\" \":k [type]\"")
         >> putStrLn ": get the kind of a type."
 
-    colorCommand (putStr "\":reset {symbols}\" \":r {symbols}\"")
+    colorCommand (text "\":reset {symbols}\" \":r {symbols}\"")
         >> putStrLn ": reset the REPL to its original state or delete some user-defined symbols."
 
-    colorCommand (putStr "\":time [expr]\"")
+    colorCommand (text "\":time [expr]\"")
         >> putStrLn ": print the execution time of an expression."
 
-    colorCommand (putStr "\":bench [n] [expr]\"")
+    colorCommand (text "\":bench [n] [expr]\"")
         >> putStrLn ": make some benchmark on an expression."
 
-    colorCommand (putStr "\":env\"")
+    colorCommand (text "\":env\"")
         >> putStrLn ": print the whole current environment"
 
-    colorCommand (putStr "\":! [command]\"")
+    colorCommand (text "\":! [command]\"")
         >> putStrLn ": execute a shell command from the REPL"
 
-    putStrLn "\nYou also can write some core directly inside the REPL." >> setSGR [Reset]
+    putStrLn "\nYou also can write some core directly inside the REPL."

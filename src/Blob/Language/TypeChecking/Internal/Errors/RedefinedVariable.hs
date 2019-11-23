@@ -16,7 +16,7 @@
 module Blob.Language.TypeChecking.Internal.Errors.RedefinedVariable where
 
 import Blob.Language.TypeChecking.TypeChecker (TIError)
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeRedefinedError :: String -> TIError
 makeRedefinedError id' =

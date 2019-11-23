@@ -19,8 +19,7 @@ import Blob.Prelude (initGlobalEnv, initEvalState)
 import Blob.Language.Syntax.Internal.Desugaring.Defaults (initSugarState)
 import Blob.Interactive.REPL (REPLState(..))
 import Control.Monad.State (liftIO)
-import System.Console.ANSI
-import System.IO (hFlush, stdout)
+import Text.PrettyPrint.ANSI.Leijen (text, bold, magenta)
 
 -- | The default 'REPLState'.
 initREPLState :: REPLState
@@ -35,10 +34,9 @@ initREPLState =
 -- | The welcome message when starting the REPL.
 initREPL :: IO ()
 initREPL = liftIO $ do
-        putStr ("iBlob, version " <> version <> "\t\t") >> setSGR [Reset]
-        setSGR [SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta] >> putStr "\":?\"" >> setSGR [Reset]
-        putStrLn " for help." >> setSGR [Reset]
-        hFlush stdout
+    putStr ("iBlob, version " <> version <> "\t\t")
+    putStr (show . bold . magenta $ text "\":?\"")
+    putStrLn " for help."
 
 -- | The current version of iBlob.
 version :: String

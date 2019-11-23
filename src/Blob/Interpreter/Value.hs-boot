@@ -15,7 +15,7 @@
 
 module Blob.Interpreter.Value where
 
-import Text.PrettyPrint.Leijen (Pretty)
+import Text.PrettyPrint.ANSI.Leijen (Pretty)
 
 data Value
 

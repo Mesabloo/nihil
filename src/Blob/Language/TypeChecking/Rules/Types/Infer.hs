@@ -42,7 +42,7 @@ import Data.Composition ((.:))
 import Data.Bifunctor (first, second, bimap)
 import Data.Align.Key (alignWithKey)
 import Prelude hiding (lookup)
-import Text.PrettyPrint.Leijen (text, dot, linebreak)
+import Text.PrettyPrint.ANSI.Leijen (text, dot, linebreak)
 
 -- | Extends the type environment with a single entry.
 inEnv :: (String, Scheme) -> TI a -> TI a

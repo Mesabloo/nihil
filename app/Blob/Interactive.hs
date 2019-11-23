@@ -34,7 +34,6 @@ import Blob.Interactive.Defaults
 import Blob.Interactive.Commands.Errors.UnknownCommand (makeCommandError)
 import Text.Megaparsec (observing, try, choice, parseErrorTextPretty, runParser, ParseErrorBundle(..), bundleErrors, (<|>), eof)
 import qualified Text.Megaparsec.Char as C
-import System.IO (hFlush, stdout)
 import Control.Monad (forever, forM_)
 import System.Directory (doesFileExist, getCurrentDirectory, canonicalizePath, getHomeDirectory)
 import Data.List.NonEmpty (toList)
@@ -47,7 +46,7 @@ import System.Console.Haskeline (getInputLine, runInputT, defaultSettings, withI
 import Control.Monad.Except (runExceptT, catchError)
 import Control.Monad.State (StateT(..), liftIO)
 import Data.List (isInfixOf)
-import System.Console.ANSI
+import Text.PrettyPrint.ANSI.Leijen (text, green, red)
 
 -- | Runs the REPL with no options.
 runREPL :: REPL a -> IO ()
@@ -77,10 +76,7 @@ customRunREPL r opts = do
         then pure s
         else do
             config <- readConf (home <> "/.iblob")
-            setSGR [SetColor Foreground Vivid Green]
-                >> putStrLn ("Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\".")
-                >> setSGR [Reset]
-                >> hFlush stdout
+            print (green . text $ "Loaded iBlob configuration from \"" <> (home <> "/.iblob") <> "\".")
             pure $ s & prompt .~ fromMaybe "> " (getConf "prompt" config)
                      & preload .~ (fromMaybe [] (getConf "preload" config) <> fs)
 
@@ -90,16 +86,12 @@ loadFiles = do
     let check i f fs = do
             currentDir <- liftIO getCurrentDirectory
             path <- liftIO $ canonicalizePath (currentDir </> f)
-            liftIO $ setSGR [SetColor Foreground Vivid Green] >> putStrLn ("[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".") >> setSGR [Reset] >> hFlush stdout
+            liftIO $ print (green . text $ "[" <> show i <> " of " <> show (length fs) <> "] Loading file \"" <> path <> "\".")
     fs <- use preload
     forM_ (zip [1..] fs) $ \(i, f) -> check i f fs *> catchError (replCheck (Load f)) (liftIO . logError)
 
 logError :: REPLError -> IO ()
-logError err = do
-    setSGR [SetColor Foreground Vivid Red]
-    putStr (show err)
-    setSGR [Reset]
-    hFlush stdout
+logError = putStr . show . red
 
 -- | The basic loop of the REPL.
 replLoop :: REPL ()
@@ -120,9 +112,7 @@ replLoop = do
                 case res of
                     Left err     -> liftIO $
                         if strip input' /= ""
-                        then setSGR [SetColor Foreground Vivid Red]
-                                >> mapM_ (putStr . parseErrorTextPretty) (toList $ bundleErrors err)
-                                >> setSGR [Reset] >> hFlush stdout
+                        then mapM_ (putStr . show . red . text . parseErrorTextPretty) (toList $ bundleErrors err)
                         else putStr ""
                     Right output -> catchError (replCheck output) (liftIO . logError)
 

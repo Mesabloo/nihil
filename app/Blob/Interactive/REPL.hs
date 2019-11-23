@@ -20,7 +20,7 @@ module Blob.Interactive.REPL where
 import Blob.Language.TypeChecking.Internal.Environment (GlobalEnv)
 import Blob.Language.Syntax.Desugarer (SugarState)
 import Blob.Interpreter.Evaluator (EvalState)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.State (StateT(..), lift, MonadState(..))
 import Control.Monad.Except (ExceptT(..), MonadError(..), runExceptT)
 import System.Console.Haskeline (InputT, MonadException(..), RunIO(..), runInputT, defaultSettings)

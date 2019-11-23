@@ -25,15 +25,13 @@ import Blob.Language (runLexer, runParser', runSugar)
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)
 import Blob.Language.Syntax.Internal.Desugaring.Accumulator.Expression (accumulateOnExpression)
 import Blob.Language.Syntax.Rules.Desugaring.Expression (desugarExpression)
-import System.Console.ANSI
 import Text.Megaparsec (try, hidden, (<?>), observing, lookAhead, eof, anySingle, someTill, errorBundlePretty)
 import qualified Text.Megaparsec.Char as C
 import qualified Data.Text as Text
 import Control.Lens ((^.))
 import Control.Monad.State (get, liftIO)
 import Control.Monad.Except (throwError)
-import Text.PrettyPrint.Leijen (text, pretty)
-import System.IO (hFlush, stdout)
+import Text.PrettyPrint.ANSI.Leijen (text, pretty, yellow, cyan)
 import Criterion.Measurement (secs)
 
 -- | The 'Time' command parser.
@@ -64,12 +62,6 @@ execTime expr = do
     case res of
         Left err      -> throwError err
         Right evalRes ->
-            liftIO $ setSGR [SetColor Foreground Vivid Cyan]
-                >> print (pretty evalRes)
-                >> setSGR [Reset]
-                >> hFlush stdout
+            liftIO $ print (show . cyan $ pretty evalRes)
 
-    liftIO $ setSGR [SetColor Foreground Vivid Yellow]
-        >> putStrLn ("Time taken: " <> secs t)
-        >> setSGR [Reset]
-        >> hFlush stdout
+    liftIO $ print (yellow $ text "Time taken: " <> text (secs t))

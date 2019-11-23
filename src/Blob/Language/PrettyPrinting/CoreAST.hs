@@ -4,10 +4,9 @@ module Blob.Language.PrettyPrinting.CoreAST where
 
 import Blob.Language.Syntax.Internal.Desugaring.CoreAST
 import Blob.Language.Syntax.Internal.Parsing.Located
-import Text.PrettyPrint.Leijen hiding ((<$>))
-import qualified Text.PrettyPrint.Leijen as PP ((<$>))
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import qualified Text.PrettyPrint.ANSI.Leijen as PP ((<$>))
 import qualified Data.Map as Map
-import Data.List (intersperse)
 
 -- | The default indentation level for the pretty printing
 indentLevel :: Int
@@ -19,7 +18,7 @@ instance Pretty Program where
     pretty (Program stt) =
         let printStatement s = indent indentLevel (pretty s)
             printStatements s = mconcat $ map ((linebreak <>) . printStatement) s
-        in text "Program [" <$$> printStatements stt <> text "]"
+        in text "Program [" <$$> printStatements stt <> rbracket
 
 instance Pretty (Located Statement) where
     -- | Statement pretty printing
@@ -30,7 +29,7 @@ instance Pretty (Located Statement) where
     pretty (TypeDeclaration name _ custom :@ _) =
         let printCustomType = \case
                 TAlias t -> pretty t
-                TSum map' -> indent indentLevel $ Map.foldr (\t acc -> acc <> linebreak <> pCtor t) (text "") map'
+                TSum map' -> indent indentLevel $ Map.foldr (\t acc -> acc <> linebreak <> pCtor t) empty map'
               where pCtor (Scheme _ t) = pretty t
             printCustom = \case
                 t@(TAlias _) :@ _ -> text "Alias = " <> printCustomType t
@@ -45,8 +44,7 @@ instance Pretty (Located Expr) where
     pretty (EHole :@ _) = text "_"
     pretty (ELam arg e :@ _) =
         parens $ text "\\" <+> pretty arg <+> text "->" <+> pretty e
-    pretty (ETuple e :@ _) =
-        parens . mconcat $ intersperse (text ", ") (map pretty e)
+    pretty (ETuple e :@ _) = tupled (pretty <$> e)
     pretty (EMatch toMatch cases :@ _) =
         let printCase (pat, expr) = pretty pat <+> text "->" <+> pretty expr
             printCases c = mconcat $ map (flip (<>) linebreak . printCase) c
@@ -69,13 +67,12 @@ instance Pretty Literal where
 
 instance Pretty (Located Pattern) where
     -- | Pattern pretty printing
-    pretty (PInt i :@ _) = text (show i)
-    pretty (PDec d :@ _) = text (show d)
-    pretty (PChr c :@ _) = text (show c)
+    pretty (PInt i :@ _) = integer i
+    pretty (PDec d :@ _) = double d
+    pretty (PChr c :@ _) = squotes (char c)
     pretty (PId i :@ _) = text i
     pretty (Wildcard :@ _) = text "_"
-    pretty (PTuple pats :@ _) =
-        parens . mconcat $ intersperse (text ", ") (map pretty pats)
+    pretty (PTuple pats :@ _) = tupled (pretty <$> pats)
     pretty (PAnn p t :@ _) = parens $ pretty p <+> text "::" <+> pretty t
     pretty (PCtor name args :@ _) =
         let parenthesized = foldr ((<+>) . parenthesizeIfNeeded) empty args
@@ -89,7 +86,7 @@ instance Pretty (Located Type) where
     pretty (t :@ _) = case t of
         TId i -> text i
         TVar tv -> text tv
-        TTuple ts -> parens . mconcat $ intersperse (text ", ") (map pretty ts)
+        TTuple ts -> tupled (pretty <$> ts)
         TApp t1 t2 -> pretty t1 <+> parenthesizeIfNeeded t2
         TFun (t1, l) t2 -> parenthesizeIfNeededF t1 <> text "|" <> pretty (LInt l) <> text "|" <+> text "->" <+> parenthesizeIfNeededF t2
       where

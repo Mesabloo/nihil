@@ -16,7 +16,7 @@
 module Blob.Language.TypeChecking.Internal.Errors.UnboundVariable where
 
 import Blob.Language.TypeChecking.TypeChecker (TIError)
-import Text.PrettyPrint.Leijen
+import Text.PrettyPrint.ANSI.Leijen
 
 makeUnboundVarError :: String -> TIError
 makeUnboundVarError s =

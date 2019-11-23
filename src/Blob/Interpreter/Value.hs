@@ -19,8 +19,7 @@ import Blob.Interpreter.Scope
 import Blob.Interpreter.Evaluator (Eval)
 import Blob.Language.Syntax.Internal.Parsing.Located (Located)
 import Blob.Language.Syntax.Internal.Desugaring.CoreAST
-import Text.PrettyPrint.Leijen hiding ((<$>))
-import Data.List (intersperse)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 -- | The data type providing any sort of value, for example:
 data Value
@@ -34,12 +33,11 @@ data Value
     | VCon String [Value]                                      -- ^ A data type constructor
 
 instance Pretty Value where
-    pretty (VInt i)     = text (show i)
-    pretty (VDec d)     = text (show d)
-    pretty (VChr c)     = text (show c)
+    pretty (VInt i)     = integer i
+    pretty (VDec d)     = double d
+    pretty (VChr c)     = squotes $ char c
     pretty (VVar id')   = text id'
-    pretty (VTuple vs)  =
-        parens (mconcat $ intersperse (text ", ") (pretty <$> vs))
+    pretty (VTuple vs)  = tupled (pretty <$> vs)
     pretty (VCon id' e)
         | null e        = text id'
         | otherwise     =

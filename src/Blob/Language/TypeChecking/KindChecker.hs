@@ -19,7 +19,7 @@ module Blob.Language.TypeChecking.KindChecker where
 
 import Blob.Language.TypeChecking.Internal.Constraint (KindConstraint)
 import Blob.Language.TypeChecking.Internal.Environment (KindEnv)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Lens (makeLenses)
 import Control.Monad.RWS (RWST)
 import Control.Monad.Except (Except, ExceptT)

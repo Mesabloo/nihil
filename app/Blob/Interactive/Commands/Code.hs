@@ -34,10 +34,8 @@ import Control.Monad.State (get, liftIO)
 import Control.Monad.Except (throwError)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import System.Console.ANSI
-import Text.PrettyPrint.Leijen (text, pretty)
+import Text.PrettyPrint.ANSI.Leijen (text, pretty, cyan)
 import Control.Monad (forM_)
-import System.IO (hFlush, stdout)
 
 -- | When the entire input is some 'Code'.
 code :: CommandParser Command
@@ -61,10 +59,7 @@ execCode stat = do
             >>= \case
                 Left err -> throwError err
                 Right evalRes ->
-                    liftIO $ setSGR [SetColor Foreground Vivid Cyan]
-                        >> print (pretty evalRes)
-                        >> setSGR [Reset]
-                        >> hFlush stdout
+                    liftIO $ print (cyan $ pretty evalRes)
 
         Left p  -> do
             (p'@(Program ss :@ _), state') <- rethrowEither id $ runSugar (runDesugarer "interactive" (p :@ Nothing)) (st ^. op)

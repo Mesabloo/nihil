@@ -29,7 +29,7 @@ import qualified Text.Megaparsec.Char as C
 import Data.String.Utils (rstrip)
 import Control.Monad.State (liftIO, get)
 import Control.Monad.Except (throwError)
-import Text.PrettyPrint.Leijen (text, dot, linebreak)
+import Text.PrettyPrint.ANSI.Leijen (text, dot, linebreak)
 import qualified Data.Text.IO as Text
 import qualified Data.Map as Map
 import Control.Lens ((^.), (%=), (.=))
