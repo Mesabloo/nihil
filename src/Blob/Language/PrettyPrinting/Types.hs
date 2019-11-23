@@ -3,8 +3,7 @@
 module Blob.Language.PrettyPrinting.Types where
 
 import Blob.Language.TypeChecking.Internal.Type
-import Blob.Language.PrettyPrinting.Pretty
-import Text.PrettyPrint.Leijen hiding (Pretty, pretty, (<$>))
+import Text.PrettyPrint.Leijen hiding ((<$>))
 import Data.List (intersperse)
 
 instance Pretty Type where

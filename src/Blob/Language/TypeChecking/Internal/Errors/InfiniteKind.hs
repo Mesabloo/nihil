@@ -18,8 +18,7 @@ module Blob.Language.TypeChecking.Internal.Errors.InfiniteKind where
 import Blob.Language.TypeChecking.Internal.Kind (Kind)
 import Blob.Language.TypeChecking.KindChecker (KIError)
 import Blob.Language.PrettyPrinting.Kinds ()
-import Blob.Language.PrettyPrinting.Pretty (pretty)
-import Text.PrettyPrint.Leijen hiding (Pretty, pretty)
+import Text.PrettyPrint.Leijen
 
 makeInfiniteKindError :: String -> Kind -> KIError
 makeInfiniteKindError s k1 =

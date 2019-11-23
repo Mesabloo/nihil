@@ -1,8 +1,7 @@
 module Blob.Language.PrettyPrinting.Kinds where
 
-import Blob.Language.PrettyPrinting.Pretty
 import Blob.Language.TypeChecking.Internal.Kind
-import Text.PrettyPrint.Leijen hiding (Pretty, pretty)
+import Text.PrettyPrint.Leijen
 
 instance Pretty Kind where
     -- | Kind pretty printing

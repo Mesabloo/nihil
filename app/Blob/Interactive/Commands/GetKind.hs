@@ -22,7 +22,7 @@ import Blob.Interactive.Commands.Common
 import Blob.Interactive.REPL (REPL, ctx, op)
 import Blob.Language (runLexer, runParser', runSugar, runKI)
 import Blob.Language.TypeChecking.Rules.Kinds.Infer (infer)
-import Blob.Language.PrettyPrinting.Pretty (pretty)
+import Text.PrettyPrint.Leijen (pretty)
 import Blob.Language.PrettyPrinting.Kinds ()
 import Blob.Language.PrettyPrinting.Types ()
 import Blob.Language.Syntax.Rules.Parsing.Types.Arrow (type')

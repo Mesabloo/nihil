@@ -4,8 +4,7 @@ module Blob.Language.PrettyPrinting.CoreAST where
 
 import Blob.Language.Syntax.Internal.Desugaring.CoreAST
 import Blob.Language.Syntax.Internal.Parsing.Located
-import Blob.Language.PrettyPrinting.Pretty
-import Text.PrettyPrint.Leijen hiding ((<$>), Pretty, pretty)
+import Text.PrettyPrint.Leijen hiding ((<$>))
 import qualified Text.PrettyPrint.Leijen as PP ((<$>))
 import qualified Data.Map as Map
 import Data.List (intersperse)

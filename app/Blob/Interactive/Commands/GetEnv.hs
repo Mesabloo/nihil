@@ -19,7 +19,7 @@ import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.REPL (REPL, ctx)
 import Blob.Language.TypeChecking.Internal.Environment (TypeEnv(..), KindEnv(..), defCtx, ctorCtx, typeDeclCtx)
 import Blob.Language.TypeChecking.Internal.Type (Scheme(..))
-import Blob.Language.PrettyPrinting.Pretty (pretty)
+import Text.PrettyPrint.Leijen (pretty)
 import Blob.Language.PrettyPrinting.Types ()
 import Blob.Language.PrettyPrinting.Kinds ()
 import System.Console.ANSI

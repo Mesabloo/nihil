@@ -17,9 +17,8 @@ module Blob.Language.TypeChecking.Internal.Errors.MistypedGADT where
 
 import Blob.Language.TypeChecking.TypeChecker (TIError)
 import Blob.Language.TypeChecking.Internal.Type
-import Blob.Language.PrettyPrinting.Pretty (pretty)
 import Blob.Language.PrettyPrinting.Types ()
-import Text.PrettyPrint.Leijen hiding (Pretty, pretty)
+import Text.PrettyPrint.Leijen
 
 makeGADTWrongReturnTypeError :: String -> Type -> Type -> TIError
 makeGADTWrongReturnTypeError ctorName actualType expectedType =

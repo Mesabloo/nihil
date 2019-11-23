@@ -21,7 +21,7 @@ import Blob.Interactive.Command (CommandParser, keyword, Command(..))
 import Blob.Interactive.REPL (REPL, ctx, op)
 import Blob.Interactive.Commands.Common
 import Blob.Language (runLexer, runParser', runSugar)
-import Blob.Language.PrettyPrinting.Pretty (pretty)
+import Text.PrettyPrint.Leijen (pretty)
 import Blob.Language.PrettyPrinting.CoreAST ()
 import Blob.Language.TypeChecking.Internal.Type (Scheme(..))
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)

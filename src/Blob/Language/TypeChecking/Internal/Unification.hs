@@ -19,9 +19,8 @@ module Blob.Language.TypeChecking.Internal.Unification where
 
 import Blob.Language.TypeChecking.Internal.Errors.Unification
 import Blob.Language.TypeChecking.Internal.Substitution (apply, Subst, Substitutable)
-import Blob.Language.PrettyPrinting.Pretty (Pretty)
 import Control.Monad.Except (MonadError, throwError)
-import Text.PrettyPrint.Leijen (Doc)
+import Text.PrettyPrint.Leijen (Doc, Pretty)
 
 class (Substitutable a, Monad m, MonadError Doc m, Pretty a) => Unifiable a m where
     unify :: a -> a -> m (Subst a)

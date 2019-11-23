@@ -15,8 +15,7 @@
 
 module Blob.Language.TypeChecking.Internal.Errors.Unification where
 
-import Blob.Language.PrettyPrinting.Pretty (Pretty, pretty)
-import Text.PrettyPrint.Leijen hiding (Pretty, pretty)
+import Text.PrettyPrint.Leijen
 
 makeUnifyError :: Pretty a => a -> a -> Doc
 makeUnifyError _1 _2 =
