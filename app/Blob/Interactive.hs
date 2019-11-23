@@ -97,7 +97,7 @@ loadFiles = do
 logError :: REPLError -> IO ()
 logError err = do
     setSGR [SetColor Foreground Vivid Red]
-    print err
+    putStr (show err)
     setSGR [Reset]
     hFlush stdout
 
