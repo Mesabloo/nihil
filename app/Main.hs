@@ -18,8 +18,9 @@ module Main
     main
 ) where
 
-import Blob.Interactive (customRunREPL, replLoop)
+import Blob.Interactive (customRunREPL, replLoop, replCheck)
 import Blob.Interactive.REPL (REPLOptions(..))
+import Blob.Interactive.Command (Command(Code))
 import qualified Blob.Interactive.Defaults as Def
 import Options.Applicative
 
@@ -29,22 +30,28 @@ main = execCommand =<< customExecParser p opts
         p = prefs showHelpOnError
 
 data Options = Options
-    { subCommand :: Command
+    { subCommand :: Command'
     , version :: Bool }
     deriving Show
 
-data Command =
-    REPL [FilePath]
+data Command'
+    = REPL [FilePath]
+    | Eval String
     deriving Show
 
 
 execCommand :: Options -> IO ()
 execCommand (Options (REPL _) True) = putStrLn $ "iBlob v" <> Def.version
 execCommand (Options (REPL fs) _) = customRunREPL replLoop (REPLOptions fs)
+execCommand (Options (Eval c) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
 
 commands :: Parser Options
-commands = hsubparser
-    ( command "repl" (info replOption ( progDesc "Run blob's REPL" )) )
+commands =
+    hsubparser (command "repl" (info replOption (progDesc "Run blob's REPL")))
+    <|> hsubparser (command "eval" (info evalOption (progDesc "Run some blob code directly")))
 
 replOption :: Parser Options
-replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch ( long "version" <> short 'v' <> help "Print the version" )
+replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
+
+evalOption :: Parser Options
+evalOption = Options <$> (Eval <$> strArgument (metavar "CODE")) <*> pure False
