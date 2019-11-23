@@ -5,13 +5,15 @@ module Main where
 import Test.Hspec
 import Control.Applicative ((<|>))
 import Data.Foldable (sequenceA_, forM_)
-import Blob.Language.Parsing.Parser
-import Blob.Language.Parsing.Types
-import Blob.Language.Lexing.Lexer (runLexer, kwords)
-import Blob.Language.Lexing.Types
+import Blob.Language (runParser, runLexer, runParser')
+import Blob.Language.Syntax.Rules.Lexing.Keyword (kwords)
+import Blob.Language.Syntax.Tokens.Lexeme (Lexeme(..))
+import Blob.Language.Syntax.Tokens.Token (getLexeme)
+import Blob.Language.Syntax.Rules.Parsing.Keyword (keyword)
 import Text.Megaparsec.Pos (mkPos)
 import Control.Lens
 import qualified Data.Text as Text
+import Data.Maybe (fromJust)
 
 main :: IO ()
 main = hspec (sequenceA_ tests)
@@ -64,7 +66,7 @@ test2 = describe "Test on keywords" $
               let res = getRes n
               it "should not error out" $
                 res `shouldNotSatisfy` hasParseError
-              let (Just x) = res ^? _Right . to (^. _3)
+              let (Just x) = res ^? _Right . to getLexeme . to fromJust
               it "is parsed as a keyword" $
                 x `shouldSatisfy` isKeyword
 
