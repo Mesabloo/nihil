@@ -34,58 +34,58 @@ ret =
     emit [ 0xc3 ]
 
 add :: Value -> Value -> X86 ()
-add (Reg l) (Int r) = do
+add (R l) (I r) = do
     emit [ rexW
          , 0x05 ]              -- ADD
     imm r
-add (Reg l) (Reg r) =
+add (R l) (R r) =
     emit [ rexW
          , 0x01                -- ADD
          , modRM .|. index r `shiftL` 3 .|. index l ]
 add _ _ = nodef
 
 sub :: Value -> Value -> X86 ()
-sub (Reg l) (Int r) = do
+sub (R l) (I r) = do
     emit [ rexW
          , 0x2D ]              -- SUB
     imm r
-sub (Reg l) (Reg r) =
+sub (R l) (R r) =
     emit [ rexW
          , 0x29                -- SUB
          , modRM .|. index r `shiftL` 3 .|. index l]
 sub _ _ = nodef
 
 push :: Value -> X86 ()
-push (Reg l) =
+push (R l) =
     emit [ 0x50 + index l ]
 push _ = nodef
 
 pop :: Value -> X86 ()
-pop (Reg l) =
+pop (R l) =
     emit [ 0x58 + index l ]
 pop _ = nodef
 
 call :: Value -> X86 ()
-call (Addr dst) = do
+call (A dst) = do
     src <- use memoff
     emit [ 0xE8 ]
     imm (dst - (src + 5))
 call _ = nodef
 
 mul :: Value -> X86 ()
-mul (Reg l) =
+mul (R l) =
     emit [ rexW
          , 0xF7                -- MUL
          , 0xE0 .|. index l ]
 mul _ = nodef
 
 imul :: Value -> Value -> X86 ()
-imul (Reg l) (Int r) = do
+imul (R l) (I r) = do
     emit [ rexW
          , 0x69                -- IMUL
          , modRM .|. index l ]
     imm r
-imul (Reg l) (Reg r) =
+imul (R l) (R r) =
     emit [ rexW
          , 0x0F
          , 0xAF                -- IMUL
@@ -93,17 +93,17 @@ imul (Reg l) (Reg r) =
 imul _ _ = nodef
 
 mov :: Value -> Value -> X86 ()
-mov (Reg dst) (Int src) = do
+mov (R dst) (I src) = do
     emit [ rexW
          , 0xC7                -- MOV
          , modRM .|. (index dst .&. 7) ]
     imm src
-mov (Reg dst) (Addr src) = do
+mov (R dst) (A src) = do
     emit [ rexW
          , 0xC7                -- MOV
          , 0xC7 ]
     imm src
-mov (Reg dst) (Reg src) =
+mov (R dst) (R src) =
     emit [ rexW
          , 0x89                -- MOV
          , modRM .|. index src `shiftL` 3 .|. index dst ]
@@ -114,21 +114,21 @@ nop =
     emit [ 0x90 ]              -- NOP
 
 inc :: Value -> X86 ()
-inc (Reg dst) =
+inc (R dst) =
     emit [ rexW
          , 0xFF                 -- INC
          , modRM + index dst ]
 inc _ = nodef
 
 dec :: Value -> X86 ()
-dec (Reg dst) =
+dec (R dst) =
     emit [ rexW
          , 0xFF                 -- DEC
          , modRM + (index dst + 8) ]
 dec _ = nodef
 
 loop :: Value -> X86 ()
-loop (Addr dst) = do
+loop (A dst) = do
     src <- use memoff
     emit [ 0xE2
          , fromIntegral (dst - src) ]
@@ -140,7 +140,7 @@ syscall =
          , 0x05 ]
 
 label :: X86 Value
-label = Addr <$> use memoff
+label = A <$> use memoff
 
 asciz :: [Char] -> IO Word32
 asciz str = heapPtr <$> newCString str

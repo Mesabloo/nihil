@@ -11,9 +11,9 @@ import Control.Monad.Except
 
 -- | A data type representing an type of value in the Assembly DSL.
 data Value
-    = Int Int64   -- ^ A 64-bits wide integer
-    | Reg Reg     -- ^ A 'Reg'ister
-    | Addr Word32 -- ^ An address
+    = I Int64   -- ^ A 64-bits wide integer
+    | R Reg     -- ^ A 'Reg'ister
+    | A Word32  -- ^ An address
   deriving (Eq, Show)
 
 -- | A data type to represent the primary registers in the DSL.

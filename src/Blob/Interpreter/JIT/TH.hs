@@ -26,5 +26,5 @@ mkRegFuns = do
             pure (Just [ genDecl lower,  genFun lower name ])
         _ -> pure Nothing
     pure (concat $ catMaybes decs)
-  where genFun low n = ValD (VarP low) (NormalB $ ConE (mkName "Reg") `AppE` ConE n) []
+  where genFun low n = ValD (VarP low) (NormalB $ ConE (mkName "R") `AppE` ConE n) []
         genDecl low  = SigD low (ConT (mkName "Value"))
