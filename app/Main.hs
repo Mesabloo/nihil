@@ -46,9 +46,9 @@ execCommand (Options (REPL fs) _) = customRunREPL replLoop (REPLOptions fs)
 execCommand (Options (Eval c) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
 
 commands :: Parser Options
-commands =
-    hsubparser (command "repl" (info replOption (progDesc "Run blob's REPL")))
-    <|> hsubparser (command "eval" (info evalOption (progDesc "Run some blob code directly")))
+commands = hsubparser
+    (command "repl" (info replOption (progDesc "Run blob's REPL"))
+    <> command "eval" (info evalOption (progDesc "Run some blob code directly")))
 
 replOption :: Parser Options
 replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
