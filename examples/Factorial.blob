@@ -1,8 +1,8 @@
 module Factorial
 
-fact :: ∀ n. Num a ⇒ a|n| → a
+fact ∷ ∀ (n ∷ Natural). Num a ⇒ a|n| → a
 fact = go 1
-  where go :: ∀ n. Num a ⇒ a|1| → a|n| → a
+  where go ∷ ∀ (n ∷ Natural). Num a ⇒ a|1| → a|n| → a
         go acc n = match n with
             0 → acc
             _ → go (acc * n) (n - 1)

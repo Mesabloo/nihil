@@ -4,8 +4,9 @@ module Main where
 
 import Test.Hspec
 import Data.Foldable (sequenceA_)
-import Blob.Language.Lexing.Lexer
-import Blob.Language.Lexing.Types
+import Blob.Language (runLexer)
+import Blob.Language.Syntax.Tokens.Token
+import Blob.Language.Syntax.Tokens.Lexeme
 import Control.Lens.Prism
 import Control.Lens
 import Control.Applicative ((<|>))
@@ -18,7 +19,7 @@ hasNoLexingError (Left  _) = False
 hasNoLexingError (Right _) = True
 
 getToken :: Token -> Maybe Lexeme
-getToken = (^. _3)
+getToken = (^. to getLexeme)
 
 shouldContainAll :: (Show a, Eq a) => [a] -> [a] -> Expectation
 shouldContainAll [] [] = pure ()

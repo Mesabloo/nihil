@@ -20,7 +20,7 @@
 
 ## <a name='Aboutblob'></a>About blob
 
-[![programming language](https://img.shields.io/github/languages/top/mesabloo/blob?color=%20%235e5086&style=for-the-badge)](https://github.com/Mesabloo/blob/search?l=haskell)    [![code size](https://img.shields.io/github/languages/code-size/mesabloo/blob?color=%23123456&style=for-the-badge)]()    [![code quality](https://img.shields.io/codacy/grade/b59f597dc40340f9bd0bea33d1ada69a/master?style=for-the-badge)]()
+[![programming language](https://img.shields.io/github/languages/top/mesabloo/blob?color=%20%235e5086&style=for-the-badge)](https://github.com/Mesabloo/blob/search?l=haskell)    [![code size](https://img.shields.io/github/languages/code-size/mesabloo/blob?color=%23123456&style=for-the-badge)]()
 
 Blob is a small functional programming language entirely written using Haskell.
 
@@ -87,4 +87,4 @@ Some code examples can be found in the [examples](./examples) folder.
 
 * The [Granule project](https://github.com/granule-project/granule), a statically typed functional programming language with Graded Modal Types
 * [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
-* [GHC](https://github.com/ghc/ghc), the *Great* Haskell Compiler
+* [GHC](https://github.com/ghc/ghc), the *Great* ~~Glasgow~~ Haskell Compiler

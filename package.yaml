@@ -5,6 +5,10 @@ library:
   - -O2
   - -optc-O3
   - -fasm
+  - -Wno-unused-do-bind
+  - -Wno-orphans
+  - -Wno-name-shadowing
+  - -Wno-unused-matches
   cpp-options:
   - -DNDEBUG
   - -O3
@@ -15,12 +19,9 @@ dependencies:
 - text
 - base >= 4.7 && < 5
 - megaparsec >7
-- ansi-terminal
-- wl-pprint
+- ansi-wl-pprint
 - containers
 - mtl
-- directory
-- haskeline
 - MissingH
 - these <= 0.7.6
 - criterion-measurement
@@ -28,10 +29,7 @@ dependencies:
 - extra
 - keys
 - hashable
-- filepath
 - insert-ordered-containers
-# - JellyVM
-- conf
 - lens
 - binary
 - vector
@@ -47,7 +45,7 @@ github: mesabloo/Blob
 license: GPL-3.0
 
 executables:
-  Blob-exe:
+  iBlob:
     source-dirs: app
     main: Main.hs
     ghc-options:
@@ -55,12 +53,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
-    - -Wextra
-    - -Wno-unused-do-bind
-    - -Wno-name-shadowing
     - -O2
     - -optc-O3
     - -fasm
+    - -Wno-unused-do-bind
+    - -Wno-orphans
+    - -Wno-name-shadowing
+    - -Wno-unused-matches
     # - -prof
     # - -fprof-auto
     cpp-options:
@@ -69,6 +68,12 @@ executables:
     dependencies:
     - Blob
     - optparse-applicative
+    - process
+    - conf
+    - directory
+    - haskeline
+    - ansi-wl-pprint
+    - filepath
 
 description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
 
