@@ -62,6 +62,6 @@ execTime expr = do
     case res of
         Left err      -> throwError err
         Right evalRes ->
-            liftIO $ print (show . cyan $ pretty evalRes)
+            liftIO $ print (cyan $ pretty evalRes)
 
     liftIO $ print (yellow $ text "Time taken: " <> text (secs t))

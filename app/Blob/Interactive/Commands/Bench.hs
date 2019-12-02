@@ -81,4 +81,4 @@ execBench n expr = do
             text "> Minimum: " <> text (secs min) <> linebreak <>
             text "> Maximum: " <> text (secs max) <> linebreak <>
             text "> Average: " <> text (secs avg) <> linebreak <>
-            text "> Std dev: " <> text (secs stddev) <> linebreak
+            text "> Std dev: " <> text (secs stddev)
