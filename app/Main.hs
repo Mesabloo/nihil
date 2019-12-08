@@ -50,8 +50,8 @@ execCommand (Options (Eval Nothing) _) = do
 
 commands :: Parser Options
 commands = hsubparser
-    (command "repl" (info replOption (progDesc "Run blob's REPL"))
-    <> command "eval" (info evalOption (progDesc "Run some blob code directly")))
+    (command "repl" (info replOption (progDesc "Run blob's REPL."))
+    <> command "eval" (info evalOption (progDesc "Run some blob code directly. If no code is given, reads from stdin.")))
 
 replOption :: Parser Options
 replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
