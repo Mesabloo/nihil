@@ -36,14 +36,17 @@ data Options = Options
 
 data Command'
     = REPL [FilePath]
-    | Eval String
+    | Eval (Maybe String)
     deriving Show
 
 
 execCommand :: Options -> IO ()
 execCommand (Options (REPL _) True) = putStrLn $ "iBlob v" <> Def.version
 execCommand (Options (REPL fs) _) = customRunREPL replLoop (REPLOptions fs)
-execCommand (Options (Eval c) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
+execCommand (Options (Eval (Just c)) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
+execCommand (Options (Eval Nothing) _) = do
+    code <- getContents
+    customRunREPL (replCheck $ Code code) (REPLOptions [])
 
 commands :: Parser Options
 commands = hsubparser
@@ -54,4 +57,4 @@ replOption :: Parser Options
 replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
 
 evalOption :: Parser Options
-evalOption = Options <$> (Eval <$> strArgument (metavar "CODE")) <*> pure False
+evalOption = Options <$> (Eval <$> optional (strArgument (metavar "CODE"))) <*> pure False
