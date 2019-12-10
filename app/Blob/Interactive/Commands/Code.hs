@@ -20,16 +20,17 @@ module Blob.Interactive.Commands.Code where
 import Blob.Interactive.Command (CommandParser, Command(..))
 import Blob.Interactive.Commands.Common
 import Blob.Interactive.REPL (REPL, ctx, op, values)
-import Blob.Language (Located(..), Program(..), Statement(..), tiProgram, runCheck, runDesugarer, runSugar, runParser', runLexer)
+import Blob.Language (Located(..), Program(..), Statement(..), Expr(EId, EApp), Pattern(PId), tiProgram, runCheck, runDesugarer, runSugar, runParser', runLexer)
 import Blob.Interpreter.Scope (_Scope)
 import Blob.Interpreter.Evaluator (vals)
 import Blob.Interpreter (runEval')
+import Blob.Interpreter.Value (Value(VLam))
 import Blob.Language.Syntax.Rules.Parsing.Expression (expression)
 import Blob.Language.Syntax.Rules.Parsing.Program (program)
 import Blob.Language.Syntax.Internal.Desugaring.Accumulator.Expression (accumulateOnExpression)
 import Blob.Language.Syntax.Rules.Desugaring.Expression (desugarExpression)
 import Text.Megaparsec (eof, anySingle, someTill, (<|>), try, eitherP, errorBundlePretty)
-import Control.Lens ((^.), (.=), (%=))
+import Control.Lens ((^.), (.=), (%=), (%~))
 import Control.Monad.State (get, liftIO)
 import Control.Monad.Except (throwError)
 import qualified Data.Map as Map
@@ -71,9 +72,10 @@ execCode stat = do
             forM_ ss $ \case
                 Definition id' expr :@ _ -> do
                     st'   <- get
-                    liftIO (runEval' expr (st' ^. values))
+                    liftIO (runEval' expr ((vals . _Scope %~ Map.insert id' (lambda id' (st' ^. values . vals))) (st' ^. values)))
                     >>= \case
                         Left err -> throwError err
                         Right evalRes ->
                             values . vals . _Scope %= Map.insert id' evalRes
                 _                   -> pure ()
+          where lambda fun = VLam (PId "x" :@ Nothing) (EApp (EId fun :@ Nothing) (EId "x" :@ Nothing) :@ Nothing)
