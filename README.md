@@ -2,7 +2,7 @@
 
 <img src="./assets/icon.png" alt="Nihil icon" align=right width=128px />
 
-[![license](https://img.shields.io/cran/l/nihil?style=for-the-badge)](./COPYING.md)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING.md)
+[![license](https://img.shields.io/github/license/balance-io/balance-open?style=for-the-badge)](./COPYING.md)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING.md)
 
 [![stars](https://img.shields.io/github/stars/mesabloo/nihil?color=%23fdaa33&style=for-the-badge)](https://github.com/mesabloo/nihil/stargazers)    [![forks](https://img.shields.io/github/forks/mesabloo/nihil?color=%23654321&label=Forks&style=for-the-badge)](https://github.com/mesabloo/nihil/network/members)
 
