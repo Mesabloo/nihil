@@ -2,9 +2,9 @@
 
 module Main where
 
-import Blob.Interpreter.JIT.Types
-import Blob.Interpreter.JIT.ASM
-import Blob.Interpreter.JIT.Compilation
+import Nihil.Interpreter.JIT.Types
+import Nihil.Interpreter.JIT.ASM
+import Nihil.Interpreter.JIT.Compilation
 import Control.Lens
 import Data.Word
 import Numeric

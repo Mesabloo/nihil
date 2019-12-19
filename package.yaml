@@ -36,16 +36,16 @@ dependencies:
 - unix
 - template-haskell
 
-name: Blob
+name: nihil
 version: 0.1.0.0
 extra-source-files:
 - README.md
 author: Mesabloo
-github: mesabloo/Blob
+github: mesabloo/nihil
 license: GPL-3.0
 
 executables:
-  iBlob:
+  Nihili:
     source-dirs: app
     main: Main.hs
     ghc-options:
@@ -66,7 +66,7 @@ executables:
     - -DNDEBUG
     - -O3
     dependencies:
-    - Blob
+    - nihil
     - optparse-applicative
     - process
     - conf
@@ -75,20 +75,20 @@ executables:
     - ansi-wl-pprint
     - filepath
 
-description: Please see the README on GitHub at <https://github.com/mesabloo/Blob#readme>
+description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 
 tests:
   lexer:
     main:        Main.hs
     source-dirs: tests/Lexer
     dependencies:
-    - Blob
+    - nihil
     - hspec
   parser:
     main:        Main.hs
     source-dirs: tests/Parser
     dependencies:
-    - Blob
+    - nihil
     - hspec
   jit:
     main:        Main.hs
@@ -103,4 +103,5 @@ tests:
     # - -dppr-debug
     # - -ddump-to-file
     dependencies:
-    - Blob
+    - nihil
+    - hspec

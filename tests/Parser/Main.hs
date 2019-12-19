@@ -5,11 +5,11 @@ module Main where
 import Test.Hspec
 import Control.Applicative ((<|>))
 import Data.Foldable (sequenceA_, forM_)
-import Blob.Language (runParser, runLexer, runParser')
-import Blob.Language.Syntax.Rules.Lexing.Keyword (kwords)
-import Blob.Language.Syntax.Tokens.Lexeme (Lexeme(..))
-import Blob.Language.Syntax.Tokens.Token (getLexeme)
-import Blob.Language.Syntax.Rules.Parsing.Keyword (keyword)
+import Language.Nihil (runParser, runLexer, runParser')
+import Language.Nihil.Syntax.Rules.Lexing.Keyword (kwords)
+import Language.Nihil.Syntax.Tokens.Lexeme (Lexeme(..))
+import Language.Nihil.Syntax.Tokens.Token (getLexeme)
+import Language.Nihil.Syntax.Rules.Parsing.Keyword (keyword)
 import Text.Megaparsec.Pos (mkPos)
 import Control.Lens
 import qualified Data.Text as Text
