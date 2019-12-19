@@ -4,9 +4,9 @@ module Main where
 
 import Test.Hspec
 import Data.Foldable (sequenceA_)
-import Blob.Language (runLexer)
-import Blob.Language.Syntax.Tokens.Token
-import Blob.Language.Syntax.Tokens.Lexeme
+import Language.Nihil (runLexer)
+import Language.Nihil.Syntax.Tokens.Token
+import Language.Nihil.Syntax.Tokens.Lexeme
 import Control.Lens.Prism
 import Control.Lens
 import Control.Applicative ((<|>))

@@ -1,4 +1,4 @@
--- Blobc, a compiler for compiling Blob source code
+-- The Great Nihil Compiler
 -- Copyright (c) 2019 Mesabloo
 
 -- This program is free software: you can redistribute it and/or modify
@@ -18,10 +18,10 @@ module Main
     main
 ) where
 
-import Blob.Interactive (customRunREPL, replLoop, replCheck)
-import Blob.Interactive.REPL (REPLOptions(..))
-import Blob.Interactive.Command (Command(Code))
-import qualified Blob.Interactive.Defaults as Def
+import Nihil.Interactive (customRunREPL, replLoop, replCheck)
+import Nihil.Interactive.REPL (REPLOptions(..))
+import Nihil.Interactive.Command (Command(Code))
+import qualified Nihil.Interactive.Defaults as Def
 import Options.Applicative
 
 main :: IO ()
@@ -41,7 +41,7 @@ data Command'
 
 
 execCommand :: Options -> IO ()
-execCommand (Options (REPL _) True) = putStrLn $ "iBlob v" <> Def.version
+execCommand (Options (REPL _) True) = putStrLn $ "Nihili v" <> Def.version
 execCommand (Options (REPL fs) _) = customRunREPL replLoop (REPLOptions fs)
 execCommand (Options (Eval (Just c)) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
 execCommand (Options (Eval Nothing) _) = do
@@ -50,8 +50,8 @@ execCommand (Options (Eval Nothing) _) = do
 
 commands :: Parser Options
 commands = hsubparser
-    (command "repl" (info replOption (progDesc "Run blob's REPL."))
-    <> command "eval" (info evalOption (progDesc "Run some blob code directly. If no code is given, reads from stdin.")))
+    (command "repl" (info replOption (progDesc "Run Nihil's REPL."))
+    <> command "eval" (info evalOption (progDesc "Run some Nihil code directly. If no code is given, reads from stdin.")))
 
 replOption :: Parser Options
 replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
