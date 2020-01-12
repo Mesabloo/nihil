@@ -1,41 +1,58 @@
 library:
   source-dirs: src
-  ghc-options:
-  - -Wall
-  - -O2
-  - -optc-O3
-  - -fasm
-  - -Wno-unused-do-bind
-  - -Wno-orphans
-  - -Wno-name-shadowing
-  - -Wno-unused-matches
+
+when:
+- condition: flag(debug)
   cpp-options:
-  - -DNDEBUG
-  - -O3
+  - -DDEBUGGING
+
+ghc-options:
+- -Wall
+- -Wno-unused-do-bind
+- -Wno-orphans
+- -Wno-name-shadowing
+- -Wno-unused-matches
+- -O2
+- -optc-O3
 
 copyright: 2019 Mesabloo
+description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 
 dependencies:
-- text
-- base >= 4.7 && < 5
-- megaparsec >7
-- ansi-wl-pprint
-- containers
+- base
+- megaparsec
 - mtl
-- MissingH
-- these <= 0.7.6
-- criterion-measurement
-- bytestring
-- extra
-- keys
-- hashable
-- insert-ordered-containers
 - lens
+- ansi-wl-pprint
+- text
+- containers
+- free
+- comonad
+- semialign
+- these
+- insert-ordered-containers
+- hashable
+
+# - containers
+# - MissingH
+# - these <= 0.7.6
+# - criterion-measurement
+# - bytestring
+# - extra
+# - keys
+#
+#
 
 name: nihil
 version: 0.1.0.0
 extra-source-files:
 - README.md
+# .hs-boot files
+- src/Nihil/Syntax/Concrete/Parser/Expression.hs-boot
+- src/Nihil/Syntax/Concrete/Parser/Pattern.hs-boot
+- src/Nihil/Syntax/Concrete/Parser/Type.hs-boot
+- src/Nihil/Syntax/Abstract/Desugarer/Expression.hs-boot
+
 author: Mesabloo
 github: mesabloo/nihil
 license: GPL-3.0
@@ -48,41 +65,26 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -Wall
-    - -O2
-    - -optc-O3
-    - -fasm
-    - -Wno-unused-do-bind
-    - -Wno-orphans
-    - -Wno-name-shadowing
-    - -Wno-unused-matches
-    # - -prof
-    # - -fprof-auto
-    cpp-options:
-    - -DNDEBUG
-    - -O3
     dependencies:
     - nihil
-    - optparse-applicative
-    - process
-    - conf
-    - directory
-    - haskeline
-    - ansi-wl-pprint
-    - filepath
+    # - optparse-applicative
+    # - process
+    # - conf
+    # - directory
+    # - haskeline
+    # - ansi-wl-pprint
+    # - filepath
 
-description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+flags:
+  debug:
+    description: "Enable/disable compiler debugging features."
+    manual: true
+    default: true
 
 tests:
   lexer:
     main:        Main.hs
     source-dirs: tests/Lexer
-    dependencies:
-    - nihil
-    - hspec
-  parser:
-    main:        Main.hs
-    source-dirs: tests/Parser
     dependencies:
     - nihil
     - hspec
