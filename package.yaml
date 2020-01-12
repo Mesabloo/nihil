@@ -79,7 +79,7 @@ flags:
   debug:
     description: "Enable/disable compiler debugging features."
     manual: true
-    default: true
+    default: false
 
 tests:
   lexer:
