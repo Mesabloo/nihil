@@ -4,9 +4,9 @@ module Main where
 
 import Test.Hspec
 import Data.Foldable (sequenceA_)
-import Language.Nihil (runLexer)
-import Language.Nihil.Syntax.Tokens.Token
-import Language.Nihil.Syntax.Tokens.Lexeme
+import Nihil.Syntax (runLexer)
+import Nihil.Syntax.Concrete.Lexeme (Lexeme(..), Token(..))
+import Nihil.Utils.Source
 import Control.Lens.Prism
 import Control.Lens
 import Control.Applicative ((<|>))
@@ -19,7 +19,7 @@ hasNoLexingError (Left  _) = False
 hasNoLexingError (Right _) = True
 
 getToken :: Token -> Maybe Lexeme
-getToken = (^. to getLexeme)
+getToken (Token l) = annotated <$> l
 
 shouldContainAll :: (Show a, Eq a) => [a] -> [a] -> Expectation
 shouldContainAll [] [] = pure ()
@@ -60,7 +60,7 @@ test2 = describe "Test on blank stream" $
             res `shouldSatisfy` hasNoLexingError
           let x = views _Right (getToken <$>) res
           it "returns `Nothing`s" $
-            x `shouldBe` [Nothing, Nothing]
+            x `shouldBe` []
 
 test3 :: Spec
 test3 = describe "Test on atoms" $
@@ -94,8 +94,8 @@ test5 = parallel $ describe "Test on keywords and identifiers" $
           it "contains 2 keywords (match, with)" $
             x `shouldContainAll` [Just (LKeyword "match"), Just (LKeyword "with")]
           it "contains 3 identifiers" $
-            x `shouldContainAll` [Just (LLowIdentifier "i"), Just (LLowIdentifier "wy")
-                                 , Just (LLowIdentifier "datax"), Just (LUpIdentifier "Nothing")]
+            x `shouldContainAll` [Just (LLowerIdentifier "i"), Just (LLowerIdentifier "wy")
+                                 , Just (LLowerIdentifier "datax"), Just (LUpperIdentifier "Nothing")]
 
 test6 :: Spec
 test6 = describe "Test on wildcards" $
@@ -104,4 +104,4 @@ test6 = describe "Test on wildcards" $
             res `shouldSatisfy` hasNoLexingError
           let x = views _Right (getToken <$>) res
           it "contains 2 wildcards" $
-            x `shouldContainAll` [Just LWildcard, Just LWildcard]
+            x `shouldContainAll` [Just LUnderscore, Just LUnderscore]
