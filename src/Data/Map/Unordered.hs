@@ -24,24 +24,22 @@ module Data.Map.Unordered
 , module Data.HashMap.Strict.InsOrd ) where
 
 import Data.HashMap.Strict.InsOrd
-import qualified Data.Key as K (Key, Keyed(..))
-import Data.Align.Key (AlignWithKey)
-import Data.Align (Align(..))
-import Data.Hashable (Hashable(..))
+import Data.Align (Semialign(..), Unalign(..))
 import Data.These(These(..))
+import Data.Hashable (Hashable)
 import Prelude (Eq, mempty, error)
+import Data.Bifunctor (first, second, bimap)
 
+-- | Convenient name
 type Map = InsOrdHashMap
 
-instance (Hashable k, Eq k) => AlignWithKey (Map k)
-
-type instance K.Key (Map k) = k
-
-instance (Hashable k, Eq k) => K.Keyed (Map k) where
-    mapWithKey = mapWithKey
-
-instance (Hashable k, Eq k) => Align (Map k) where
-    nil = mempty
+instance (Hashable k, Eq k) => Semialign (Map k) where
     align m n = unionWith merge (map This m) (map That n)
       where merge (This a) (That b) = These a b
             merge _ _ = error "Align (UMap.Map k): internal error"
+
+instance (Hashable k, Eq k) => Unalign (Map k) where
+    unalign = foldrWithKey f (mempty, mempty)
+      where f k (This a)    = first (insert k a)
+            f k (That a)    = second (insert k a)
+            f k (These a b) = bimap (insert k a) (insert k b)
