@@ -1,60 +1,46 @@
--- The Great Nihil Compiler
--- Copyright (c) 2019 Mesabloo
+{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
 
--- This program is free software: you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation, either version 3 of the License, or
--- (at your option) any later version.
--- This program is distributed in the hope that it will be useful,
--- but WITHOUT ANY WARRANTY; without even the implied warranty of
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+module Main where
 
--- You should have received a copy of the GNU General Public License
--- along with this program. If not, see <http://www.gnu.org/licenses/>.
-
-module Main
-(
-    main
-) where
-
-import Nihil.Interactive (customRunREPL, replLoop, replCheck)
-import Nihil.Interactive.REPL (REPLOptions(..))
-import Nihil.Interactive.Command (Command(Code))
-import qualified Nihil.Interactive.Defaults as Def
-import Options.Applicative
+import Nihil.Syntax
+import Nihil.Syntax.Pretty
+import Control.Exception
+import qualified Text.Megaparsec as MP
+import qualified Data.Text.IO as T
+import Nihil.Utils.Debug (log)
+import Prelude hiding (log)
 
 main :: IO ()
-main = execCommand =<< customExecParser p opts
-  where opts = info (commands <**> helper) fullDesc
-        p = prefs showHelpOnError
+main = do
+    let filename = "test"
+        code     = "id : a -> a\nid x = x\nf = λ x -> id x + 1"
 
-data Options = Options
-    { subCommand :: Command'
-    , version :: Bool }
-    deriving Show
+    putStrLn "Test parsing code:\n```"
+    T.putStrLn code
+    putStrLn "```\n"
 
-data Command'
-    = REPL [FilePath]
-    | Eval (Maybe String)
-    deriving Show
+    tks  <- log "Lexing code" $ rethrow (runLexer code filename)
 
+    print tks
 
-execCommand :: Options -> IO ()
-execCommand (Options (REPL _) True) = putStrLn $ "Nihili v" <> Def.version
-execCommand (Options (REPL fs) _) = customRunREPL replLoop (REPLOptions fs)
-execCommand (Options (Eval (Just c)) _) = customRunREPL (replCheck $ Code c) (REPLOptions [])
-execCommand (Options (Eval Nothing) _) = do
-    code <- getContents
-    customRunREPL (replCheck $ Code code) (REPLOptions [])
+    ast  <- log "Parsing tokens" $ rethrow (runParser tks filename)
 
-commands :: Parser Options
-commands = hsubparser
-    (command "repl" (info replOption (progDesc "Run Nihil's REPL."))
-    <> command "eval" (info evalOption (progDesc "Run some Nihil code directly. If no code is given, reads from stdin.")))
+    print ast
 
-replOption :: Parser Options
-replOption = Options <$> (REPL <$> many (strArgument (metavar "FILES..."))) <*> switch (long "version" <> short 'v' <> help "Print the version")
+    dAst <- log "Desugaring AST" $ rethrow' (runDesugarer ast)
 
-evalOption :: Parser Options
-evalOption = Options <$> (Eval <$> optional (strArgument (metavar "CODE"))) <*> pure False
+    print dAst
+
+    putStrLn "\nParsed AST:\n"
+    putDoc (pretty ast)
+
+    putStrLn "\n\nDesugared AST:\n"
+    putDoc (pretty dAst)
+
+rethrow :: (MP.Stream s, MP.ShowErrorComponent e) => Either (MP.ParseErrorBundle s e) a -> IO a
+rethrow (Left err) = throw (ErrorCallWithLocation (MP.errorBundlePretty err) "")
+rethrow (Right x)  = pure x
+
+rethrow' :: Show e => Either e a -> IO a
+rethrow' = either (throw . (`ErrorCallWithLocation` "") . show) pure
