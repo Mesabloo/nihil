@@ -12,5 +12,6 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (runReaderT)
 
+-- | Evaluates an 'Expr'ession given an initial environment.
 evaluate :: Expr -> EvalState -> IO (Either Doc Value)
 evaluate ex env = runExceptT (runReaderT (I.evaluate ex) env)

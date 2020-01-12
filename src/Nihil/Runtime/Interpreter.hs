@@ -22,9 +22,11 @@ import Control.Monad.Except (throwError)
 import Control.Applicative ((<|>), empty)
 import Prelude hiding (lookup)
 
+-- | Evaluates an expression and returns its value.
 evaluate :: Expr -> Eval Value
 evaluate = annotated >>> eval
 
+-- | Evaluates a raw expression (with no location).
 eval :: Expr' -> Eval Value
 eval (ELiteral lit)         = evalLiteral lit
 eval (EId name)             =
@@ -53,11 +55,13 @@ eval (EMatch ex cases)      = do
     foldr ((<|>) . uncurry (evalCase expr)) (throwError noMorePatterns) cases
 eval ETypeHole              = developerError "Remaining type hole."
 
+-- | Evaluates a literal
 evalLiteral :: Literal -> Eval Value
 evalLiteral (LInteger i)   = pure (VInteger i)
 evalLiteral (LFloat d)     = pure (VDouble d)
 evalLiteral (LCharacter c) = pure (VCharacter c)
 
+-- | Evaluates a pattern matching case.
 evalCase :: Value -> Pattern -> Expr -> Eval Value
 evalCase val pat expr = do
     env <- unpackPattern val pat
@@ -79,5 +83,6 @@ unpackPattern v = (v ,) >>> second annotated >>> \case
 
 -----------------------------------------------------------------------------------------------------------------------
 
+-- | Executes an action with some values added to the environment.
 inEnvMany :: [(String, Value)] -> Eval a -> Eval a
 inEnvMany env = local (vals %~ (Scope (Map.fromList env) <>))

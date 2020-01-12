@@ -12,14 +12,14 @@ import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Lens (makeLenses)
 
 data Value
-    = VInteger Integer
-    | VDouble Double
-    | VCharacter Char
-    | VId String
-    | VLambda AC.Pattern AC.Expr (Scope Value)
-    | VTuple [Value]
-    | VPrim (Value -> Eval Value)
-    | VConstructor String [Value]
+    = VInteger Integer                            -- ^ > { 0 }
+    | VDouble Double                              -- ^ > { 0.0 }
+    | VCharacter Char                             -- ^ > { 'c' }
+    | VId String                                  -- ^ > { f }
+    | VLambda AC.Pattern AC.Expr (Scope Value)    -- ^ > { λ p → e }
+    | VTuple [Value]                              -- ^ > { (e₁, e₂) }
+    | VPrim (Value -> Eval Value)                 -- ^ Primitive (built-in) functions
+    | VConstructor String [Value]                 -- ^ > { Con e₁ e₂ }
 
 newtype Scope e = Scope { unwrap :: Map.Map String e }
   deriving (Monoid, Semigroup)
@@ -32,5 +32,6 @@ data EvalState
     , _cons :: Set.Set String }
 makeLenses ''EvalState
 
+-- | Looks up an entry in a 'Scope' knowing its name.
 lookup :: String -> Scope e -> Maybe e
 lookup k = Map.lookup k . unwrap
