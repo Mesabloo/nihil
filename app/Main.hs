@@ -4,7 +4,6 @@
 module Main where
 
 import Nihil.Syntax
-import Nihil.Syntax.Pretty
 import Control.Exception
 import qualified Text.Megaparsec as MP
 import qualified Data.Text.IO as T

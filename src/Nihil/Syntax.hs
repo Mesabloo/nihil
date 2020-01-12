@@ -3,20 +3,23 @@ module Nihil.Syntax
   runLexer
   -- * Parser
 , runParser
-, module CC
   -- * Desugarer
 , runDesugarer
+  -- * Re-exports
+, module Nihil.Syntax.Pretty
+, module AC
 ) where
 
 import Nihil.Syntax.Common
 import Nihil.Syntax.Concrete.Lexer.Program (lProgram)
 import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
 import Nihil.Syntax.Concrete.Lexeme
-import Nihil.Syntax.Concrete.Core as CC
-import qualified Nihil.Syntax.Abstract.Core as AC
+import qualified Nihil.Syntax.Concrete.Core as CC
+import Nihil.Syntax.Abstract.Core as AC
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Syntax.Abstract.Accumulator (accumulateOnProgram)
 import Nihil.Syntax.Abstract.Desugarer.Statement (desugarProgram)
+import Nihil.Syntax.Pretty
 import qualified Data.Text as Text
 import Data.Void (Void)
 import qualified Text.Megaparsec as MP (ParseErrorBundle, runParser, runParserT)
@@ -31,7 +34,7 @@ runLexer input file = evalState (MP.runParserT lProgram file input) initLexerSta
   where initLexerState = LState 0
 
 {-| Runs the parser on a @['Token']@ stream, returning either an error, or the AST parsed. -}
-runParser :: [Token] -> String -> Either (MP.ParseErrorBundle [ALexeme] Void) Program
+runParser :: [Token] -> String -> Either (MP.ParseErrorBundle [ALexeme] Void) CC.Program
 runParser input file = MP.runParser pProgram file (toLexemes input)
   where toLexemes = mapMaybe check
 
@@ -45,9 +48,9 @@ runDesugarer p = runExcept (evalStateT (desugar p) defaultOperators)
         defaultOperators = DState defaultTOps defaultVOps defaultPOps
 
         defaultTOps = Map.fromList
-            [ ("->", (R, 0)), ("→", (R, 0)) ]
+            [ ("->", (CC.R, 0)), ("→", (CC.R, 0)) ]
         defaultVOps = Map.fromList
-            [ ("*", (L, 7)), ("/", (L, 7))
-            , ("+", (L, 6)), ("-", (L, 6)) ]
+            [ ("*", (CC.L, 7)), ("/", (CC.L, 7))
+            , ("+", (CC.L, 6)), ("-", (CC.L, 6)) ]
         defaultPOps = Map.fromList
-            [ ("Cons", (L, 5)) ]
+            [ ("Cons", (CC.L, 5)) ]

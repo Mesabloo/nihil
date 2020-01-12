@@ -1,4 +1,8 @@
-module Nihil.TypeChecking where
+module Nihil.TypeChecking
+( runKindChecker, runTypeChecker, defaultGlobalEnv
+  -- * Re-exports
+, module Nihil.TypeChecking.Pretty
+) where
 
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Environment (KindEnv, GlobalEnv, Env(..), GlobalEnv(..))
@@ -9,6 +13,7 @@ import Nihil.TypeChecking.Rules.Inference (runInfer)
 import Nihil.Utils.Source (locate, SourcePos(NoSource))
 import qualified Nihil.TypeChecking.Rules.Program as RP (typecheck)
 import qualified Nihil.Syntax.Abstract.Core as AC (Program)
+import Nihil.TypeChecking.Pretty
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.Except (runExcept)
 import Control.Monad.State (execStateT)

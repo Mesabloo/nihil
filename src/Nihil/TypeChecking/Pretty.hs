@@ -1,5 +1,7 @@
 {-| Pretty printing functions for kinds and types. -}
-module Nihil.TypeChecking.Pretty where
+module Nihil.TypeChecking.Pretty
+( -- * Re-exports
+  putDoc ) where
 
 import Nihil.TypeChecking.Core
 import Nihil.Utils.Source (annotated)
