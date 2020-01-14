@@ -39,8 +39,7 @@ workWith input = do
         eval env (Program (s:ss)) = case annotated s of
             FunctionDefinition name ex -> do
                 let inEnv = (vals %~ insert (name, lam name (env ^. vals))) env
-                val <- liftIO (evaluate ex inEnv)
-                val <- liftEither val
+                val <- liftEither =<< liftIO (evaluate ex inEnv)
                 eval ((vals %~ insert (name, val)) inEnv) (Program ss)
             _                          -> eval env (Program ss)
 
