@@ -35,3 +35,6 @@ makeLenses ''EvalState
 -- | Looks up an entry in a 'Scope' knowing its name.
 lookup :: String -> Scope e -> Maybe e
 lookup k = Map.lookup k . unwrap
+
+insert :: (String, e) -> Scope e -> Scope e
+insert (k, v) = Scope . Map.insert k v . unwrap

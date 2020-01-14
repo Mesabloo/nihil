@@ -1,5 +1,6 @@
 module Nihil.Runtime
 ( evaluate
+, defaultEvalEnv
   -- * Re-exports
 , module Nihil.Runtime.Pretty
 , module Nihil.Runtime.Core ) where
@@ -15,3 +16,6 @@ import Control.Monad.Reader (runReaderT)
 -- | Evaluates an 'Expr'ession given an initial environment.
 evaluate :: Expr -> EvalState -> IO (Either Doc Value)
 evaluate ex env = runExceptT (runReaderT (I.evaluate ex) env)
+
+defaultEvalEnv :: EvalState
+defaultEvalEnv = EState mempty mempty
