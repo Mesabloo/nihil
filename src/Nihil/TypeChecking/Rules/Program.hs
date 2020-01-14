@@ -25,7 +25,6 @@ import Nihil.TypeChecking.Errors.BindLack
 import Nihil.TypeChecking.Rules.Inference.Type
 import Data.Align (align)
 import qualified Data.Map.Unordered as UMap
-import Data.Function ((&))
 import Data.Bifunctor (first)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
@@ -36,7 +35,8 @@ import Control.Applicative ((<|>))
 import Control.Monad.State (get)
 import Data.These (These(..))
 import Data.Maybe (isJust)
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, log)
+import Control.Arrow ((>>>))
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
@@ -85,23 +85,47 @@ separateTypeDefs (d:ss) = case annotated d of
     _                              ->
         (d :) <$> separateTypeDefs ss
 
+-- organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
+-- organizeStatements []     = pure (mempty, mempty)
+-- organizeStatements (s:ss) = do
+    -- let fun = case annotated s of
+    --         AC.FunctionDeclaration name ty -> secondM (check name ty)
+    --           where check name ty umap = case UMap.lookup name umap of
+    --                     Nothing -> pure (UMap.insert name ty umap)
+    --                     Just _  -> do
+    --                         let loc = location ty
+    --                         throwError (redeclaredFunction (locate name loc))
+    --         AC.FunctionDefinition name ex  -> firstM (check name ex)
+    --           where check name ex umap = case UMap.lookup name umap of
+    --                     Nothing -> pure (UMap.insert name ex umap)
+    --                     Just _  -> do
+    --                         let loc = location ex
+    --                         throwError (redefinedFunction (locate name loc))
+    --         _                              ->
+    --             impossible "Type definitions are already filtered!"
+--     log s $ fun (organizeStatements ss)
+
 organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
-organizeStatements []     = pure (mempty, mempty)
-organizeStatements (s:ss) = organizeStatements ss & case annotated s of
-    AC.FunctionDeclaration name ty -> secondM (check name ty)
-      where check name ty umap = case UMap.lookup name umap of
-                Nothing -> pure (UMap.insert name ty umap)
-                Just _  -> do
-                    let loc = location ty
-                    throwError (redeclaredFunction (locate name loc))
-    AC.FunctionDefinition name ex  -> firstM (check name ex)
-      where check name ex umap = case UMap.lookup name umap of
-                Nothing -> pure (UMap.insert name ex umap)
-                Just _  -> do
-                    let loc = location ex
-                    throwError (redefinedFunction (locate name loc))
-    _                              ->
-        impossible "Type definitions are already filtered!"
+organizeStatements = go (mempty, mempty)
+  where go :: (UMap.Map String AC.Expr, UMap.Map String AC.Type) -> [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
+        go res []     = pure res
+        go res (s:ss) = fun s res >>= flip go ss
+
+        fun = annotated >>> \case
+            AC.FunctionDeclaration name ty -> secondM (check name ty)
+                where check name ty umap = case UMap.lookup name umap of
+                        Nothing -> pure (UMap.insert name ty umap)
+                        Just _  -> do
+                            let loc = location ty
+                            throwError (redeclaredFunction (locate name loc))
+            AC.FunctionDefinition name ex  -> firstM (check name ex)
+                where check name ex umap = case UMap.lookup name umap of
+                        Nothing -> pure (UMap.insert name ex umap)
+                        Just _  -> do
+                            let loc = location ex
+                            throwError (redefinedFunction (locate name loc))
+            _                              ->
+                impossible "Type definitions are already filtered!"
 
 handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck ()
 handleStatement name (That ty)        = throwError (lacksBind (locate name (location ty)))
@@ -121,12 +145,12 @@ check name def decl = do
 -------------------------------------------------------------------------------------------------------------------
 
 -- | Monadic 'Data.Bifunctor.second'
-secondM :: (Bitraversable p, Monad m) => (b -> m d) -> m (p c b) -> m (p c d)
-secondM = (=<<) . bitraverse pure
+secondM :: (Bitraversable p, Monad m) => (b -> m d) -> p c b -> m (p c d)
+secondM = bitraverse pure
 
 -- | Monadic 'Data.Bifunctor.first'
-firstM :: (Bitraversable p, Monad m) => (a -> m c) -> m (p a b) -> m (p c b)
-firstM = (=<<) . flip bitraverse pure
+firstM :: (Bitraversable p, Monad m) => (a -> m c) -> p a b -> m (p c b)
+firstM = flip bitraverse pure
 
 tApp :: SourcePos -> Type -> Type' -> Type
 tApp pos t1 t2 = locate (TApplication t1 (locate t2 pos)) pos

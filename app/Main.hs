@@ -3,7 +3,7 @@
 
 module Main where
 
-import Nihil.Syntax
+import Nihil
 import Control.Exception
 import qualified Text.Megaparsec as MP
 import qualified Data.Text.IO as T
@@ -31,6 +31,8 @@ main = do
 
     print dAst
 
+    _    <- log "Typechecking AST" $ rethrow' (runTypeChecker defaultGlobalEnv dAst)
+
     putStrLn "\nParsed AST:\n"
     putDoc (pretty ast)
 
@@ -42,4 +44,4 @@ rethrow (Left err) = throw (ErrorCallWithLocation (MP.errorBundlePretty err) "")
 rethrow (Right x)  = pure x
 
 rethrow' :: Show e => Either e a -> IO a
-rethrow' = either (throw . (`ErrorCallWithLocation` "") . show) pure
+rethrow' = either (throw . (`ErrorCallWithLocation` "" ) . mappend "\n" . show) pure
