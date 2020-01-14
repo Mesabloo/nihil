@@ -42,7 +42,7 @@ pAnySymbolᵗ = debug "p[Type]AnySymbol" (MP.satisfy (isNotReserved . annotated)
         isNotReserved ___________ = False
 
 reservedExpressionOperators :: [String]
-reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|" ]
+reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
 
 reservedTypeOperators :: [String]
-reservedTypeOperators = [ ":", "=>", "⇒", "|", "," ]
+reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";" ]
