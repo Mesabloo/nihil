@@ -58,15 +58,15 @@ github: mesabloo/nihil
 license: GPL-3.0
 
 executables:
-  Nihili:
-    source-dirs: app
-    main: Main.hs
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - nihil
+  # Nihili:
+  #   source-dirs: app
+  #   main: Main.hs
+  #   ghc-options:
+  #   - -threaded
+  #   - -rtsopts
+  #   - -with-rtsopts=-N
+  #   dependencies:
+  #   - nihil
     # - optparse-applicative
     # - process
     # - conf
@@ -74,6 +74,15 @@ executables:
     # - haskeline
     # - ansi-wl-pprint
     # - filepath
+  nihilin:
+    source-dirs: app/nihilin
+    main:        Main.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - nihil
 
 flags:
   debug:
