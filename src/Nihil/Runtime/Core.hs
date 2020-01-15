@@ -20,6 +20,7 @@ data Value
     | VTuple [Value]                              -- ^ > { (e₁, e₂) }
     | VPrim (Value -> Eval Value)                 -- ^ Primitive (built-in) functions
     | VConstructor String [Value]                 -- ^ > { Con e₁ e₂ }
+    | VUnevaluated AC.Expr
 
 newtype Scope e = Scope { unwrap :: Map.Map String e }
   deriving (Monoid, Semigroup)

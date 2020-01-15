@@ -10,7 +10,7 @@ import Nihil.Runtime.Core
 import Nihil.Utils.Source (annotated)
 import Nihil.Runtime.Errors.NonExhaustivePatternMatching
 import Nihil.Runtime.Errors.Developer
-import Control.Arrow ((>>>), second)
+import Control.Arrow ((>>>))
 import Data.Bool (bool)
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
@@ -31,15 +31,16 @@ eval :: Expr' -> Eval Value
 eval (ELiteral lit)         = evalLiteral lit
 eval (EId name)             =
     vals `views` lookup name >>= \case
-        Nothing ->
+        Nothing                ->
             cons `views` Set.member name >>= bool err (pure (VConstructor name []))
           where err = developerError ("Name \"" <> name <> "\" unbound.")
-        Just x  -> pure x
+        Just (VUnevaluated ex) -> evaluate ex
+        Just x                 -> pure x
 eval (ETuple es)            = VTuple <$> mapM evaluate es
 eval (ELambda arg ex)       = VLambda arg ex <$> view vals
 eval (ELet ss e)            = do
     stts <- catMaybes <$> forM (annotated <$> ss) \case
-        FunctionDefinition name ex -> Just . (name, ) <$> evaluate ex
+        FunctionDefinition name ex -> pure (Just (name, VUnevaluated ex))
         _                          -> pure Nothing
     inEnvMany stts (evaluate e)
 eval (ETypeAnnotated ex _)  = evaluate ex
@@ -68,7 +69,7 @@ evalCase val pat expr = do
     local (vals %~ mappend env) (evaluate expr)
 
 unpackPattern :: Value -> Pattern -> Eval (Scope Value)
-unpackPattern v = (v ,) >>> second annotated >>> \case
+unpackPattern v p = case (v, annotated p) of
     (_, PWildcard)                       -> pure mempty
     (VInteger n, PLiteral (LInteger n'))
         | n == n'                        -> pure mempty
@@ -79,6 +80,7 @@ unpackPattern v = (v ,) >>> second annotated >>> \case
         | name == name'                  -> mconcat <$> zipWithM unpackPattern vs ps
     (val, PTypeAnnotated p _)            -> unpackPattern val p
     (VTuple vs, PTuple ps)               -> mconcat <$> zipWithM unpackPattern vs ps
+    (VUnevaluated ex, _)                 -> evaluate ex >>= flip unpackPattern p
     _                                    -> empty
 
 -----------------------------------------------------------------------------------------------------------------------
