@@ -68,14 +68,16 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
             , ("Integer", locate (Forall [] (TypeAlias (locate (TPrim "Integer") dummyPos))) dummyPos)
             , ("Double", locate (Forall [] (TypeAlias (locate (TPrim "Double") dummyPos))) dummyPos)
             , ("Char", locate (Forall [] (TypeAlias (locate (TPrim "Char") dummyPos))) dummyPos)
+            , ("->", locate (Forall [] (TypeAlias (locate (TPrim "->") dummyPos))) dummyPos)
+            , ("→", locate (Forall [] (TypeAlias (locate (TPrim "->") dummyPos))) dummyPos)
             ]
 
         defaultConstructors :: Map.Map String (Scheme Type)
         defaultConstructors = Map.fromList
             [ ("Nil",  Forall ["a"] (locate (TApplication (locate (TId "List") dummyPos) (locate (TVar "a") dummyPos)) dummyPos))
                 -- Nil : ∀ a. List a
-            , ("Cons", Forall ["a"] (locate (TVar "a") dummyPos `tFun` locate (TApplication (locate (TId "List") dummyPos) (locate (TVar "a") dummyPos)) dummyPos))
-                -- Cons : ∀ a. a → List a
+            , ("Cons", Forall ["a"] (locate (TVar "a") dummyPos `tFun` (locate (TApplication (locate (TId "List") dummyPos) (locate (TVar "a") dummyPos)) dummyPos `tFun` locate (TApplication (locate (TId "List") dummyPos) (locate (TVar "a") dummyPos)) dummyPos)))
+                -- Cons : ∀ a. a → List a → List a
             , ("()",   Forall [] (locate (TId "()") dummyPos))
                 -- () : ()
             ]
