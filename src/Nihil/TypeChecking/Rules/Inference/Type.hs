@@ -223,10 +223,12 @@ inferPConstructor n ps pos = do
 
 foldParams :: Type -> ([Type], Type)
 foldParams t = case annotated t of
-    TApplication t1 t2
-        | annotated t1 == TId "->" -> first (t1 :) (foldParams t2)
-        | annotated t1 == TId "→"  -> first (t1 :) (foldParams t2)
-    _                              -> ([], t)
+    TApplication t1 t2 -> case annotated t1 of
+        TApplication t3 t4
+          | annotated t3 == TId "->" -> first (t4 :) (foldParams t2)
+          | annotated t3 == TId "→"  -> first (t4 :) (foldParams t2)
+        _                            -> ([], t)
+    _                  -> ([], t)
 
 instance Functor ((,,) a b) where
     fmap f (a, b, c) = (a, b, f c)

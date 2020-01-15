@@ -55,7 +55,10 @@ typecheckTypeDef name sc@(Forall tvs cty) = do
 
     (kind, cs) <- liftEither (runInfer env (inferCustomType (location cty) name sc))
     sub        <- liftEither (runKindSolver env cs)
-    let k      =  apply sub kind
+
+    customTypeCtx  %= (`extend` (name, cty))
+    typeCtx        %= (`extend` (name, apply sub kind))
+
     schemes    <- case annotated cty of
         Forall tvs (GADT ctors) -> do
             let pos     = location cty
@@ -69,8 +72,6 @@ typecheckTypeDef name sc@(Forall tvs cty) = do
             pure ctors
         Forall _ (TypeAlias _)  -> pure mempty
 
-    customTypeCtx  %= (`extend` (name, cty))
-    typeCtx        %= (`extend` (name, k))
     constructorCtx %= union (Env schemes)
 
 -------------------------------------------------------------------------------------------------------------------
@@ -157,7 +158,9 @@ tApp pos t1 t2 = locate (TApplication t1 (locate t2 pos)) pos
 
 foldParams :: Type -> ([Type], Type)
 foldParams t = case annotated t of
-    TApplication t1 t2
-        | annotated t1 == TId "->" -> first (t1 :) (foldParams t2)
-        | annotated t1 == TId "→"  -> first (t1 :) (foldParams t2)
-    _                              -> ([], t)
+    TApplication t1 t2 -> case annotated t1 of
+        TApplication t3 t4
+          | annotated t3 == TId "->" -> first (t4 :) (foldParams t2)
+          | annotated t3 == TId "→"  -> first (t4 :) (foldParams t2)
+        _                            -> ([], t)
+    _                  -> ([], t)
