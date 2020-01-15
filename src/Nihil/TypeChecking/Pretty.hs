@@ -25,6 +25,7 @@ instance Pretty Type' where
     pretty (TApplication t1 t2) = pretty t1 <+> prettyᵗ (annotated t2)
       where prettyᵗ t@TApplication{} = parens (pretty t)
             prettyᵗ t                = pretty t
+    pretty (TPrim ty)           = text ty
 
 instance Pretty t => Pretty (Scheme t) where
     pretty (Forall vars x) = text "forall" <+> sep (fmap text vars) <> dot <+> pretty x

@@ -65,6 +65,9 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
                             [ ("()", defaultConstructors Map.! "()")]
                               ))
                        ) dummyPos)
+            , ("Integer", locate (Forall [] (TypeAlias (locate (TPrim "Integer") dummyPos))) dummyPos)
+            , ("Double", locate (Forall [] (TypeAlias (locate (TPrim "Double") dummyPos))) dummyPos)
+            , ("Char", locate (Forall [] (TypeAlias (locate (TPrim "Char") dummyPos))) dummyPos)
             ]
 
         defaultConstructors :: Map.Map String (Scheme Type)

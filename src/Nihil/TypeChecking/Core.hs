@@ -44,6 +44,7 @@ data Type'
     | TRigid String           -- ^ > { a }
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
+    | TPrim String
   deriving
     ( -- | Use only for debugging
       Show

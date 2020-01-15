@@ -44,6 +44,7 @@ inferKind = annotated >>> f
             kv <- fresh "$"
             tell [k1 :*~ kArr k2 kv]
             pure kv
+        f (TPrim _) = pure KStar
 
 -- | Infers the kind of a generalized 'Type'.
 inferScheme :: Scheme Type -> InferKind Kind
