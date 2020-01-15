@@ -34,7 +34,8 @@ workWith input = do
     !lexemes <- log "Lexing code..."       $ liftEither (first mpErrorToDoc (runLexer input filename))
     !ast     <- log "Parsing code..."      $ liftEither (first mpErrorToDoc (runParser lexemes filename))
     !dast    <- log "Desugaring AST..."    $ liftEither (first text (runDesugarer ast))
-    _        <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
+    info (pretty dast) (pure ())
+    log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
     let !env = addToEnv defaultEvalEnv dast
 
     when (isNothing (lookup "main" (env ^. vals))) do
