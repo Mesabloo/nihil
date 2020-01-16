@@ -31,6 +31,7 @@ type ALexeme = Located Lexeme
 newtype Token
     = Token (Maybe ALexeme) -- ^ If there is 'Nothing' in the token, it means that nothing has been tokenized
                             --   (most likely because of an end of line, or an error).
+  deriving Eq
 
 -- | Use only for debugging purposes
 instance Show Token where

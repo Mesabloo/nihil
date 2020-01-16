@@ -71,6 +71,9 @@ instance {-# OVERLAPPING #-} Show a => Show (Located a) where
 instance {-# OVERLAPPING #-} Eq a => Ord (Located a) where
     (<=) = (<=) `on` location
 
+instance {-# OVERLAPPING #-} Eq a => Eq (Located a) where
+    (==) = (==) `on` annotated
+
 -- | Unwraps the position of a 'Located' value.
 --
 --   See 'extract''.
