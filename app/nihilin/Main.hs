@@ -13,8 +13,6 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Text.PrettyPrint.ANSI.Leijen (Doc, text, red)
 import System.Exit
-import Data.Bifunctor (first)
-import qualified Text.Megaparsec as MP
 import Control.Monad.Except (ExceptT, runExceptT, liftEither, throwError)
 import Control.Lens ((%~), (^.))
 import Control.Monad.IO.Class (liftIO)
@@ -31,9 +29,9 @@ main = (runExceptT . workWith =<< T.getContents) >>= \case
 workWith :: T.Text -> ExceptT Doc IO ()
 workWith input = do
     let filename = "stdin"
-    !lexemes <- log "Lexing code..."       $ liftEither (first mpErrorToDoc (runLexer input filename))
-    !ast     <- log "Parsing code..."      $ liftEither (first mpErrorToDoc (runParser lexemes filename))
-    !dast    <- log "Desugaring AST..."    $ liftEither (first text (runDesugarer ast))
+    !lexemes <- log "Lexing code..."       $ liftEither (runLexer input filename)
+    !ast     <- log "Parsing code..."      $ liftEither (runParser lexemes filename)
+    !dast    <- log "Desugaring AST..."    $ liftEither (runDesugarer ast)
     info (pretty dast) (pure ())
     log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
     let !env = addToEnv defaultEvalEnv dast
@@ -43,10 +41,7 @@ workWith input = do
 
     val      <- log "Evaluating code..."   $ liftEither =<< liftIO (evaluate (dummyPos'ed (EId "main")) env)
     info (pretty val) (pure ())
-  where mpErrorToDoc :: (MP.Stream s, MP.ShowErrorComponent e) => MP.ParseErrorBundle s e -> Doc
-        mpErrorToDoc = text . MP.errorBundlePretty
-
-        addToEnv :: EvalState -> Program -> EvalState
+  where addToEnv :: EvalState -> Program -> EvalState
         addToEnv env (Program [])     = env
         addToEnv env (Program (s:ss)) = case annotated s of
             FunctionDefinition name ex -> addToEnv ((vals %~ insert (name, VUnevaluated ex)) env) (Program ss)

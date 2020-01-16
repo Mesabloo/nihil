@@ -3,6 +3,7 @@ module Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator where
 import Nihil.Utils.Source
 import Nihil.Utils.Debug
 import Prelude hiding (error)
+import Text.PrettyPrint.ANSI.Leijen
 
 {-| [Unexpected operator error]
 
@@ -25,6 +26,6 @@ import Prelude hiding (error)
 
     * Delete the erroneous token and try again.
 -}
-unexpected :: String -> SourcePos -> String
+unexpected :: String -> SourcePos -> Doc
 unexpected operator pos =
-    error ("unexpected operator " <> operator <> " ; " <> show pos) ("Unexpected operator '" <> operator <> "' at " <> show pos)
+    error ("unexpected operator " <> operator <> " ; " <> show pos) (text "Unexpected operator" <+> squotes (text operator) <+> text "at" <+> text (show pos))
