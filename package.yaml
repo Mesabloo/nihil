@@ -92,8 +92,8 @@ flags:
 
 tests:
   lexer:
-    main:        Lexer.hs
-    source-dirs: tests/compiler
+    main:        Main.hs
+    source-dirs: tests/compiler/lexer
     dependencies:
     - nihil
     - hspec
