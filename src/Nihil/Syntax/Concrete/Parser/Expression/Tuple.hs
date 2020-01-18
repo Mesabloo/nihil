@@ -13,7 +13,7 @@ import qualified Text.Megaparsec as MP
 pTuple :: Parser Atom
 pTuple = debug "p[Expression]Tuple" $ do
     pos <- getSourcePos
-    unit <|> tuple pos
+    MP.try unit <|> tuple pos
   where unit      = ATuple [] <$ pParens (pure ())
         tuple pos = ATuple <$> pParens ((:) <$> sameLineOrIndented pos pExpression
                                             <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pExpression))

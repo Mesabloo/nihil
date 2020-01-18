@@ -13,7 +13,7 @@ import Control.Applicative ((<|>))
 pTuple :: Parser Type
 pTuple = debug "p[Type]Tuple" $ do
     pos <- getSourcePos
-    unit <|> tuple pos
+    MP.try unit <|> tuple pos
   where unit      = TTuple [] <$ pParens (pure ())
         tuple pos = TTuple <$> pParens ((:) <$> sameLineOrIndented pos pType
                                             <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pType))

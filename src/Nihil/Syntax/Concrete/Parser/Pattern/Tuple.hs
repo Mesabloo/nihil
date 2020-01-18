@@ -13,7 +13,7 @@ import qualified Text.Megaparsec as MP
 pTuple :: Parser Pattern
 pTuple = debug "p[Pattern]Tuple" $ do
     pos <- getSourcePos
-    unit <|> tuple pos
+    MP.try unit <|> tuple pos
   where unit = PTuple [] <$ pParens (pure ())
         tuple pos = PTuple <$> pParens ((:) <$> sameLineOrIndented pos pPattern
                                             <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pPattern))
