@@ -97,3 +97,9 @@ tests:
     dependencies:
     - nihil
     - hspec
+  parser:
+    main:        Main.hs
+    source-dirs: tests/compiler/parser
+    dependencies:
+    - nihil
+    - hspec
