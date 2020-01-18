@@ -4,11 +4,8 @@
 
 module Nihil.Syntax.Concrete.Lexeme where
 
-import Nihil.Utils.Source (Located, SourcePos(NoSource), location, indentLevel, unPos)
-import Nihil.Utils.Impossible (impossible)
+import Nihil.Utils.Source (Located)
 import qualified Data.Text as Text
-import Control.Lens ((^.))
-import Nihil.Utils.Debug (warn)
 import qualified Text.Megaparsec as MP
 
 -- | Lexemes (or also knwon as tokens) are little pieces of a program, which, when regrouped,
@@ -36,17 +33,6 @@ newtype Token
 -- | Use only for debugging purposes
 instance Show Token where
     show (Token l) = maybe "" show l
-
--- | Get the indentation level of a token, if there is one. If not, it fails with an 'impossible' error.
-getIndentationLevel :: Token -> Int
-getIndentationLevel (Token Nothing)  =
-    impossible "Cannot get indentation of no token."
-getIndentationLevel (Token (Just l)) =
-    let pos       = location l
-        hasIndent = pos /= NoSource
-    in if hasIndent
-       then unPos (pos ^. indentLevel)
-       else warn "Token with no source found, defaulting to indentation level of 0" 0
 
 instance MP.Stream [ALexeme] where
     type Token [ALexeme]  = ALexeme
