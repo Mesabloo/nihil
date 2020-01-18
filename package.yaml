@@ -103,3 +103,15 @@ tests:
     dependencies:
     - nihil
     - hspec
+  utils:
+    main:        Spec.hs
+    source-dirs: tests/utils
+    ghc-options:
+    - -O0
+    - -optc-O0
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - nihil
+    - hspec
