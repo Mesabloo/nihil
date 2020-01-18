@@ -1,6 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+module Nihil.B_ParserSpec (spec) where
+
 import Test.Hspec
 import Nihil.Syntax (runParser, runLexer)
 import Nihil.Syntax.Concrete.Core
@@ -8,11 +10,8 @@ import Nihil.Utils.Source (locate, SourcePos(NoSource), Located)
 import qualified Data.Text as Text (Text)
 import qualified Data.Map as Map (fromList)
 
-main :: IO ()
-main = hspec tests
-
-tests :: Spec
-tests = parallel do
+spec :: Spec
+spec = parallel do
     describe "Test on blank stream" blankInputStreamTest
 
     describe "Tests on types" do

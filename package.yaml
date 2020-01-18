@@ -91,15 +91,15 @@ flags:
     default: false
 
 tests:
-  lexer:
-    main:        Main.hs
-    source-dirs: tests/compiler/lexer
-    dependencies:
-    - nihil
-    - hspec
-  parser:
-    main:        Main.hs
-    source-dirs: tests/compiler/parser
+  compiler:
+    main:        Spec.hs
+    source-dirs: tests/compiler
+    ghc-options:
+    - -O0
+    - -optc-O0
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
     dependencies:
     - nihil
     - hspec

@@ -1,16 +1,15 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+module Nihil.A_LexerSpec (spec) where
+
 import Test.Hspec
 import Nihil.Syntax (runLexer)
 import Nihil.Syntax.Concrete.Lexeme
 import Nihil.Utils.Source (locate, SourcePos(NoSource))
 
-main :: IO ()
-main = hspec tests
-
-tests :: Spec
-tests = parallel do
+spec :: Spec
+spec = parallel do
     -- blank output tests
     describe "Test on no input"             noInputStreamTest
     describe "Test on blank input"          invisibleInputStreamTest
