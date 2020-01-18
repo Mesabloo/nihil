@@ -15,11 +15,11 @@ pExpression :: Parser AExpr
 pExpression = debug "pExpression" $ do
     pos       <- getSourcePos
     atoms     <- withPosition (MP.some (sameLineOrIndented pos pAtom))
-    typed     <- MP.optional (sameLineOrIndented pos typeAnnotation)
+    typed     <- MP.optional (sameLineOrIndented pos (typeAnnotation pos))
     whereBind <- MP.optional (sameLineOrIndented pos pWhere)
 
     let loc x = locate x pos
     let expr  = maybe atoms (loc . (:[]) . loc . ATypeAnnotated atoms) typed
     let expr' = maybe atoms (loc . (:[]) . loc . AWhere expr) whereBind
     pure expr'
-  where typeAnnotation = pSymbol ":" *> pType
+  where typeAnnotation pos = debug "pTypeAnnotation" $ pSymbol ":" *> sameLineOrIndented pos pType
