@@ -46,6 +46,7 @@ tests = parallel do
         xdescribe "Test on let expression"             expressionLetInValueTest
         xdescribe "Test on where expression"           expressionWhereValueTest
         describe "Test on lambda expression"           expressionLambdaValueTest
+        describe "Test on match expression"            expressionMatchWithValueTest
     describe "Test on top-level statements" do
         describe "Test on function declaration"        toplevelFunctionDeclarationTest
         describe "Test on function definition"         toplevelFunctionDefinitionTest
@@ -201,6 +202,11 @@ expressionLambdaValueTest :: Spec
 expressionLambdaValueTest = do
     testAST "f = \\_ -> \"test\"" "lambda expression"
         (Program [node (FunDefinition "f" [] (node [node (ALambda [node PWildcard] (node [node (ALiteral (LString "test"))]))]))])
+
+expressionMatchWithValueTest :: Spec
+expressionMatchWithValueTest = do
+    testAST "f = match 0 with\n    0 -> 0\n    _ -> 1" "match expression"
+        (Program [node (FunDefinition "f" [] (node [node (AMatch (node [node (ALiteral (LInteger 0))]) [([node (PLiteral (LInteger 0))], node [node (ALiteral (LInteger 0))]), ([node PWildcard], node [node (ALiteral (LInteger 1))])])]))])
 
 
 
