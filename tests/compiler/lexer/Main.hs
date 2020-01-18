@@ -2,9 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Test.Hspec
-import Nihil.Syntax hiding (Literal(..))
+import Nihil.Syntax (runLexer)
 import Nihil.Syntax.Concrete.Lexeme
-import Nihil.Utils.Source
+import Nihil.Utils.Source (locate, SourcePos(NoSource))
 
 main :: IO ()
 main = hspec tests
