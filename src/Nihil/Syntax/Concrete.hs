@@ -91,7 +91,8 @@ import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
     > eLambda             ::= ('\\' | 'λ') pattern+ ('->' | '→') expression ;
     > eMatch              ::= 'match' expression 'with' eMatchBranch+ ;
     > eMatchBranch        ::= pattern ('->' | '→') expression ;
-    > eTuple              ::= '(' expression (',' expression)+ ')' ;
+    > eTuple              ::= '(' expression (',' expression)+ ')'
+    >                       | '()' ;
     > eLetIn              ::= 'let' funStatements+ 'in' expression ;
 
     === Patterns
@@ -105,7 +106,8 @@ import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
     >                       | FLOAT-LITERAL | INTEGER-LITERAL | CHARACTER-LITERAL | STRING-LITERAL ;
     > pWildcard           ::= UNDERSCORE ;
     > pConstructor        ::= TYPE-IDENTIFIER pAtom'* ;
-    > pTuple              ::= '(' pattern (',' pattern)+ ')' ;
+    > pTuple              ::= '(' pattern (',' pattern)+ ')'
+    >                       | '()' ;
 
     === Types
 
@@ -114,7 +116,8 @@ import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
     >                       | IDENTIFIER
     >                       | tTuple
     >                       | '(' type ')' ;
-    > tTuple              ::= '(' type (',' type)+ ')' ;
+    > tTuple              ::= '(' type (',' type)+ ')'
+    >                       | '()' ;
 
     === Top-level bindings
 
