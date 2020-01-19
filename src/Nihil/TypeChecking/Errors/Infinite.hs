@@ -20,7 +20,7 @@ import Prelude hiding ((<$>))
 -}
 infiniteKind :: String -> Kind -> Doc
 infiniteKind v k1 =
-    nest 2 (text "- Occur check failed" <$> description)
+    nest 4 (text "- Occur check failed" <$> description)
   where description :: Doc
         description =
             text "> Cannot construct an infinite kind" <$>
@@ -34,7 +34,7 @@ infiniteKind v k1 =
 -}
 infiniteType :: String -> Type -> Doc
 infiniteType v t1 =
-    nest 2 (text "- Occur check failed" <$> description)
+    nest 4 (text "- Occur check failed" <$> description)
   where description :: Doc
         description =
             let pt1 = pretty t1
