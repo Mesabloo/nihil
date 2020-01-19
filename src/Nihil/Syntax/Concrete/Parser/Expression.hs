@@ -20,6 +20,6 @@ pExpression = debug "pExpression" $ do
 
     let loc x = locate x pos
     let expr  = maybe atoms (loc . (:[]) . loc . ATypeAnnotated atoms) typed
-    let expr' = maybe atoms (loc . (:[]) . loc . AWhere expr) whereBind
+    let expr' = maybe expr (loc . (:[]) . loc . AWhere expr) whereBind
     pure expr'
   where typeAnnotation pos = debug "pTypeAnnotation" $ pSymbol ":" *> sameLineOrIndented pos pType

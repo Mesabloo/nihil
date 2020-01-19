@@ -39,7 +39,7 @@ spec = parallel do
         describe "Test on unit expression"            expressionUnitValueTest
         describe "Test on tuple expression"           expressionTupleValueTest
         describe "Test on expression operator"        expressionOperatorValueTest
-        xdescribe "Test on type annotated expression"  expressionTypeAnnotatedValueTest
+        describe "Test on type annotated expression"  expressionTypeAnnotatedValueTest
         describe "Test on expression application"     expressionApplicationValueTest
         describe "Test on parenthesized expression"   expressionParensValueTest
         xdescribe "Test on let expression"             expressionLetInValueTest
@@ -175,7 +175,7 @@ expressionOperatorValueTest = do
 expressionTypeAnnotatedValueTest :: Spec
 expressionTypeAnnotatedValueTest = do
     testAST "s = 0 : Integer" "type annotated expression"
-        (Program [node (FunDefinition "s" [] (node [node (ATypeAnnotated (node [node (AId "s")]) [node (TId "Integer")])]))])
+        (Program [node (FunDefinition "s" [] (node [node (ATypeAnnotated (node [node (ALiteral (LInteger 0))]) [node (TId "Integer")])]))])
 
 expressionApplicationValueTest :: Spec
 expressionApplicationValueTest = do
