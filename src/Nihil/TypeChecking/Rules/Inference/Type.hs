@@ -12,6 +12,7 @@ import Nihil.TypeChecking.Common
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible
 import Nihil.Utils.Annotation
+import Nihil.Utils.Debug
 import Nihil.TypeChecking.Substitution
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceType)
 import Nihil.TypeChecking.Errors.MissingArgument
@@ -24,7 +25,7 @@ import Control.Monad.Writer (tell)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (local)
 import Control.Lens (use, (+=), views, (%~), view)
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, log)
 import Control.Applicative ((<|>))
 import Control.Monad (guard, mapAndUnzipM, forM)
 import qualified Data.Map as Map
@@ -114,13 +115,18 @@ inferELambda pat ex pos = do
 inferEMatch :: AC.Expr -> [(AC.Pattern, AC.Expr)] -> SourcePos -> InferType Type
 inferEMatch ex branches pos = do
     ty     <- inferExpr ex
+    log "match expr type" (pure ())
+    log ty (pure ())
     result <- unzip <$> forM branches \(pat, expr) -> do
         (pTy, env) <- inferPattern pat
+        log "match pattern environment:" (pure ())
+        log env (pure ())
         exTy       <- inEnvMany (Map.toList env) (inferExpr expr)
         pure (exTy, pTy)
     let (ret:xs, patsTy) = result
 
-    tell (uncurry (:>~) <$> zipFrom ret xs <> zipFrom ty patsTy)
+    let constraints = (uncurry (:>~) <$> (zipFrom ret xs <> zipFrom ty patsTy))
+    log constraints (tell constraints)
     pure ret
   where zipFrom = zip . repeat
 

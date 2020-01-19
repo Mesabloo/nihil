@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 -- | Unification constraints for types
 data TypeConstraint
     = Type :>~ Type     -- ^ Type equality
+  deriving Show
 
 -- | Unification constraints for kinds
 data KindConstraint
