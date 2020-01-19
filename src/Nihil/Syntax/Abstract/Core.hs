@@ -10,7 +10,8 @@ import qualified Data.Map as Map
 newtype Program = Program [Statement]
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 type Statement = Located Statement'
 data Statement'
@@ -19,7 +20,8 @@ data Statement'
     | TypeDefinition String [String] CustomType     -- ^ > { type F s = s } or { data X a = X a }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 type Expr = Located Expr'
 data Expr'
@@ -34,7 +36,8 @@ data Expr'
     | ELet [Statement] Expr             -- ^ > { let x = y in e }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 type Pattern = Located Pattern'
 data Pattern'
@@ -46,7 +49,8 @@ data Pattern'
     | PConstructor String [Pattern]     -- ^ > { Cons p₁ p₂ p₃ }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 type Type = Located Type'
 data Type'
@@ -56,7 +60,8 @@ data Type'
     | TApplication Type Type    -- ^ > { t₁ t₂ }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 data Literal
     = LInteger Integer      -- ^ > { 0 }
@@ -64,7 +69,8 @@ data Literal
     | LCharacter Char       -- ^ > { 'c' }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 type CustomType = Located CustomType'
 data CustomType'
@@ -72,9 +78,11 @@ data CustomType'
     | TypeAlias Type                    -- ^ > type T a = { List a }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
 
 data Scheme = Forall [String] Type  -- ^ > { forall a b c. t }
   deriving
     ( -- | use only for debugging
-      Show )
+      Show
+    , Eq )
