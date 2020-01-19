@@ -1,4 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 module Nihil.Syntax.Abstract.Desugarer.Statement
 ( desugarProgram ) where
@@ -7,11 +10,16 @@ import qualified Nihil.Syntax.Concrete.Core as CC
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Syntax.Common (Desugarer)
 import Nihil.Utils.Source
+import Nihil.Utils.Impossible
 import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
+import Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
 import {-# SOURCE #-} Nihil.Syntax.Abstract.Desugarer.Expression (desugarExpression)
 import Control.Arrow ((&&&))
-import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
+import Data.Bifunctor (first)
+import Data.Functor ((<&>))
+import Control.Monad (forM, when)
+import Control.Monad.Except (throwError)
 
 {-| Desugars a bunch of statements
 
@@ -23,25 +31,58 @@ import qualified Data.Map as Map
       @f x y = e@ becomes @f = λ x → λ y → e@.
 -}
 desugarProgram :: CC.Program -> Desugarer AC.Program
-desugarProgram (CC.Program stts) = AC.Program . catMaybes <$> mapM desugarStatement stts
+desugarProgram (CC.Program []) = pure (AC.Program [])
+desugarProgram (CC.Program (s:ss)) =
+    desugarStatement s ss >>= \case
+        (Nothing, rem) -> desugarProgram (CC.Program rem)
+        (Just x, rem)  -> desugarProgram (CC.Program rem) <&> \(AC.Program st) -> AC.Program (x:st)
+-- desugarProgram (CC.Program stts) = AC.Program . catMaybes <$> mapM desugarStatement stts
 
-desugarStatement :: CC.AStatement -> Desugarer (Maybe AC.Statement)
-desugarStatement stt =
-    let (ann, pos) = (annotated &&& location) stt
-    in fmap (`locate` pos) <$> case ann of
-        CC.OperatorFixity{} -> pure Nothing
-        CC.FunDeclaration name ty -> do
+desugarStatement :: CC.AStatement -> [CC.AStatement] -> Desugarer (Maybe AC.Statement, [CC.AStatement])
+desugarStatement s ss =
+    let (ann, pos) = (annotated &&& location) s
+    in first (fmap (`locate` pos)) <$> case ann of
+        CC.OperatorFixity{}             -> pure (Nothing, ss)
+        CC.FunDeclaration name ty       -> do
             t <- desugarType ty
-            pure (Just (AC.FunctionDeclaration name t))
-        CC.FunDefinition name [] expr   -> do
-            e <- desugarExpression expr
-            pure (Just (AC.FunctionDefinition name e))
-        CC.FunDefinition name pats expr -> do
-            e <- desugarExpression (locate [(locate (CC.ALambda pats expr) pos)] pos)
-            pure (Just (AC.FunctionDefinition name e))
-        CC.TypeDefinition name tvs ty -> do
+            pure (Just (AC.FunctionDeclaration name t), ss)
+        CC.TypeDefinition name tvs ty   -> do
             ct <- desugarCustomType name tvs ty
-            pure (Just (AC.TypeDefinition name tvs ct))
+            pure (Just (AC.TypeDefinition name tvs ct), ss)
+        CC.FunDefinition name [] ex     -> do
+            e <- desugarExpression ex
+            pure (Just (AC.FunctionDefinition name e), ss)
+        x@(CC.FunDefinition name ps ex) -> do
+            let (es, rem) = first (locate x pos :) (span (isFun name . annotated) ss)
+            forM es \e ->
+                let (CC.FunDefinition _ p _) = annotated e
+                in when (length p /= length ps) do
+                    throwError (differentNumberOfArguments (locate name (location e)) (length ps) (length p))
+            let branches = fold' . annotated <$> es
+
+            let ids = snd (foldl generateID (0, []) ps)
+
+            (, rem) <$> desugarEPM name ids branches (location ex)
+          where isFun name (CC.FunDefinition n _ _)
+                    | name == n = True
+                isFun _ _       = False
+
+                fold' (CC.FunDefinition _ pats ex) = ([locate (CC.PTuple ((: []) <$> pats)) pos], ex)
+                fold' _                            = impossible "Function definition for equational pattern matching are already filtered!"
+
+                generateID (supply :: Integer, acc) pat = (supply + 1, locate (CC.PId ("%" <> show supply)) (location pat):acc)
+
+-- | Desugaring helper for “Equational Pattern Matching”.
+desugarEPM :: String -> [CC.APattern] -> [([CC.APattern], CC.AExpr)] -> SourcePos -> Desugarer (Maybe AC.Statement')
+desugarEPM name ids branches pos = do
+    let tuple = fold' (patToExpr <$> ids)
+    ex <- desugarExpression (locate [locate (CC.ALambda ids (locate [locate (CC.AMatch tuple branches) pos] pos)) pos] pos)
+    pure (Just (AC.FunctionDefinition name ex))
+  where fold' toTuple = locate [locate (CC.ATuple toTuple) pos] pos
+
+        patToExpr p = case annotated p of
+            CC.PId i -> locate [locate (CC.AId i) pos] pos
+            _        -> impossible "Generated identifiers for equational pattern matching are necessarily pattern identifiers."
 
 desugarCustomType :: String -> [String] -> CC.ACustomType -> Desugarer AC.CustomType
 desugarCustomType name tvs ct =
