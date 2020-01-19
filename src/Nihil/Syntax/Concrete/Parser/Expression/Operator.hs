@@ -9,4 +9,4 @@ import Nihil.Syntax.Concrete.Debug
 import Control.Applicative ((<|>))
 
 pOperator :: Parser AAtom
-pOperator = debug "p[Expression]Operator" $ withPosition (AOperator <$> (pTicks pIdentifier <|> pAnySymbolᵉ))
+pOperator = debug "p[Expression]Operator" $ withPosition (AOperator <$> (pTicks (pIdentifier <|> pIdentifier') <|> pAnySymbolᵉ))
