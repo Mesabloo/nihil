@@ -10,24 +10,20 @@ import Nihil.Syntax.Concrete.Parser.Pattern.Tuple
 import Nihil.Syntax.Concrete.Parser.Pattern.Wildcard
 import Nihil.Syntax.Concrete.Parser.Enclosed
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Pattern
-import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 
 pAtom :: Parser APattern
-pAtom = debug "p[Pattern]Atom" $ do
-    pos <- getSourcePos
-    withPosition (MP.choice (terms pos))
+pAtom = debug "p[Pattern]Atom" $ withPosition (MP.choice terms)
 
-terms :: SourcePos -> [Parser Pattern]
-terms pos =
+terms :: [Parser Pattern]
+terms =
     [ pWildcard
-    , PLiteral     <$> pFloat
-    , PLiteral     <$> pInteger
-    , PLiteral     <$> pCharacter
-    , PLiteral     <$> pString
-    , PId          <$> pIdentifier
+    , PLiteral             <$> pFloat
+    , PLiteral             <$> pInteger
+    , PLiteral             <$> pCharacter
+    , PLiteral             <$> pString
+    , PId                  <$> pIdentifier
     , MP.try pTuple
-    , PConstructor <$> pIdentifier'
-                   <*> MP.many (sameLineOrIndented pos pAtom)
-    , PParens      <$> pParens pPattern ]
+    , PParens              <$> pParens pPattern
+    , flip PConstructor [] <$> pIdentifier' ]
