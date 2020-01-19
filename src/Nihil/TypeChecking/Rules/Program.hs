@@ -11,6 +11,8 @@ import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType)
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible (impossible)
+import Nihil.Utils.Debug
+import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.TypeChecking.Errors.RedeclaredFunction
 import Nihil.TypeChecking.Errors.Redefined
 import Nihil.TypeChecking.Rules.Inference
@@ -28,7 +30,7 @@ import qualified Data.Map.Unordered as UMap
 import Data.Bifunctor (first)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
-import Control.Monad (void, when)
+import Control.Monad (void, when, replicateM)
 import Control.Lens (use, (%=))
 import qualified Data.Map as Map
 import Control.Applicative ((<|>))
@@ -37,6 +39,8 @@ import Data.These (These(..))
 import Data.Maybe (isJust)
 import Prelude hiding (lookup, log)
 import Control.Arrow ((>>>))
+import qualified Data.Set as Set
+import Data.List (nub)
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
@@ -86,26 +90,6 @@ separateTypeDefs (d:ss) = case annotated d of
     _                              ->
         (d :) <$> separateTypeDefs ss
 
--- organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
--- organizeStatements []     = pure (mempty, mempty)
--- organizeStatements (s:ss) = do
-    -- let fun = case annotated s of
-    --         AC.FunctionDeclaration name ty -> secondM (check name ty)
-    --           where check name ty umap = case UMap.lookup name umap of
-    --                     Nothing -> pure (UMap.insert name ty umap)
-    --                     Just _  -> do
-    --                         let loc = location ty
-    --                         throwError (redeclaredFunction (locate name loc))
-    --         AC.FunctionDefinition name ex  -> firstM (check name ex)
-    --           where check name ex umap = case UMap.lookup name umap of
-    --                     Nothing -> pure (UMap.insert name ex umap)
-    --                     Just _  -> do
-    --                         let loc = location ex
-    --                         throwError (redefinedFunction (locate name loc))
-    --         _                              ->
-    --             impossible "Type definitions are already filtered!"
---     log s $ fun (organizeStatements ss)
-
 organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
 organizeStatements = go (mempty, mempty)
   where go :: (UMap.Map String AC.Expr, UMap.Map String AC.Type) -> [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
@@ -136,12 +120,14 @@ handleStatement name (These def decl) = check name def (Just (coerceType decl))
 -- | Type checks a function definition.
 check :: String -> AC.Expr -> Maybe Type -> TypeCheck ()
 check name def decl = do
+    info ("For function " <> name <> ":") (pure ())
     let pos = location def
     env      <- get
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
+    info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
     liftEither (runTypeHoleInspector sub)
-    funDefCtx %= (`extend` (name, generalize (mempty :: TypeEnv) (apply sub ty)))
+    funDefCtx %= (`extend` (name, closeOver (apply sub ty)))
 
 -------------------------------------------------------------------------------------------------------------------
 
@@ -164,3 +150,19 @@ foldParams t = case annotated t of
           | annotated t3 == TId "→"  -> first (t4 :) (foldParams t2)
         _                            -> ([], t)
     _                  -> ([], t)
+
+closeOver :: Type -> Scheme Type
+closeOver = normalize . generalize (mempty :: TypeEnv)
+
+normalize :: Scheme Type -> Scheme Type
+normalize (Forall _ t) = Forall (snd <$> ord) (rigidify t)
+  where ord = zip (nub (Set.toList (free t))) letters
+
+        letters = [1..] >>= flip replicateM ['a'..'z']
+
+rigidify :: Type -> Type
+rigidify = hoistAnnotated (first f)
+  where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
+        f (TTuple ts)          = TTuple (rigidify <$> ts)
+        f (TVar x)             = TRigid x
+        f t                    = t
