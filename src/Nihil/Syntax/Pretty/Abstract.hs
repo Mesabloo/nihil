@@ -74,7 +74,6 @@ instance Pretty Scheme where
 isOperator :: String -> Bool
 isOperator (x:_) = Ch.isSymbol x || isMultiSymbol x
   where isMultiSymbol '!' = True
-        isMultiSymbol '#' = True
         isMultiSymbol '$' = True
         isMultiSymbol '%' = True
         isMultiSymbol '&' = True

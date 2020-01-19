@@ -73,7 +73,7 @@ desugarStatement s ss =
                 fold' (CC.FunDefinition _ pats ex) = ([locate (CC.PTuple ((: []) <$> pats)) pos], ex)
                 fold' _                            = impossible "Function definition for equational pattern matching are already filtered!"
 
-                generateID (supply :: Integer, acc) pat = (supply + 1, locate (CC.PId ("%" <> show supply)) (location pat):acc)
+                generateID (supply :: Integer, acc) pat = (supply + 1, locate (CC.PId ("#" <> show supply)) (location pat):acc)
 
 -- | Desugaring helper for “Equational Pattern Matching”.
 desugarEPM :: String -> [CC.APattern] -> [([CC.APattern], CC.AExpr)] -> SourcePos -> Desugarer (Maybe AC.Statement')

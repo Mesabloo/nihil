@@ -67,7 +67,6 @@ multiSymbol :: Lexer String
 multiSymbol =
     MP.some (MPC.symbolChar <|> MP.satisfy isMultiSymbol)
   where isMultiSymbol '!' = True
-        isMultiSymbol '#' = True
         isMultiSymbol '$' = True
         isMultiSymbol '%' = True
         isMultiSymbol '&' = True
