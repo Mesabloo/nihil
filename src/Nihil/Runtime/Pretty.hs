@@ -13,5 +13,8 @@ instance Pretty Value where
     pretty (VCharacter c)         = text (show c)
     pretty (VId name)             = text name
     pretty (VTuple vs)            = tupled (fmap pretty vs)
-    pretty (VConstructor name es) = text name <+> sep (fmap pretty es)
+    pretty (VConstructor name es) = text name <+> sep (fmap prettyᵛ es)
+      where prettyᵛ v@(VConstructor _ []) = pretty v
+            prettyᵛ v@VConstructor{}      = parens (pretty v)
+            prettyᵛ v                     = pretty v
     pretty _                      = empty
