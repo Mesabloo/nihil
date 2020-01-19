@@ -24,6 +24,7 @@ instance (Hashable k, Eq k) => Semialign (Map k) where
     align m n = unionWith merge (map This m) (map That n)
       where merge (This a) (That b) = These a b
             merge _ _ = error "Align (UMap.Map k): internal error"
+    zipWith = intersectionWith
 
 instance (Hashable k, Eq k) => Unalign (Map k) where
     unalign = foldrWithKey f (mempty, mempty)
