@@ -10,6 +10,7 @@ import qualified Nihil.Syntax.Concrete.Core as CC
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Syntax.Common (Desugarer)
 import Nihil.Utils.Source
+import Nihil.Utils.Debug (log)
 import Nihil.Utils.Impossible
 import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
@@ -20,6 +21,7 @@ import Data.Bifunctor (first)
 import Data.Functor ((<&>))
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
+import Prelude hiding (log)
 
 {-| Desugars a bunch of statements
 
@@ -57,6 +59,7 @@ desugarStatement s ss =
             forM es \e ->
                 let (CC.FunDefinition _ p _) = annotated e
                 in when (length p /= length ps) do
+                    log (p, ps) (pure ())
                     throwError (differentNumberOfArguments (locate name (location e)) (length ps) (length p))
             let branches = fold' . annotated <$> es
 
