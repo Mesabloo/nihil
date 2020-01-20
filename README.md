@@ -2,7 +2,7 @@
 
 <img src="./assets/icon.png" alt="Nihil icon" align=right width=128px />
 
-[![license](https://img.shields.io/github/license/balance-io/balance-open?style=for-the-badge)](./COPYING.md)    [![license](https://img.shields.io/github/license/garameki/BSD3?style=for-the-badge)](./COPYING.md)
+[![license](https://img.shields.io/github/license/mesabloo/nihil?style=for-the-badge)](./LICENSE)
 
 [![stars](https://img.shields.io/github/stars/mesabloo/nihil?color=%23fdaa33&style=for-the-badge)](https://github.com/mesabloo/nihil/stargazers)    [![forks](https://img.shields.io/github/forks/mesabloo/nihil?color=%23654321&label=Forks&style=for-the-badge)](https://github.com/mesabloo/nihil/network/members)
 
@@ -20,7 +20,7 @@
 
 ## <a name='Aboutnihil'></a>About Nihil
 
-[![programming language](https://img.shields.io/github/languages/top/mesabloo/nihil?color=%20%235e5086&style=for-the-badge)](https://github.com/Mesabloo/nihil/search?l=haskell)    [![code size](https://img.shields.io/github/languages/code-size/mesabloo/nihil?color=%23123456&style=for-the-badge)]()
+[![programming language](https://img.shields.io/github/languages/top/mesabloo/nihil?color=%20%235e5086&style=for-the-badge)](https://github.com/Mesabloo/nihil/search?l=haskell)    [![code size](https://img.shields.io/github/languages/code-size/mesabloo/nihil?color=%23123456&style=for-the-badge)](./)
 
 Nihil is a small functional programming language entirely written using Haskell.
 
@@ -35,6 +35,8 @@ In the beginning, I was willing to make an esoteric language, poorly designed, b
 Beginning with some C++, I built my own parser combinators library, an old crappy one, which in the end wasn't working that well, because of some strange things I am still unable to really understand.
 
 [@felko](https://github.com/felko) introduced me to Haskell, and I wanted to give it a try for many months. That was the perfect time to do so, and so did I restart everything, but this time in Haskell. This led me here, to what I currently have right now, a fully functional basic compiler, mostly written by myself (except the kind checker, see [this pull request](https://github.com/Mesabloo/nihil/pull/1)).
+
+[![builtwithheart](https://forthebadge.com/images/badges/built-with-love.svg)](./)
 
 ## <a name='Roadmap'></a>Roadmap
 
@@ -69,7 +71,6 @@ Nihil supports some unicode equivalent to ASCII characters:
 | `->`  |   `→`   |
 | `=>`  |   `⇒`   |
 | `\`   |   `λ`   |
-| `::`  |   `∷`   |
 |`forall`|  `∀`   |
 
 ## <a name='Examples'></a>Examples
