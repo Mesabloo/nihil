@@ -10,7 +10,7 @@
 
 <!-- Automatically generated table of contents -->
 *  [Table of contents](#Tableofcontents)
-*  [About nihil](#Aboutnihil)
+*  [About Nihil](#Aboutnihil)
 *  [Why Nihil?](#Whynihil)
 *  [Roadmap](#Roadmap)
 *  [Unicode](#Unicode)
@@ -64,7 +64,7 @@ The ultimate goal is to provide these features:
 
 ## <a name='Unicode'></a>Unicode
 
-Nihil supports some unicode equivalent to ASCII characters:
+Nihil natively supports some unicode equivalents to ASCII characters:
 
 | ASCII | Unicode |
 |:-----:|:-------:|
@@ -87,5 +87,5 @@ Some code examples can be found in the [examples](./examples) folder.
 ## <a name='Referencesinspirations'></a>References, inspirations
 
 * The [Granule project](https://github.com/granule-project/granule), a statically typed functional programming language with Graded Modal Types
-* [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming langage
+* [Pikelet](https://github.com/pikelet-lang/pikelet), a dependently typed functional programming language
 * [GHC](https://github.com/ghc/ghc), the *Great* ~~Glasgow~~ Haskell Compiler
