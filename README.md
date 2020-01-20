@@ -51,9 +51,11 @@ The ultimate goal is to provide these features:
 - Advanced features:
   - [x] Kinds
   - [x] GADTs
+  - [x] Equational pattern matching
   - [ ] Type classes and instances
   - [ ] Quantitive types
   - [ ] Modules
+  - [ ] Polymorphic kinds
 - Advanced future features (not in the prototype):
   - [ ] Rank N types / `forall`
   - [ ] Type families (type-level functions)
