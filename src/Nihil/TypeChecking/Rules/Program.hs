@@ -126,7 +126,6 @@ check name def decl = do
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
     info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
-    liftEither (runTypeHoleInspector sub)
     funDefCtx %= (`extend` (name, closeOver (apply sub ty)))
 
 -------------------------------------------------------------------------------------------------------------------

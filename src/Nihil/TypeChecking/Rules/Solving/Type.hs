@@ -15,11 +15,13 @@ import Nihil.Utils.Source
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad (when)
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (throwError, liftEither)
 
 -- | Solves the 'TypeConstraint's given and returns a substitution to 'apply'.
 solve :: Subst Type -> [TypeConstraint] -> SolveType (Subst Type)
-solve sub []                 = pure sub
+solve sub []                 = do
+    liftEither (runTypeHoleInspector sub)
+    pure sub
 solve sub ((t1 :>~ t2) : ts) = do
     sub' <- unify t1 t2
     solve (sub <> sub') (apply sub' ts)
