@@ -42,8 +42,8 @@ inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> Maybe Type -> Infer
 inferFunctionDefinition pos name ex ty = do
     tv  <- fresh "$" pos
     fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
-    tell [fty :>~ tv]
     maybe (pure ()) (\t -> tell [fty :>~ t]) ty
+    tell [fty :>~ tv]
     pure fty
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
