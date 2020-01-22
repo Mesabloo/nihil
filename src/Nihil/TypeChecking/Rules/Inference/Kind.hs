@@ -7,6 +7,7 @@ import Nihil.Utils.Source
 import Nihil.TypeChecking.Environment
 import Nihil.TypeChecking.Constraint
 import Nihil.TypeChecking.Errors.UndefinedType
+import Nihil.TypeChecking.Substitution
 import Control.Arrow ((>>>))
 import Prelude hiding (lookup)
 import Control.Monad.Reader (asks, local)
@@ -92,7 +93,7 @@ fresh n = do
     s <- use supply
     supply += 1
 
-    env <- asks keys
+    env <- asks free
     let new = n <> show s
 
     if new `notElem` env
