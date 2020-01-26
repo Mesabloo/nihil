@@ -60,9 +60,9 @@ stringInputStreamTest = do
 
 symbolInputStreamTest :: Spec
 symbolInputStreamTest = do
-    let (Right lex) = runLexer "{()}++ @^ #" "test"
+    let (Right lex) = runLexer "{()}++ @^" "test"
     it "should return well-formed symbols" do
-        lex `shouldBe` [tk (LSymbol "{"), tk (LSymbol "("), tk (LSymbol ")"), tk (LSymbol "}"), tk (LSymbol "++"), tk (LSymbol "@^"), tk (LSymbol "#")]
+        lex `shouldBe` [tk (LSymbol "{"), tk (LSymbol "("), tk (LSymbol ")"), tk (LSymbol "}"), tk (LSymbol "++"), tk (LSymbol "@^")]
 
 funIdentifierInputStreamTest :: Spec
 funIdentifierInputStreamTest = do
