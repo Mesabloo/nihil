@@ -1,3 +1,6 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Nihil.Syntax.Concrete.Parser.Type.Tuple where
 
 import Nihil.Syntax.Common (Parser)
@@ -12,8 +15,12 @@ import Control.Applicative ((<|>))
 
 pTuple :: Parser Type
 pTuple = debug "p[Type]Tuple" $ do
-    pos <- getSourcePos
-    MP.try unit <|> tuple pos
-  where unit      = TTuple [] <$ pParens (pure ())
-        tuple pos = TTuple <$> pParens ((:) <$> sameLineOrIndented pos pType
-                                            <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pType))
+    MP.try unit <|> tuple
+  where unit  = TTuple [] <$ pParens (pure ())
+        tuple = TTuple <$> p
+
+        p = lineFold \spaceConsumer -> do
+            pParens (pType `sepBy2` (MP.between (MP.try spaceConsumer) (MP.try spaceConsumer) (pSymbol' ",")))
+
+        sepBy2 p sep = do
+            (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)

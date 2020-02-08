@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Nihil.Syntax.Concrete.Parser.Type
 ( pType ) where
 
@@ -12,16 +14,17 @@ import Control.Applicative ((<|>))
 
 pType :: Parser [AType]
 pType = debug "pType" $ do
-    pos <- getSourcePos
-    let t = pOperator <|> pType'
-    (:) <$> t <*> MP.many (sameLineOrIndented pos t) -- MP.some (pOperator <|> pType')
+    let ~t = MP.try pOperator <|> pType'
+    lineFold \s -> do
+        (:) <$> t <*> MP.many (MP.try s *> t)
 
 pType' :: Parser AType
 pType' = MP.try pApplication <|> pAtom
 
 pApplication :: Parser AType
-pApplication = do
-    pos <- getSourcePos
-    withPosition (TApplication <$> types pos)
-  where types pos = (:) <$> pAtom
-                        <*> MP.some (sameLineOrIndented pos pAtom)
+pApplication = debug "p[Type]Application" $ do
+    withPosition (TApplication <$> types)
+  where types = lexeme do
+            lineFold \s -> do
+                (:) <$> pAtom <*> MP.some (MP.try (s *> pAtom))
+                -- (:) <$> ty <*> ((:) <$> ty <*> (pAtom `MP.sepBy` MP.try s))
