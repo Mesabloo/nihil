@@ -1,48 +1,122 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE BlockArguments #-}
+
 module Nihil.Syntax.Concrete.Parser.Identifier
-( pIdentifier, pIdentifier', pSymbol, pAnySymbolᵉ, pAnySymbolᵗ ) where
+( pIdentifier, pIdentifier', pSymbol, pSymbol', pAnySymbolᵉ, pAnySymbolᵗ, pUnderscore ) where
 
 import Nihil.Syntax.Common (Parser)
-import Nihil.Syntax.Concrete.Lexeme
 import Nihil.Utils.Source
-import Nihil.Utils.Impossible (impossible)
+import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.Syntax.Concrete.Debug
+import Nihil.Syntax.Concrete.Parser.Keyword (keywords)
+import Nihil.Syntax.Concrete.Parser
 import qualified Text.Megaparsec as MP
+import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
+import Control.Applicative ((<|>))
+import Control.Monad (void)
+import Data.Bifunctor (first)
 
-pIdentifier :: Parser String
-pIdentifier = debug "pIdentifier" (MP.satisfy (isLowIdentifier . annotated) >>= getIdentifier MP.<?> "lowercase identifier")
-  where isLowIdentifier (LLowerIdentifier _) = True
-        isLowIdentifier ____________________ = False
+{-| A parser for identifiers beginning with a lowercased letter.
 
-pIdentifier' :: Parser String
-pIdentifier' = debug "pIdentifier'" (MP.satisfy (isUpIdentifier . annotated) >>= getIdentifier MP.<?> "uppercase identifier")
-  where isUpIdentifier (LUpperIdentifier _) = True
-        isUpIdentifier ____________________ = False
+    A lowercased identifier as the following BNF:
 
-getIdentifier :: ALexeme -> Parser String
-getIdentifier l = case annotated l of
-    LLowerIdentifier i -> pure (Text.unpack i)
-    LUpperIdentifier i -> pure (Text.unpack i)
-    LSymbol i          -> pure (Text.unpack i)
-    __________________ -> impossible "cannot get any other token than an identifier"
+    @\<lowIdentifier\> ::= \<lowerChar\> [ \<alphaNumChar\> | '\'' | '_' ] ;@
+-}
+pIdentifier :: Parser (Located Text.Text)
+pIdentifier = debug "pIdentifier" $ lexeme do
+    withPosition (identifier MPC.lowerChar >>= check)
+  where check x | x `elem` keywords = fail ("“" <> Text.unpack x <> "” is a keyword and thus cannot be used as an identifier")
+                | otherwise         = pure x
 
-pSymbol :: String -> Parser ALexeme
-pSymbol requested = debug ("pSymbol '" <> requested <> "'") (MP.satisfy (isRequestedSymbol . annotated) MP.<?> ("symbol " <> requested))
-  where isRequestedSymbol (LSymbol s) = requested == Text.unpack s
-        isRequestedSymbol ___________ = False
+{-| A parser for identifiers beginning with a uppercased letter.
 
-pAnySymbolᵉ :: Parser String
-pAnySymbolᵉ = debug "p[Expression]AnySymbol" (MP.satisfy (isNotReserved . annotated) >>= getIdentifier MP.<?> "operator")
-  where isNotReserved (LSymbol s) = Text.unpack s `notElem` reservedExpressionOperators
-        isNotReserved ___________ = False
+    A uppercased identifier has the following BNF:
 
-pAnySymbolᵗ :: Parser String
-pAnySymbolᵗ = debug "p[Type]AnySymbol" (MP.satisfy (isNotReserved . annotated) >>= getIdentifier MP.<?> "operator")
-  where isNotReserved (LSymbol s) = Text.unpack s `notElem` reservedTypeOperators
-        isNotReserved ___________ = False
+    @\<upIdentifier\> ::= \<upperChar\> [ \<alphaNumChar\> | '\'' | '_' ] ;@
+-}
+pIdentifier' :: Parser (Located Text.Text)
+pIdentifier' = debug "pIdentifier'" $ lexeme do
+    withPosition (identifier MPC.upperChar)
 
-reservedExpressionOperators :: [String]
+identifier :: Parser Char -> Parser Text.Text
+identifier front =
+    Text.pack <$> ((:) <$> front <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'' <|> MPC.char '_'))
+
+-- | A parser for symbols. A symbol is any sequence of ASCII or Unicode non-letter characters.
+pSymbol :: Parser (Located Text.Text)
+pSymbol = debug "pSymbol" $ lexeme do
+    withPosition (Text.pack <$> (unarySymbol <|> multiSymbol))
+
+-- | Tries to parse a given symbol.
+pSymbol' :: Text.Text -> Parser ()
+pSymbol' s = debug "pSymbol'" $ lexeme do
+    void (MPC.string s)
+
+unarySymbol :: Parser String
+unarySymbol =
+    (:[]) <$> MP.satisfy isUnarySymbol
+  where isUnarySymbol '('  = True
+        isUnarySymbol ')'  = True
+        isUnarySymbol '{'  = True
+        isUnarySymbol '}'  = True
+        isUnarySymbol ','  = True
+        isUnarySymbol ';'  = True
+        isUnarySymbol '\\' = True
+        isUnarySymbol 'λ'  = True
+        isUnarySymbol '→'  = True
+        isUnarySymbol '⇒'  = True
+        isUnarySymbol ':'  = True
+        isUnarySymbol '`'  = True
+        isUnarySymbol  _   = False
+
+multiSymbol :: Parser String
+multiSymbol =
+    MP.some (MPC.symbolChar <|> MP.satisfy isMultiSymbol)
+  where isMultiSymbol '!' = True
+        isMultiSymbol '$' = True
+        isMultiSymbol '%' = True
+        isMultiSymbol '&' = True
+        isMultiSymbol '.' = True
+        isMultiSymbol '<' = True
+        isMultiSymbol '=' = True
+        isMultiSymbol '>' = True
+        isMultiSymbol '?' = True
+        isMultiSymbol '^' = True
+        isMultiSymbol '~' = True
+        isMultiSymbol '|' = True
+        isMultiSymbol '@' = True
+        isMultiSymbol '*' = True
+        isMultiSymbol '/' = True
+        isMultiSymbol '-' = True
+        isMultiSymbol '+' = True
+        isMultiSymbol ':' = True
+        isMultiSymbol  _  = False
+
+{-| A parser for type holes or anonymous patterns.
+
+    An underscore might be multiple underscores right next to each other.
+    For example, @_____@ is parsed as a single 'LUnderscore', but @__ _@ is parsed as two 'LUnderscore's.
+-}
+pUnderscore :: Parser (Located ())
+pUnderscore = lexeme do
+    withPosition (void (MP.some (MPC.char '_')))
+
+pAnySymbolᵉ :: Parser (Located String)
+pAnySymbolᵉ = debug "pAnySymbolᵉ" $ pSymbol >>= check
+  where check l@(annotated -> s)
+            | s `elem` reservedExpressionOperators = fail "Cannot use reserved operator as an operator"
+            | otherwise                            = pure (hoistAnnotated (first Text.unpack) l)
+
+pAnySymbolᵗ :: Parser (Located String)
+pAnySymbolᵗ = debug "pAnySymbolᵗ" $ pSymbol >>= check
+  where check l@(annotated -> s)
+            | s `elem` reservedTypeOperators = fail "Cannot use reserved operator as an operator"
+            | otherwise                      = pure (hoistAnnotated (first Text.unpack) l)
+
+reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
 
-reservedTypeOperators :: [String]
+reservedTypeOperators :: [Text.Text]
 reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";" ]
