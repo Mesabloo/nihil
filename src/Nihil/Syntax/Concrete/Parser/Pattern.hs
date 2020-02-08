@@ -1,3 +1,6 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Nihil.Syntax.Concrete.Parser.Pattern where
 
 import Nihil.Syntax.Common (Parser)
@@ -11,14 +14,17 @@ import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
+import qualified Data.Text as Text
 
 pPattern :: Parser [APattern]
-pPattern = debug "pPattern" $ do
-    pos <- getSourcePos
-    let t = pOperator <|> MP.try (constructor pos) <|> pAtom
-    term <- MP.some (sameLineOrIndented pos t)
-    typed <- MP.optional (sameLineOrIndented pos (pSymbol ":") *> sameLineOrIndented pos pType)
-    let pat  = maybe term ((: []) . (`locate` pos) . PTypeAnnotated term) typed
-    pure pat
-  where constructor pos =
-            withPosition (PConstructor <$> pIdentifier' <*> MP.many (sameLineOrIndented pos pAtom))
+pPattern = debug "pPattern" $ lexeme do
+    lineFold \s -> do
+        let ~t = pOperator <|> MP.try (constructor s) <|> pAtom
+        atoms <- (:) <$> t <*> MP.many (MP.try s *> t)
+
+        typed <- MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType)
+        let annotate t = [locate (PTypeAnnotated atoms t) NoSource]
+        pure (maybe atoms annotate typed)
+  where constructor sp =
+            withPosition (PConstructor <$> (Text.unpack . annotated <$> pIdentifier')
+                                       <*> MP.many (MP.try sp *> pAtom))

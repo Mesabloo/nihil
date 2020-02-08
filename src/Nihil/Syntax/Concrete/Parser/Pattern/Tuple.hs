@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Nihil.Syntax.Concrete.Parser.Pattern.Tuple where
 
 import Nihil.Syntax.Common (Parser)
@@ -12,8 +14,13 @@ import qualified Text.Megaparsec as MP
 
 pTuple :: Parser Pattern
 pTuple = debug "p[Pattern]Tuple" $ do
-    pos <- getSourcePos
-    MP.try unit <|> tuple pos
+    MP.try unit <|> tuple
   where unit = PTuple [] <$ pParens (pure ())
-        tuple pos = PTuple <$> pParens ((:) <$> sameLineOrIndented pos pPattern
-                                            <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pPattern))
+        tuple = PTuple <$>
+            pParens (lexemeN pPattern `sepBy2` lexemeN (pSymbol' ","))
+
+        sepBy2 p sep = do
+            (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)
+
+        -- pParens ((:) <$> sameLineOrIndented pos pPattern
+        --                                     <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pPattern))
