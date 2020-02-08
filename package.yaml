@@ -48,10 +48,7 @@ version: 0.1.0.0
 extra-source-files:
 - README.md
 # .hs-boot files
-- src/Nihil/Syntax/Concrete/Parser/Expression.hs-boot
-- src/Nihil/Syntax/Concrete/Parser/Pattern.hs-boot
-- src/Nihil/Syntax/Concrete/Parser/Type.hs-boot
-- src/Nihil/Syntax/Abstract/Desugarer/Expression.hs-boot
+- src/**/*.hs-boot
 
 author: Mesabloo
 github: mesabloo/nihil
