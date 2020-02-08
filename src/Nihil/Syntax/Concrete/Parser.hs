@@ -4,7 +4,7 @@ module Nihil.Syntax.Concrete.Parser
 ( -- * Getting source position
   getSourcePos, withPosition
   -- * Indentation-sensitive parsing
-, nonIndented, indentBlock, lineFold, lexeme, spacen1, MPL.IndentOpt(..) ) where
+, nonIndented, indentBlock, lineFold, lexeme, lexemeN, spacen1, MPL.IndentOpt(..) ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
@@ -58,3 +58,6 @@ lineFold = MPL.lineFold spacen1
 -- | See @'MPL.lexeme'@.
 lexeme :: Parser a -> Parser a
 lexeme = MPL.lexeme space1
+
+lexemeN :: Parser a -> Parser a
+lexemeN = MPL.lexeme spacen1
