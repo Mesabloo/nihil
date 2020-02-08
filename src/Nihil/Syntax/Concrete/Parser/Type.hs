@@ -13,7 +13,7 @@ import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
 
 pType :: Parser [AType]
-pType = debug "pType" $ do
+pType = debug "pType" $ lexeme do
     let ~t = MP.try pOperator <|> pType'
     lineFold \s -> do
         (:) <$> t <*> MP.many (MP.try s *> t)

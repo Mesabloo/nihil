@@ -19,8 +19,8 @@ pTuple = debug "p[Type]Tuple" $ do
   where unit  = TTuple [] <$ pParens (pure ())
         tuple = TTuple <$> p
 
-        p = lineFold \spaceConsumer -> do
-            pParens (pType `sepBy2` (MP.between (MP.try spaceConsumer) (MP.try spaceConsumer) (pSymbol' ",")))
+        p = do
+            pParens (lexemeN pType `sepBy2` lexemeN (pSymbol' ","))
 
         sepBy2 p sep = do
             (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)
