@@ -3,12 +3,8 @@
 {-| Common data types used throughout the parsing process. -}
 
 module Nihil.Syntax.Common
-( -- * Lexer
-  Lexer
-, LexerState(LState)
-, currentIndent
-  -- * Parser
-, Parser
+( -- * Parser
+  Parser
   -- * Desugarer
 , Desugarer
 , DesugarerState(DState)
@@ -18,9 +14,8 @@ module Nihil.Syntax.Common
 , patternLevelOperators
  ) where
 
-import Nihil.Syntax.Concrete.Lexeme (ALexeme)
 import Nihil.Syntax.Concrete.Core (Associativity)
-import Text.Megaparsec (ParsecT, Parsec)
+import Text.Megaparsec (Parsec)
 import Data.Void (Void)
 import Control.Monad.State
 import Control.Monad.Except
@@ -29,16 +24,7 @@ import qualified Data.Text as Text
 import qualified Data.Map as Map
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 
-type Lexer a = ParsecT Void Text.Text (State LexerState) a
-
-newtype LexerState
-    = LState
-    { _currentIndent :: Int -- ^ The current indentation level when lexing. Starts at 0.
-    }
--- | A lens for getting the current indentation level, or setting it to a new value.
-makeLenses ''LexerState
-
-type Parser a = Parsec Void [ALexeme] a
+type Parser = Parsec Void Text.Text
 
 type Desugarer a = StateT DesugarerState (Except Doc) a
 
