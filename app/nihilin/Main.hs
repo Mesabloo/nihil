@@ -29,8 +29,7 @@ main = (runExceptT . workWith =<< T.getContents) >>= \case
 workWith :: T.Text -> ExceptT Doc IO ()
 workWith input = do
     let filename = "stdin"
-    !lexemes <- log "Lexing code..."       $ liftEither (runLexer input filename)
-    !ast     <- log "Parsing code..."      $ liftEither (runParser lexemes filename)
+    !ast     <- log "Parsing code..."      $ liftEither (runParser input filename)
     !dast    <- log "Desugaring AST..."    $ liftEither (runDesugarer ast)
     info (pretty dast) (pure ())
     log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
