@@ -18,14 +18,13 @@ import Control.Applicative ((<|>))
 
 pMatch :: Parser () -> Parser Atom
 pMatch s = debug "pMatch" $ do
-    indentBlock do
-        pKeyword "match"
-        expr <- MP.try s *> pExpression s
-        MP.try s *> pKeyword "with"
-        pure (IndentSome Nothing (pure . AMatch expr) pBranch)
+    pKeyword "match"
+    expr <- MP.try s *> pExpression s
+    MP.try s *> pKeyword "with"
+    AMatch expr <$> indentBlock pBranch
 
 pBranch :: Parser ([APattern], AExpr)
-pBranch = lexeme do
+pBranch = debug "pBranch" $ lexeme do
     lineFold \s -> do
         pat <- pPattern
         MP.try s *> (pSymbol' "->" <|> pSymbol' "→")

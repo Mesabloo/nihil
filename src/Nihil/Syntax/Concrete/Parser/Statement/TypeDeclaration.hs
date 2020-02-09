@@ -34,17 +34,18 @@ pADT = debug "pADT" $ withPosition do
 
 pGADT :: Parser AStatement
 pGADT = debug "pGADT" $ withPosition do
-    (name, tvs, ctors) <- indentBlock do
+    lineFold \spaces -> lexeme do
+        pKeyword "data"
+        name <- annotated <$> (MP.try spaces *> pIdentifier')
+        tvs <- fmap annotated <$> MP.many (MP.try (spaces *> pIdentifier))
+        MP.try spaces *> pKeyword "where"
+
         let ~constructor = lineFold \s -> do
                 (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s))
 
-        lineFold \spaces -> lexeme do
-            pKeyword "data"
-            name <- annotated <$> (MP.try spaces *> pIdentifier')
-            tvs <- fmap annotated <$> MP.many (MP.try (spaces *> pIdentifier))
-            MP.try spaces *> pKeyword "where"
-            pure (IndentSome Nothing (pure . (name, tvs,) . (`locate` NoSource) . GADT . Map.fromList) constructor)
-    pure (TypeDefinition name tvs ctors)
+        ctors <- indentBlock constructor
+
+        pure (TypeDefinition name tvs (locate (GADT (Map.fromList ctors)) NoSource))
 
 pTypeAlias :: Parser AStatement
 pTypeAlias = debug "pTypeAlias" $ withPosition do

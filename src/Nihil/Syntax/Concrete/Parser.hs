@@ -1,10 +1,13 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Nihil.Syntax.Concrete.Parser
 ( -- * Getting source position
   getSourcePos, withPosition
   -- * Indentation-sensitive parsing
-, nonIndented, indentBlock, lineFold, lexeme, lexemeN, spacen1, MPL.IndentOpt(..) ) where
+, nonIndented, indentBlock, indentLevel, lineFold, lexeme, lexemeN, spacen1, MPL.IndentOpt(..) ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
@@ -47,9 +50,16 @@ scn1 = void MPC.spaceChar
 nonIndented :: Parser a -> Parser a
 nonIndented = MPL.nonIndented spacen1
 
+-- | See @'MPL.indentLevel'@.
+indentLevel :: Parser MP.Pos
+indentLevel = MPL.indentLevel
+
 -- | See @'MPL.indentBlock'@.
-indentBlock :: Parser (MPL.IndentOpt Parser a b) -> Parser a
-indentBlock = MPL.indentBlock spacen1
+indentBlock :: Parser a -> Parser [a]
+indentBlock p = do
+    MP.try spacen1
+    pos <- indentLevel
+    (:) <$> p <*> MP.many (MP.try (MPL.indentGuard spacen1 EQ pos *> p))
 
 -- | See @'MPL.lineFold'@.
 lineFold :: (Parser () -> Parser a) -> Parser a
