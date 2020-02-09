@@ -12,12 +12,9 @@ import Nihil.Syntax.Concrete.Parser.Type
 import qualified Nihil.Syntax.Concrete.Parser.Pattern.Atom as Pattern
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug
-import Nihil.Utils.Annotation
 import Nihil.Utils.Source
 import Control.Applicative ((<|>))
-import Data.Bifunctor
 import qualified Text.Megaparsec as MP
-import qualified Data.Text as Text
 
 pFunctionDeclaration :: Parser AStatement
 pFunctionDeclaration = debug "pFunctionDeclaration" $ withPosition do
@@ -31,7 +28,7 @@ pFunctionDefinition :: Parser AStatement
 pFunctionDefinition = debug "pFunctionDefinition" $ withPosition do
     lineFold \s -> do
         name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
-        args <- MP.many (MP.try s *> Pattern.pAtom)
+        args <- MP.many (MP.try (s *> Pattern.pAtom))
         MP.try s *> pSymbol' "="
         val  <- MP.try s *> pExpression s
         pure (FunDefinition name args val)

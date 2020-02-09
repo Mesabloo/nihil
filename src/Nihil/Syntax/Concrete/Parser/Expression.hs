@@ -15,10 +15,10 @@ import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 
 pExpression :: Parser () -> Parser AExpr
-pExpression s = debug "pExpression" $ do
+pExpression s = debug "pExpression" $ lexeme do
     atoms <- withPosition ((:) <$> pAtom s <*> MP.many (MP.try (s *> pAtom s)))
-    typed <- MP.optional (typeAnnotation s)
-    whereB <- MP.optional (s *> pWhere s)
+    typed <- MP.try (MP.optional (typeAnnotation s))
+    whereB <- MP.try (MP.optional (MP.try s *> pWhere s))
 
     let annotate t = locate [locate (ATypeAnnotated atoms t) NoSource] NoSource
     let expr = maybe atoms annotate typed

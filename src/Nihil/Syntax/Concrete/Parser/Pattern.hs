@@ -21,7 +21,7 @@ pPattern = debug "pPattern" $ lexeme do
         let ~t = pOperator <|> MP.try (constructor s) <|> pAtom
         atoms <- (:) <$> t <*> MP.many (MP.try s *> t)
 
-        typed <- MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType s)
+        typed <- MP.try (MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType s))
         let annotate t = [locate (PTypeAnnotated atoms t) NoSource]
         pure (maybe atoms annotate typed)
   where constructor sp =
