@@ -7,7 +7,6 @@ module Nihil.Syntax.Concrete.Parser.Identifier
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
-import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Syntax.Concrete.Parser.Keyword (keywords)
 import Nihil.Syntax.Concrete.Parser
@@ -16,7 +15,6 @@ import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
 import Control.Applicative ((<|>))
 import Control.Monad (void)
-import Data.Bifunctor (first)
 
 {-| A parser for identifiers beginning with a lowercased letter.
 
@@ -24,11 +22,12 @@ import Data.Bifunctor (first)
 
     @\<lowIdentifier\> ::= \<lowerChar\> [ \<alphaNumChar\> | '\'' | '_' ] ;@
 -}
-pIdentifier :: Parser (Located Text.Text)
+pIdentifier :: Parser (Located String)
 pIdentifier = debug "pIdentifier" $ lexeme do
     withPosition (identifier MPC.lowerChar >>= check)
-  where check x | x `elem` keywords = fail ("“" <> Text.unpack x <> "” is a keyword and thus cannot be used as an identifier")
-                | otherwise         = pure x
+  where check x | Text.pack x `elem` keywords =
+                    fail ("“" <> x <> "” is a keyword and thus cannot be used as an identifier")
+                | otherwise                   = pure x
 
 {-| A parser for identifiers beginning with a uppercased letter.
 
@@ -36,18 +35,18 @@ pIdentifier = debug "pIdentifier" $ lexeme do
 
     @\<upIdentifier\> ::= \<upperChar\> [ \<alphaNumChar\> | '\'' | '_' ] ;@
 -}
-pIdentifier' :: Parser (Located Text.Text)
+pIdentifier' :: Parser (Located String)
 pIdentifier' = debug "pIdentifier'" $ lexeme do
     withPosition (identifier MPC.upperChar)
 
-identifier :: Parser Char -> Parser Text.Text
+identifier :: Parser Char -> Parser String
 identifier front =
-    Text.pack <$> ((:) <$> front <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'' <|> MPC.char '_'))
+    (:) <$> front <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'' <|> MPC.char '_')
 
 -- | A parser for symbols. A symbol is any sequence of ASCII or Unicode non-letter characters.
-pSymbol :: Parser (Located Text.Text)
+pSymbol :: Parser (Located String)
 pSymbol = debug "pSymbol" $ lexeme do
-    withPosition (Text.pack <$> (unarySymbol <|> multiSymbol))
+    withPosition (unarySymbol <|> multiSymbol)
 
 -- | Tries to parse a given symbol.
 pSymbol' :: Text.Text -> Parser ()
@@ -106,14 +105,14 @@ pUnderscore = lexeme do
 pAnySymbolᵉ :: Parser (Located String)
 pAnySymbolᵉ = debug "pAnySymbolᵉ" $ pSymbol >>= check
   where check l@(annotated -> s)
-            | s `elem` reservedExpressionOperators = fail "Cannot use reserved operator as an operator"
-            | otherwise                            = pure (hoistAnnotated (first Text.unpack) l)
+            | Text.pack s `elem` reservedExpressionOperators = fail "Cannot use reserved operator as an operator"
+            | otherwise                                      = pure l
 
 pAnySymbolᵗ :: Parser (Located String)
 pAnySymbolᵗ = debug "pAnySymbolᵗ" $ pSymbol >>= check
   where check l@(annotated -> s)
-            | s `elem` reservedTypeOperators = fail "Cannot use reserved operator as an operator"
-            | otherwise                      = pure (hoistAnnotated (first Text.unpack) l)
+            | Text.pack s `elem` reservedTypeOperators = fail "Cannot use reserved operator as an operator"
+            | otherwise                                = pure l
 
 reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
