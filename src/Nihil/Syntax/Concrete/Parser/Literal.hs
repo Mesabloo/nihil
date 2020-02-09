@@ -8,10 +8,10 @@ module Nihil.Syntax.Concrete.Parser.Literal
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Parser
+import Nihil.Syntax.Concrete.Core (Literal(..))
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Text.Megaparsec.Char.Lexer as MPL
-import qualified Data.Text as Text
 import Control.Applicative ((<|>))
 
 {-| A lexer for integral numbers. It supports binary, hexadecimal and even octal formatting.
@@ -24,9 +24,9 @@ import Control.Applicative ((<|>))
     @\<octal\>       ::= (\'0o\' | \'0O\') [ \<octalDigit\> ] ;@
     @\<decimal\>     ::= [ \<decimalDigit\> ] ;@
 -}
-pInteger :: Parser (Located Integer)
+pInteger :: Parser (Located Literal)
 pInteger = lexeme do
-    withPosition integer
+    withPosition (LInteger <$> integer)
   where integer = hex <|> bin <|> oct <|> int
         hex     = (MPC.string "0x" <|> MPC.string "0X") *> MPL.hexadecimal
         bin     = (MPC.string "0b" <|> MPC.string "0B") *> MPL.binary
@@ -39,9 +39,9 @@ pInteger = lexeme do
 
     @\<float\> ::= \<integer\> \'.\' \<integer\> { (\'e\' | \'E\') \<exponent\> } ;@
 -}
-pFloat :: Parser (Located Double)
+pFloat :: Parser (Located Literal)
 pFloat = lexeme do
-    withPosition MPL.float
+    withPosition (LDouble <$> MPL.float)
 
 {-| A parser for a char literal. It takes in account escape characters such as @\n@ or @\e@.
 
@@ -49,9 +49,9 @@ pFloat = lexeme do
 
     @\<character\> ::= '\'' (\<escapeCharacter\> | \<anyCharacter\>) '\'' ;@
 -}
-pCharacter :: Parser (Located Char)
+pCharacter :: Parser (Located Literal)
 pCharacter = lexeme do
-    withPosition (MPC.char '\'' *> anyChar <* MPC.char '\'')
+    withPosition (LCharacter <$> (MPC.char '\'' *> anyChar <* MPC.char '\''))
 
 anyChar :: Parser Char
 anyChar = MPL.charLiteral
@@ -62,6 +62,6 @@ anyChar = MPL.charLiteral
 
     @\<string\> ::= '"' [\<escapeCharacter\> | \<anyCharacter\>] '"' ;@
 -}
-pString :: Parser (Located Text.Text)
+pString :: Parser (Located Literal)
 pString = lexeme do
-    withPosition (Text.pack <$> (MPC.char '"' *> MP.manyTill anyChar (MPC.char '"')))
+    withPosition (LString <$> (MPC.char '"' *> MP.manyTill anyChar (MPC.char '"')))

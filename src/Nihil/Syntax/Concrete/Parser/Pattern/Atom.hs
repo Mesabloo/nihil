@@ -21,14 +21,12 @@ pAtom = debug "p[Pattern]Atom" $ withPosition (MP.choice terms)
 terms :: [Parser Pattern]
 terms =
     [ pWildcard
-    , MP.try (PLiteral . LDouble
-        . annotated                     <$> pFloat)
-    , PLiteral . LInteger . annotated   <$> pInteger
-    , PLiteral . LCharacter . annotated <$> pCharacter
-    , PLiteral . LString
-        . Text.unpack . annotated       <$> pString
-    , PId . Text.unpack . annotated     <$> pIdentifier
+    , MP.try (PLiteral . annotated  <$> pFloat)
+    , PLiteral .  annotated         <$> pInteger
+    , PLiteral . annotated          <$> pCharacter
+    , PLiteral . annotated          <$> pString
+    , PId . Text.unpack . annotated <$> pIdentifier
     , MP.try pTuple
     , PParens              <$> pParens pPattern
     , flip PConstructor []
-        . Text.unpack . annotated       <$> pIdentifier' ]
+        . Text.unpack . annotated   <$> pIdentifier' ]
