@@ -11,13 +11,14 @@ import Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
 import qualified Text.Megaparsec as MP
 
 pProgram :: Parser Program
-pProgram = Program <$> MP.some (MP.try pStatement) <* MP.eof
+pProgram = Program <$> MP.some (lexemeN pStatement) <* MP.eof
 
 pStatement :: Parser AStatement
 pStatement = nonIndented do
     MP.choice
         [ pOperatorFixity
         , pTypeAlias
-        , pDataType
+        , MP.try pADT
+        , pGADT
         , MP.try pFunctionDeclaration
         , pFunctionDefinition ]

@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TupleSections #-}
 
 module Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
-( pDataType, pTypeAlias ) where
+( pADT, pGADT, pTypeAlias ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Syntax.Concrete.Core
@@ -17,30 +18,33 @@ import qualified Text.Megaparsec as MP
 import qualified Data.Map as Map
 import Prelude hiding (log)
 
-pDataType :: Parser AStatement
-pDataType = debug "pDataType" $ withPosition do
-    pKeyword "data"
-    lineFold \spaces -> lexeme do
-        name <- annotated <$> (MP.try spaces *> pIdentifier')
-        tvs <- fmap annotated <$> MP.many (MP.try spaces *> pIdentifier)
-        MP.try spaces *> (TypeDefinition name tvs <$> MP.choice
-            [ pADT spaces, pGADT spaces ])
+pADT :: Parser AStatement
+pADT = debug "pADT" $ withPosition do
+    lineFold \s -> lexeme do
+        pKeyword "data"
+        name <- annotated <$> (MP.try s *> pIdentifier')
+        tvs <- fmap annotated <$> MP.many (MP.try (s *> pIdentifier))
 
-pADT :: Parser () -> Parser ACustomType
-pADT s = debug "pADT" $ withPosition do
-    MP.try s *> pSymbol' "="
-    let ~constructor = (,) <$> (annotated <$> pIdentifier') <*> MP.many (MP.try s *> pAtom s)
-    ctors <- constructor `MP.sepBy1` (MP.try s *> pSymbol' "|" <* MP.try s)
-    pure (SumType (Map.fromList ctors))
+        TypeDefinition name tvs <$> do
+            MP.try s *> pSymbol' "="
+            withPosition do
+                let ~constructor = (,) <$> (annotated <$> pIdentifier') <*> MP.many (MP.try (s *> pAtom s))
+                ctors <- constructor `MP.sepBy1` (MP.try s *> pSymbol' "|" <* MP.try s)
+                pure (SumType (Map.fromList ctors))
 
-pGADT :: Parser () -> Parser ACustomType
-pGADT s = debug "pGADT" $ withPosition do
-    indentBlock do
+pGADT :: Parser AStatement
+pGADT = debug "pGADT" $ withPosition do
+    (name, tvs, ctors) <- indentBlock do
         let ~constructor = lineFold \s -> do
                 (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s))
 
-        pKeyword "where"
-        pure (IndentSome Nothing (pure . GADT . Map.fromList) constructor)
+        lineFold \spaces -> lexeme do
+            pKeyword "data"
+            name <- annotated <$> (MP.try spaces *> pIdentifier')
+            tvs <- fmap annotated <$> MP.many (MP.try (spaces *> pIdentifier))
+            MP.try spaces *> pKeyword "where"
+            pure (IndentSome Nothing (pure . (name, tvs,) . (`locate` NoSource) . GADT . Map.fromList) constructor)
+    pure (TypeDefinition name tvs ctors)
 
 pTypeAlias :: Parser AStatement
 pTypeAlias = debug "pTypeAlias" $ withPosition do
