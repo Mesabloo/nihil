@@ -7,6 +7,8 @@ import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Parser.Enclosed
 import Nihil.Syntax.Concrete.Debug
 import Control.Applicative ((<|>))
+import Nihil.Utils.Source
 
 pOperator :: Parser AAtom
-pOperator = debug "p[Expression]Operator" $ withPosition (AOperator <$> (pTicks (pIdentifier <|> pIdentifier') <|> pAnySymbolᵉ))
+pOperator = debug "p[Expression]Operator" $
+    withPosition (AOperator . annotated <$> (pTicks (pIdentifier <|> pIdentifier') <|> pAnySymbolᵉ))

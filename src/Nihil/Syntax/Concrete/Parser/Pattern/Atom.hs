@@ -2,6 +2,7 @@ module Nihil.Syntax.Concrete.Parser.Pattern.Atom
 ( pAtom ) where
 
 import Nihil.Syntax.Common (Parser)
+import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Core
 import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Parser.Identifier
@@ -19,11 +20,11 @@ pAtom = debug "p[Pattern]Atom" $ withPosition (MP.choice terms)
 terms :: [Parser Pattern]
 terms =
     [ pWildcard
-    , PLiteral             <$> pFloat
-    , PLiteral             <$> pInteger
-    , PLiteral             <$> pCharacter
-    , PLiteral             <$> pString
-    , PId                  <$> pIdentifier
+    , MP.try (PLiteral . annotated     <$> pFloat)
+    , PLiteral .  annotated            <$> pInteger
+    , PLiteral . annotated             <$> pCharacter
+    , PLiteral . annotated             <$> pString
+    , PId . annotated                  <$> pIdentifier
     , MP.try pTuple
-    , PParens              <$> pParens pPattern
-    , flip PConstructor [] <$> pIdentifier' ]
+    , PParens                          <$> pParens pPattern
+    , flip PConstructor [] . annotated <$> pIdentifier' ]

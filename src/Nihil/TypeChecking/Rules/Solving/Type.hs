@@ -12,17 +12,21 @@ import Nihil.TypeChecking.Environment
 import Nihil.TypeChecking.Rules.Solving (runSolve)
 import Nihil.TypeChecking.Errors.TypeHole
 import Nihil.Utils.Source
+import Nihil.Utils.Debug
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad (when)
-import Control.Monad.Except (throwError)
+import Control.Monad.Except (throwError, liftEither)
+import Prelude hiding (log)
 
 -- | Solves the 'TypeConstraint's given and returns a substitution to 'apply'.
 solve :: Subst Type -> [TypeConstraint] -> SolveType (Subst Type)
-solve sub []                 = pure sub
+solve sub []                 = do
+    log sub (liftEither (runTypeHoleInspector sub))
+    pure sub
 solve sub ((t1 :>~ t2) : ts) = do
     sub' <- unify t1 t2
-    solve (sub <> sub') (apply sub' ts)
+    solve (sub' <> sub) (apply sub' ts)
 
 -- | Runs the type constraints solver given an initial environment and returns a substitution to 'apply'.
 runTypeSolver :: GlobalEnv -> [TypeConstraint] -> Either Doc (Subst Type)

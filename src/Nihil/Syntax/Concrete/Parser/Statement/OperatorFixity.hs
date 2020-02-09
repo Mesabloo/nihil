@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Nihil.Syntax.Concrete.Parser.Statement.OperatorFixity where
 
@@ -10,20 +11,19 @@ import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Parser.Literal
 import Nihil.Syntax.Concrete.Parser.Keyword
 import Nihil.Utils.Source
+import Nihil.Utils.Annotation
 import Nihil.Syntax.Concrete.Debug
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
+import Data.Bifunctor (first)
 import qualified Text.Megaparsec as MP
 
 pOperatorFixity :: Parser AStatement
 pOperatorFixity = debug "pOperatorFixity" $ withPosition do
-    pos           <- getSourcePos
-    f             <- fixity
-    LInteger prec <- sameLineOrIndented pos pInteger
-    guard (prec < 10 && prec >= 0)
-        <|> fail "Operator precedence should be lower than 10 and positive"
-    operator      <- sameLineOrIndented pos (pParens op <|> op)
-    pure (OperatorFixity operator (locate (f prec) pos))
+    lineFold \s -> do
+        f             <- withPosition fixity
+        LInteger prec <- annotated <$> (MP.try s *> pInteger)
+        operator      <- annotated <$> (MP.try s *> (pParens op <|> op))
+        pure (OperatorFixity operator (hoistAnnotated (first ($ prec)) f))
   where op     = pTicks pIdentifier <|> pAnySymbolᵉ <|> pAnySymbolᵗ
         fixity = Infix <$> MP.choice
             [ L <$ pKeyword "infixl"

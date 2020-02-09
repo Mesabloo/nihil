@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Nihil.Syntax.Concrete.Parser.Type
 ( pType ) where
 
@@ -10,18 +12,16 @@ import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
 
-pType :: Parser [AType]
-pType = debug "pType" $ do
-    pos <- getSourcePos
-    let t = pOperator <|> pType'
-    (:) <$> t <*> MP.many (sameLineOrIndented pos t) -- MP.some (pOperator <|> pType')
+pType :: Parser () -> Parser [AType]
+pType s = debug "pType" $ lexeme do
+    let ~t = MP.try pOperator <|> pType' s
+    (:) <$> t <*> MP.many (MP.try s *> t)
 
-pType' :: Parser AType
-pType' = MP.try pApplication <|> pAtom
+pType' :: Parser () -> Parser AType
+pType' s = MP.try (pApplication s) <|> (pAtom s)
 
-pApplication :: Parser AType
-pApplication = do
-    pos <- getSourcePos
-    withPosition (TApplication <$> types pos)
-  where types pos = (:) <$> pAtom
-                        <*> MP.some (sameLineOrIndented pos pAtom)
+pApplication :: Parser () -> Parser AType
+pApplication s = debug "p[Type]Application" $ do
+    withPosition (TApplication <$> types)
+  where types = lexeme do
+            (:) <$> pAtom s <*> MP.some (MP.try (s *> pAtom s))

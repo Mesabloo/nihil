@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Nihil.Syntax.Concrete.Lexer.Comment
+module Nihil.Syntax.Concrete.Parser.Comment
 ( pLineComment, pBlockComment ) where
 
-import Nihil.Syntax.Common (Lexer)
+import Nihil.Syntax.Common (Parser)
 import qualified Text.Megaparsec.Char.Lexer as MPL
 
 {-| Skips a line comment.
@@ -12,7 +12,7 @@ import qualified Text.Megaparsec.Char.Lexer as MPL
 
     @\<lineComment\> ::= "--" [ \<anyCharacterButEOL\> ] ;@
 -}
-pLineComment :: Lexer ()
+pLineComment :: Parser ()
 pLineComment = MPL.skipLineComment "--"
 
 {-| Skips a block comment.
@@ -23,5 +23,5 @@ pLineComment = MPL.skipLineComment "--"
 
     @\<blockComment\> ::= "{\-" [ \<anyCharacter\> ] "-\}" ;@
 -}
-pBlockComment :: Lexer ()
+pBlockComment :: Parser ()
 pBlockComment = MPL.skipBlockComment "{-" "-}"

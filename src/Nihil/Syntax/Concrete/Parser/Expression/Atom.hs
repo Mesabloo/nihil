@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Nihil.Syntax.Concrete.Parser.Expression.Atom
 ( pAtom, pAtomNoApp ) where
 
@@ -15,36 +17,35 @@ import Nihil.Syntax.Concrete.Parser.Expression.Tuple
 import Nihil.Syntax.Concrete.Parser.Expression.TypeHole
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug
+import Nihil.Utils.Source
 import Control.Applicative ((<|>))
 import qualified Text.Megaparsec as MP
 
-pAtom :: Parser AAtom
-pAtom = debug "p[Expression]Atom" $ pOperator <|> pAtom'
+pAtom :: Parser () -> Parser AAtom
+pAtom s = debug "p[Expression]Atom" $ MP.try pOperator <|> pAtom' s
 
-pAtom' :: Parser AAtom
-pAtom' = MP.try pApplication <|> pAtomNoApp
+pAtom' :: Parser () -> Parser AAtom
+pAtom' s = MP.try (pApplication s) <|> pAtomNoApp s
 
-pAtomNoApp :: Parser AAtom
-pAtomNoApp = withPosition (MP.choice atoms)
+pAtomNoApp :: Parser () -> Parser AAtom
+pAtomNoApp s = withPosition (MP.choice atoms)
   where atoms =
             [ pTypeHole
-            , pLambda
-            , pMatch
-            , MP.try pTuple
-            , pLet
-            , AId      <$> MP.choice
+            , pLambda s
+            , pMatch s
+            , MP.try (pTuple s)
+            , pLet s
+            , AId . annotated      <$> MP.choice
                 [ pIdentifier
                 , MP.try (pParens pAnySymbolᵉ)
                 , pIdentifier' ] MP.<?> "identifier"
-            , ALiteral <$> pFloat
-            , ALiteral <$> pInteger
-            , ALiteral <$> pCharacter
-            , ALiteral <$> pString
-            , AParens  <$> pParens pExpression ]
+            , ALiteral . annotated <$> MP.try pFloat
+            , ALiteral . annotated <$> pInteger
+            , ALiteral . annotated <$> pCharacter
+            , ALiteral . annotated <$> pString
+            , AParens              <$> pParens (pExpression s) ]
 
-pApplication :: Parser AAtom
-pApplication = do
-    pos <- getSourcePos
-    withPosition (AApplication <$> exprs pos)
-  where exprs pos = (:) <$> pAtomNoApp
-                        <*> MP.some (sameLineOrIndented pos pAtomNoApp)
+pApplication :: Parser () -> Parser AAtom
+pApplication s = lexeme do
+    withPosition (AApplication <$> exprs)
+  where exprs = (:) <$> pAtomNoApp s <*> MP.some (MP.try (s *> pAtomNoApp s))

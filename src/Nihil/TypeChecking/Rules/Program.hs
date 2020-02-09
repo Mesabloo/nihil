@@ -36,8 +36,9 @@ import qualified Data.Map as Map
 import Control.Applicative ((<|>))
 import Control.Monad.State (get)
 import Data.These (These(..))
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromJust)
 import Prelude hiding (lookup, log)
+import qualified Prelude (lookup)
 import Control.Arrow ((>>>))
 import qualified Data.Set as Set
 import Data.List (nub)
@@ -126,8 +127,8 @@ check name def decl = do
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
     info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
-    liftEither (runTypeHoleInspector sub)
-    funDefCtx %= (`extend` (name, closeOver (apply sub ty)))
+    let funType = apply sub ty
+    info funType (info (closeOver funType) (funDefCtx %= (`extend` (name, closeOver funType))))
 
 -------------------------------------------------------------------------------------------------------------------
 
@@ -160,9 +161,9 @@ normalize (Forall _ t) = Forall (snd <$> ord) (rigidify t)
 
         letters = [1..] >>= flip replicateM ['a'..'z']
 
-rigidify :: Type -> Type
-rigidify = hoistAnnotated (first f)
-  where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
-        f (TTuple ts)          = TTuple (rigidify <$> ts)
-        f (TVar x)             = TRigid x
-        f t                    = t
+        rigidify :: Type -> Type
+        rigidify = hoistAnnotated (first f)
+          where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
+                f (TTuple ts)          = TTuple (rigidify <$> ts)
+                f (TVar x)             = TRigid (fromJust (Prelude.lookup x ord))
+                f t                    = t

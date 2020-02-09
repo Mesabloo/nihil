@@ -11,12 +11,10 @@ module Nihil.Syntax.Concrete
 
   -- * Re-exports
   module Nihil.Syntax.Concrete.Core
-, lProgram
 , pProgram
 ) where
 
 import Nihil.Syntax.Concrete.Core
-import Nihil.Syntax.Concrete.Lexer.Program (lProgram)
 import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
 
 {- $grammar

@@ -15,7 +15,7 @@ solve :: Subst Kind -> [KindConstraint] -> SolveKind (Subst Kind)
 solve sub []                 = pure sub
 solve sub ((k1 :*~ k2) : ks) = do
     sub' <- unify k1 k2
-    solve (sub <> sub') (apply sub' ks)
+    solve (sub' <> sub) (apply sub' ks)
 
 -- | Runs the kind constraint solver given an environment and returns a substitution to 'apply'.
 runKindSolver :: KindEnv -> [KindConstraint] -> Either Doc (Subst Kind)

@@ -12,18 +12,20 @@ instance Pretty Kind where
     pretty KStar                = text "*"
     pretty (KVar v)             = text v
     pretty KArrow               = text "(->)"
-    pretty (KApplication k1 k2) =
-        pretty k1 <+> prettyᵏ k2
+    pretty (KApplication k1 k2) = prettyᵏ k1 <+> pretty k2
       where prettyᵏ k@KApplication{} = parens (pretty k)
             prettyᵏ k                = pretty k
 
 instance Pretty Type' where
-    pretty (TId i)              = if isOperator i then parens (text i) else text i
+    pretty (TId i)              = text i -- if isOperator i then parens (text i) else text i
     pretty (TVar v)             = text v
     pretty (TRigid v)           = text v
     pretty (TTuple ts)          = tupled (fmap pretty ts)
-    pretty (TApplication t1 t2) = pretty t1 <+> prettyᵗ (annotated t2)
-      where prettyᵗ t@TApplication{} = parens (pretty t)
+    pretty (TApplication t1 t2) = prettyᵗ (annotated t1) <+> pretty t2
+      where prettyᵗ t@(TApplication t1 t2) =
+                case annotated t1 of
+                    TId i | isOperator i -> prettyᵗ (annotated t2) <+> text i
+                    _                    -> parens (pretty t)
             prettyᵗ t                = pretty t
     pretty (TPrim ty)           = text ty
 

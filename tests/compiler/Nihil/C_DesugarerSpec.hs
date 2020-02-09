@@ -4,7 +4,7 @@
 module Nihil.C_DesugarerSpec (spec) where
 
 import Test.Hspec
-import Nihil.Syntax (runLexer, runParser, runDesugarer)
+import Nihil.Syntax (runParser, runDesugarer)
 import Nihil.Utils.Source (locate, Located, SourcePos(NoSource))
 import Nihil.Syntax.Abstract
 import qualified Data.Text as Text (Text)
@@ -45,12 +45,12 @@ spec = parallel do
 parameterLambdaExpansionTest :: Spec
 parameterLambdaExpansionTest = do
     testAST "id x = x" "should be correctly expanded to a lambda"
-        (Program [node (FunctionDefinition "id" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PId "x")]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "id" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PId "x")]), node (EId "x"))])))))])
 
 operatorApplicationExpansionTest :: Spec
 operatorApplicationExpansionTest = do
     testAST "f x = x + 1" "should be correctly expanded into a function application"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PId "x")]), (node (EApplication (node (EApplication (node (EId "+")) (node (EId "x")))) (node (ELiteral (LInteger 1))))))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PId "x")]), (node (EApplication (node (EApplication (node (EId "+")) (node (EId "x")))) (node (ELiteral (LInteger 1))))))])))))])
 
 sumtypeGADTExpansionTest :: Spec
 sumtypeGADTExpansionTest = do
@@ -147,37 +147,37 @@ typeApplicationExpansionTest = do
 patternWildcardExpansionTest :: Spec
 patternWildcardExpansionTest = do
     testAST "f _ = 0" "should be correctly expanded to a wildcard"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node PWildcard]), node (ELiteral (LInteger 0)))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node PWildcard]), node (ELiteral (LInteger 0)))])))))])
 
 patternIdentifierExpansionTest :: Spec
 patternIdentifierExpansionTest = do
     testAST "f x = x" "should be correctly expanded to an identifier"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PId "x")]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PId "x")]), node (EId "x"))])))))])
 
 patternLiteralExpansionTest :: Spec
 patternLiteralExpansionTest = do
     testAST "f 0 = x" "should be correctly expanded into a literal"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PLiteral (LInteger 0))]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PLiteral (LInteger 0))]), node (EId "x"))])))))])
 
 patternTupleExpansionTest :: Spec
 patternTupleExpansionTest = do
     testAST "f (a, 0.3) = a" "should be correctly expanded into a tuple"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PTuple [node (PId "a"), node (PLiteral (LFloat 0.3))])]), node (EId "a"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PTuple [node (PId "a"), node (PLiteral (LFloat 0.3))])]), node (EId "a"))])))))])
 
 patternTypeAnnotatedExpansionTest :: Spec
 patternTypeAnnotatedExpansionTest = do
     testAST "f (x: Integer) = x" "should be correctly expanded into a type annotated pattern"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PTypeAnnotated (node (PId "x")) (node (TId "Integer")))]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PTypeAnnotated (node (PId "x")) (node (TId "Integer")))]), node (EId "x"))])))))])
 
 patternConstructorExpansionTest :: Spec
 patternConstructorExpansionTest = do
     testAST "f (Cons x xs) = x" "should be correctly expanded into a constructor pattern"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])]), node (EId "x"))])))))])
 
 patternOperatorsExpansionTest :: Spec
 patternOperatorsExpansionTest = do
     testAST "f (x `Cons` xs) = x" "should be correctly expanded into a constructor pattern"
-        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "%0")) (node (EMatch (node (ETuple [node (EId "%0")])) [(node (PTuple [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])]), node (EId "x"))])))))])
+        (Program [node (FunctionDefinition "f" (node (ELambda (node (PId "#0")) (node (EMatch (node (ETuple [node (EId "#0")])) [(node (PTuple [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])]), node (EId "x"))])))))])
 
 -----------------------------------------------------------------------------------------------------------
 
@@ -186,8 +186,7 @@ node = (`locate` NoSource)
 
 testAST :: Text.Text -> String -> Program -> Spec
 testAST code msg expected = do
-    let (Right lex) = runLexer code "test"
-    let (Right ast) = runParser lex "test"
+    let (Right ast) = runParser code "test"
     let (Right dst) = runDesugarer ast
     it msg do
         dst `shouldBe` expected

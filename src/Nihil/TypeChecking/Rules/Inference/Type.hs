@@ -42,8 +42,8 @@ inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> Maybe Type -> Infer
 inferFunctionDefinition pos name ex ty = do
     tv  <- fresh "$" pos
     fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
-    tell [fty :>~ tv]
     maybe (pure ()) (\t -> tell [fty :>~ t]) ty
+    tell [fty :>~ tv]
     pure fty
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
@@ -247,13 +247,12 @@ fresh t pos = do
     n <- use supply
     supply += 1
 
-    env <- funDefCtx `views` (concatMap tvars . elems)
+    env <- funDefCtx `views` free
     let new = t <> show n
 
     if new `notElem` env
     then pure (locate (TVar new) pos)
     else fresh new pos
-  where tvars (Forall v _) = v
 
 instantiate :: SourcePos -> Scheme Type -> InferType Type
 instantiate pos (Forall vars ty) = do

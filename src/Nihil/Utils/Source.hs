@@ -8,7 +8,7 @@
 
 module Nihil.Utils.Source
 ( -- * Getting positions in source files
-  Position(..), SourcePos(NoSource), withIndent, indentLevel, sourceLine, sourceColumn, sourceFile, locate
+  Position(..), SourcePos(NoSource), sourceLine, sourceColumn, sourceFile, fromSourcePos, locate
   -- * Attaching positions to values
 , Located, annotated, location ) where
 
@@ -40,15 +40,14 @@ data SourcePos
     { _sourceLine   :: Position -- ^ The source file line number
     , _sourceColumn :: Position -- ^ The source file column number
     , _sourceFile   :: FilePath -- ^ The source file name
-    , _indentLevel  :: Position -- ^ only used during parsing
     }
   deriving Eq
 makeLenses ''SourcePos
 
 instance Ord SourcePos where
-    NoSource <= NoSource               = True
-    (Loc l1 c1 _ _) <= (Loc l2 c2 _ _) = l1 < l2 || (l1 == l2 && c1 <= c2)
-    _ <= _                             = False
+    NoSource <= NoSource             = True
+    (Loc l1 c1 _ ) <= (Loc l2 c2 _ ) = l1 < l2 || (l1 == l2 && c1 <= c2)
+    _ <= _                           = False
 
 -- | Only use for debugging
 instance Show SourcePos where
@@ -90,12 +89,12 @@ annotated = unwrap' >>> getConst
 -- | Simple converter function between megaparsec's 'MP.SourcePos' and 'SourcePos'.
 --
 --   It takes an indentation level as well to fit it in the returned 'SourcePos'.
-withIndent :: Int -> MP.SourcePos -> SourcePos
-withIndent lvl pos =
+fromSourcePos :: MP.SourcePos -> SourcePos
+fromSourcePos pos =
     let line = asPos (MP.sourceLine pos)
         col  = asPos (MP.sourceColumn pos)
         file = MP.sourceName pos
-    in Loc line col file (Pos lvl)
+    in Loc line col file
 
 asPos :: MP.Pos -> Position
 asPos = Pos <<< MP.unPos
