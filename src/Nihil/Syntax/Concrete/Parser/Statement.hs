@@ -11,7 +11,7 @@ import Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
 import qualified Text.Megaparsec as MP
 
 pProgram :: Parser Program
-pProgram = Program <$> MP.some pStatement <* MP.eof
+pProgram = Program <$> MP.some (MP.try pStatement) <* MP.eof
 
 pStatement :: Parser AStatement
 pStatement = nonIndented do

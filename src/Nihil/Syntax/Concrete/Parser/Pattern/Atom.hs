@@ -13,7 +13,6 @@ import Nihil.Syntax.Concrete.Parser.Enclosed
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Pattern
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
-import qualified Data.Text as Text
 
 pAtom :: Parser APattern
 pAtom = debug "p[Pattern]Atom" $ withPosition (MP.choice terms)
@@ -21,12 +20,11 @@ pAtom = debug "p[Pattern]Atom" $ withPosition (MP.choice terms)
 terms :: [Parser Pattern]
 terms =
     [ pWildcard
-    , MP.try (PLiteral . annotated  <$> pFloat)
-    , PLiteral .  annotated         <$> pInteger
-    , PLiteral . annotated          <$> pCharacter
-    , PLiteral . annotated          <$> pString
-    , PId . Text.unpack . annotated <$> pIdentifier
+    , MP.try (PLiteral . annotated     <$> pFloat)
+    , PLiteral .  annotated            <$> pInteger
+    , PLiteral . annotated             <$> pCharacter
+    , PLiteral . annotated             <$> pString
+    , PId . annotated                  <$> pIdentifier
     , MP.try pTuple
-    , PParens              <$> pParens pPattern
-    , flip PConstructor []
-        . Text.unpack . annotated   <$> pIdentifier' ]
+    , PParens                          <$> pParens pPattern
+    , flip PConstructor [] . annotated <$> pIdentifier' ]

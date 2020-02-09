@@ -13,14 +13,14 @@ import Nihil.Syntax.Concrete.Debug
 import Control.Applicative ((<|>))
 import qualified Text.Megaparsec as MP
 
-pTuple :: Parser Atom
-pTuple = debug "p[Expression]Tuple" $ lexeme do
+pTuple :: Parser () -> Parser Atom
+pTuple s = debug "p[Expression]Tuple" $ lexeme do
     MP.try unit <|> tuple
   where unit = ATuple [] <$ pParens (pure ())
         tuple = ATuple <$> p
 
         p = do
-            pParens (lexemeN pExpression `sepBy2` lexemeN (pSymbol' ","))
+            pParens (lexemeN (pExpression s) `sepBy2` lexemeN (pSymbol' ","))
 
         sepBy2 p sep = do
             (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)

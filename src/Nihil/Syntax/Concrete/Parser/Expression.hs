@@ -14,15 +14,14 @@ import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 
-pExpression :: Parser AExpr
-pExpression = debug "pExpression" $ do
-    lineFold \s -> do
-        atoms <- withPosition ((:) <$> pAtom <*> MP.many (MP.try (s *> pAtom))))
-        typed <- MP.optional (typeAnnotation s)
-        whereB <- MP.optional (s *> pWhere)
+pExpression :: Parser () -> Parser AExpr
+pExpression s = debug "pExpression" $ do
+    atoms <- withPosition ((:) <$> pAtom s <*> MP.many (MP.try (s *> pAtom s)))
+    typed <- MP.optional (typeAnnotation s)
+    whereB <- MP.optional (s *> pWhere s)
 
-        let annotate t = locate [locate (ATypeAnnotated atoms t) NoSource] NoSource
-        let expr = maybe atoms annotate typed
-            where' ss = [locate [locate (AWhere expr ss) NoSource] NoSource]
-        pure (maybe expr where' whereB)
-  where typeAnnotation sp = debug "pTypeAnnotation" $ MP.try sp *> pSymbol' ":" *> MP.try sp *> pType
+    let annotate t = locate [locate (ATypeAnnotated atoms t) NoSource] NoSource
+    let expr = maybe atoms annotate typed
+        where' ss = locate [locate (AWhere expr ss) NoSource] NoSource
+    pure (maybe expr where' whereB)
+  where typeAnnotation sp = debug "pTypeAnnotation" $ MP.try sp *> pSymbol' ":" *> MP.try sp *> pType sp

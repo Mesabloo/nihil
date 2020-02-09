@@ -18,40 +18,34 @@ import Nihil.Syntax.Concrete.Parser.Expression.TypeHole
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Utils.Source
-import Nihil.Utils.Annotation
 import Control.Applicative ((<|>))
-import Data.Bifunctor (first)
 import qualified Text.Megaparsec as MP
-import qualified Data.Text as Text
 
-pAtom :: Parser AAtom
-pAtom = debug "p[Expression]Atom" $ MP.try pOperator <|> pAtom'
+pAtom :: Parser () -> Parser AAtom
+pAtom s = debug "p[Expression]Atom" $ MP.try pOperator <|> pAtom' s
 
-pAtom' :: Parser AAtom
-pAtom' = MP.try pApplication <|> pAtomNoApp
+pAtom' :: Parser () -> Parser AAtom
+pAtom' s = MP.try (pApplication s) <|> pAtomNoApp s
 
-pAtomNoApp :: Parser AAtom
-pAtomNoApp = withPosition (MP.choice atoms)
+pAtomNoApp :: Parser () -> Parser AAtom
+pAtomNoApp s = withPosition (MP.choice atoms)
   where atoms =
             [ pTypeHole
-            , pLambda
-            , pMatch
-            , MP.try pTuple
-            , pLet
+            , pLambda s
+            , pMatch s
+            , MP.try (pTuple s)
+            , pLet s
             , AId . annotated      <$> MP.choice
-                [ hoist <$> pIdentifier
+                [ pIdentifier
                 , MP.try (pParens pAnySymbolᵉ)
-                , hoist <$> pIdentifier' ] MP.<?> "identifier"
+                , pIdentifier' ] MP.<?> "identifier"
             , ALiteral . annotated <$> MP.try pFloat
             , ALiteral . annotated <$> pInteger
             , ALiteral . annotated <$> pCharacter
             , ALiteral . annotated <$> pString
-            , AParens              <$> pParens pExpression ]
+            , AParens              <$> pParens (pExpression s) ]
 
-        hoist = hoistAnnotated (first Text.unpack)
-
-pApplication :: Parser AAtom
-pApplication = lexeme do
+pApplication :: Parser () -> Parser AAtom
+pApplication s = lexeme do
     withPosition (AApplication <$> exprs)
-  where exprs = lineFold \s -> do
-            (:) <$> pAtomNoApp <*> MP.some (MP.try (s *> pAtomNoApp))
+  where exprs = (:) <$> pAtomNoApp s <*> MP.some (MP.try (s *> pAtomNoApp s))

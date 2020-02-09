@@ -14,7 +14,6 @@ import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
-import qualified Data.Text as Text
 
 pPattern :: Parser [APattern]
 pPattern = debug "pPattern" $ lexeme do
@@ -22,9 +21,9 @@ pPattern = debug "pPattern" $ lexeme do
         let ~t = pOperator <|> MP.try (constructor s) <|> pAtom
         atoms <- (:) <$> t <*> MP.many (MP.try s *> t)
 
-        typed <- MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType)
+        typed <- MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType s)
         let annotate t = [locate (PTypeAnnotated atoms t) NoSource]
         pure (maybe atoms annotate typed)
   where constructor sp =
-            withPosition (PConstructor <$> (Text.unpack . annotated <$> pIdentifier')
+            withPosition (PConstructor <$> (annotated <$> pIdentifier')
                                        <*> MP.many (MP.try sp *> pAtom))

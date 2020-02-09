@@ -13,14 +13,14 @@ import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
 
-pTuple :: Parser Type
-pTuple = debug "p[Type]Tuple" $ do
+pTuple :: Parser () -> Parser Type
+pTuple s = debug "p[Type]Tuple" $ do
     MP.try unit <|> tuple
   where unit  = TTuple [] <$ pParens (pure ())
         tuple = TTuple <$> p
 
         p = do
-            pParens (lexemeN pType `sepBy2` lexemeN (pSymbol' ","))
+            pParens (lexemeN (pType s) `sepBy2` lexemeN (pSymbol' ","))
 
         sepBy2 p sep = do
             (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)
