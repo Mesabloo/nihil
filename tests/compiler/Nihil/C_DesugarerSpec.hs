@@ -4,7 +4,7 @@
 module Nihil.C_DesugarerSpec (spec) where
 
 import Test.Hspec
-import Nihil.Syntax (runLexer, runParser, runDesugarer)
+import Nihil.Syntax (runParser, runDesugarer)
 import Nihil.Utils.Source (locate, Located, SourcePos(NoSource))
 import Nihil.Syntax.Abstract
 import qualified Data.Text as Text (Text)
@@ -186,8 +186,7 @@ node = (`locate` NoSource)
 
 testAST :: Text.Text -> String -> Program -> Spec
 testAST code msg expected = do
-    let (Right lex) = runLexer code "test"
-    let (Right ast) = runParser lex "test"
+    let (Right ast) = runParser code "test"
     let (Right dst) = runDesugarer ast
     it msg do
         dst `shouldBe` expected

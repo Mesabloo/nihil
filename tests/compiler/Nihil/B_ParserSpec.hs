@@ -4,7 +4,7 @@
 module Nihil.B_ParserSpec (spec) where
 
 import Test.Hspec
-import Nihil.Syntax (runParser, runLexer)
+import Nihil.Syntax (runParser)
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (locate, SourcePos(NoSource), Located)
 import qualified Data.Text as Text (Text)
@@ -42,8 +42,8 @@ spec = parallel do
         describe "Test on type annotated expression"  expressionTypeAnnotatedValueTest
         describe "Test on expression application"     expressionApplicationValueTest
         describe "Test on parenthesized expression"   expressionParensValueTest
-        xdescribe "Test on let expression"             expressionLetInValueTest
-        xdescribe "Test on where expression"           expressionWhereValueTest
+        describe "Test on let expression"             expressionLetInValueTest
+        describe "Test on where expression"           expressionWhereValueTest
         describe "Test on lambda expression"           expressionLambdaValueTest
         describe "Test on match expression"            expressionMatchWithValueTest
     describe "Test on top-level statements" do
@@ -54,8 +54,7 @@ spec = parallel do
 
 blankInputStreamTest :: Spec
 blankInputStreamTest = do
-    let (Right lex) = runLexer "" "test"
-    let (Left ____) = runParser lex "test"
+    let (Left ____) = runParser "" "test"
     pure ()
 
 typeUnitDeclarationTest :: Spec
@@ -189,12 +188,12 @@ expressionParensValueTest = do
 
 expressionLetInValueTest :: Spec
 expressionLetInValueTest = do
-    testAST "g = let f = 0\n        h = f in h" "let expression"
+    testAST "g = let\n      f = 0\n      h = f in h" "let expression"
         (Program [node (FunDefinition "g" [] (node [node (ALet [node (FunDefinition "f" [] (node [node (ALiteral (LInteger 0))])), node (FunDefinition "h" [] (node [node (AId "f")]))] (node [node (AId "h")]))]))])
 
 expressionWhereValueTest :: Spec
 expressionWhereValueTest = do
-    testAST "w = f where g = 0\n            f = g" "where expression"
+    testAST "w = f\n  where\n    g = 0\n    f = g" "where expression"
         (Program [node (FunDefinition "w" [] (node [node (AWhere (node [node (AId "f")]) [node (FunDefinition "g" [] (node [node (ALiteral (LInteger 0))])), node (FunDefinition "f" [] (node [node (AId "g")]))])]))])
 
 expressionLambdaValueTest :: Spec
@@ -233,7 +232,7 @@ toplevelCustomTypesDeclarationTest = do
         testAST "type X = Y" "type alias"
             (Program [node (TypeDefinition "X" [] (node (TypeAlias [node (TId "Y")])))])
     describe "Test on GADT" do
-        testAST "data X where Y: X" "GADT"
+        testAST "data X where\n    Y: X" "GADT"
             (Program [node (TypeDefinition "X" [] (node (GADT (Map.fromList [("Y", [node (TId "X")])]))))])
 
 ---------------------------------------------------------------------------------------------
@@ -243,7 +242,6 @@ node = (`locate` NoSource)
 
 testAST :: Text.Text -> String -> Program -> Spec
 testAST code name expected = do
-    let (Right lex) = runLexer code "test"
-    let (Right ast) = runParser lex "test"
+    let (Right ast) = runParser code "test"
     it ("should return a well-formed " <> name) do
         ast `shouldBe` expected
