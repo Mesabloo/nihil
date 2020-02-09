@@ -19,8 +19,8 @@ pLet s = debug "pLet" $ do
     stts <- indentBlock do
         pKeyword "let"
         pure (IndentSome Nothing pure def)
-    pKeyword "in"
-    ALet stts <$> pExpression s
+    MP.try s *> pKeyword "in"
+    ALet stts <$> (MP.try s *> pExpression s)
 
 def :: Parser AStatement
 def = MP.try pFunctionDeclaration <|> pFunctionDefinition
