@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Nihil.Syntax.Concrete.Parser.Expression.Match
 ( pMatch ) where
@@ -19,20 +20,15 @@ import Control.Applicative ((<|>))
 
 pMatch :: Parser Atom
 pMatch = debug "pMatch" $ do
-    pos <- getSourcePos
-    pKeyword "match"
-    expr <- sameLineOrIndented pos pExpression
-    pKeyword "with"
-    AMatch expr <$> (pBraces (pCases pos) <|> pCases pos)
-
-pCases :: SourcePos -> Parser [([APattern], AExpr)]
-pCases pos = sameLineOrIndented pos do
-    pos' <- getSourcePos
-    MP.some (sameLineOrColumn pos' pBranch <* MP.many (pSymbol ";"))
+    lineFold \s -> indentBlock do
+        pKeyword "match"
+        expr <- MP.try s *> pExpression
+        MP.try s *> pKeyword "with"
+        pure (IndentSome Nothing (pure . AMatch expr) pBranch)
 
 pBranch :: Parser ([APattern], AExpr)
-pBranch = do
-    pos <- getSourcePos
-    pat <- pPattern
-    sameLineOrIndented pos (pSymbol "->" <|> pSymbol "→")
-    (pat, ) <$> sameLineOrIndented pos pExpression
+pBranch = lexeme do
+    lineFold \s -> do
+        pat <- pPattern
+        MP.try s *> (pSymbol' "->" <|> pSymbol' "→")
+        (pat, ) <$> (MP.try s *> pExpression)

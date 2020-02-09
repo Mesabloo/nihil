@@ -1,3 +1,6 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Nihil.Syntax.Concrete.Parser.Expression.Tuple where
 
 import Nihil.Syntax.Common (Parser)
@@ -11,9 +14,13 @@ import Control.Applicative ((<|>))
 import qualified Text.Megaparsec as MP
 
 pTuple :: Parser Atom
-pTuple = debug "p[Expression]Tuple" $ do
-    pos <- getSourcePos
-    MP.try unit <|> tuple pos
-  where unit      = ATuple [] <$ pParens (pure ())
-        tuple pos = ATuple <$> pParens ((:) <$> sameLineOrIndented pos pExpression
-                                            <*> MP.some (sameLineOrIndented pos (pSymbol ",") *> sameLineOrIndented pos pExpression))
+pTuple = debug "p[Expression]Tuple" $ lexeme do
+    MP.try unit <|> tuple
+  where unit = ATuple [] <$ pParens (pure ())
+        tuple = ATuple <$> p
+
+        p = do
+            pParens (lexemeN pExpression `sepBy2` lexemeN (pSymbol' ","))
+
+        sepBy2 p sep = do
+            (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)
