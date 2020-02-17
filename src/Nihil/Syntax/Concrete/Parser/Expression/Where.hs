@@ -15,5 +15,5 @@ import Control.Applicative ((<|>))
 pWhere :: Parser () -> Parser [AStatement]
 pWhere s = debug "pWhere" $ do
     pKeyword "where"
-    indentBlock def
+    indentBlock1 def
   where def = MP.try pFunctionDeclaration <|> pFunctionDefinition

@@ -17,7 +17,7 @@ import Control.Applicative ((<|>))
 pLet :: Parser () -> Parser Atom
 pLet s = debug "pLet" $ do
     pKeyword "let"
-    stts <- indentBlock def
+    stts <- indentBlock1 def
     MP.try s *> pKeyword "in"
     ALet stts <$> (MP.try s *> pExpression s)
 

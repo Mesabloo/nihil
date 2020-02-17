@@ -43,7 +43,7 @@ pGADT = debug "pGADT" $ withPosition do
         let ~constructor = lineFold \s -> do
                 (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s))
 
-        ctors <- indentBlock constructor
+        ctors <- indentBlock1 constructor
 
         pure (TypeDefinition name tvs (locate (GADT (Map.fromList ctors)) NoSource))
 

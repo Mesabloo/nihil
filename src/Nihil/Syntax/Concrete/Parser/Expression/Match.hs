@@ -21,7 +21,7 @@ pMatch s = debug "pMatch" $ do
     pKeyword "match"
     expr <- MP.try s *> pExpression s
     MP.try s *> pKeyword "with"
-    AMatch expr <$> indentBlock pBranch
+    AMatch expr <$> indentBlock1 pBranch
 
 pBranch :: Parser ([APattern], AExpr)
 pBranch = debug "pBranch" $ lexeme do
