@@ -7,7 +7,7 @@ module Nihil.Syntax.Concrete.Parser
 ( -- * Getting source position
   getSourcePos, withPosition
   -- * Indentation-sensitive parsing
-, nonIndented, indentBlock1, indentLevel, lineFold, lexeme, lexemeN, spacen1, MPL.IndentOpt(..) ) where
+, nonIndented, indentBlock, indentBlock1, indentLevel, lineFold, lexeme, lexemeN, spacen1, MPL.IndentOpt(..) ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
@@ -54,14 +54,18 @@ nonIndented = MPL.nonIndented spacen1
 indentLevel :: Parser MP.Pos
 indentLevel = MPL.indentLevel
 
--- | See @'MPL.indentBlock'@.
+-- | @'indentBlock'@ but it parses at least one time.
 indentBlock1 :: Parser a -> Parser [a]
 indentBlock1 p = do
     MP.try spacen1
     pos <- indentLevel
     (:) <$> p <*> MP.many (MP.try (MPL.indentGuard spacen1 EQ pos *> p))
 
-
+indentBlock :: Parser a -> Parser [a]
+indentBlock p = do
+    MP.try spacen1
+    pos <- indentLevel
+    MP.many (MP.try (MPL.indentGuard spacen1 EQ pos *> p))
 
 -- | See @'MPL.lineFold'@.
 lineFold :: (Parser () -> Parser a) -> Parser a
