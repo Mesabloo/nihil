@@ -19,6 +19,7 @@ keywords :: [Text.Text]
 keywords =
     [ "match", "with"
     , "data", "type"
+    , "class", "instance"
     , "let", "in", "where"
     , "infixl", "infixr" ]
 

@@ -8,6 +8,8 @@ import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Parser.Statement.FunctionDeclaration
 import Nihil.Syntax.Concrete.Parser.Statement.OperatorFixity
 import Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
+import Nihil.Syntax.Concrete.Parser.Statement.ClassDeclaration
+import Nihil.Syntax.Concrete.Parser.Statement.InstanceDeclaration
 import qualified Text.Megaparsec as MP
 
 pProgram :: Parser Program
@@ -20,5 +22,7 @@ pStatement = nonIndented do
         , pTypeAlias
         , MP.try pADT
         , pGADT
+        , pTypeClass
+        , pInstanceDeclaration
         , MP.try pFunctionDeclaration
         , pFunctionDefinition ]

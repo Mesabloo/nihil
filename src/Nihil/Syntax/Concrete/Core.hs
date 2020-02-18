@@ -19,6 +19,10 @@ data Statement
     | FunDefinition String [APattern] AExpr       -- ^ > { fun x _ 4 = x - 9 }
     | OperatorFixity String AFixity               -- ^ > { infixl 4 + }
     | TypeDefinition String [String] ACustomType  -- ^ > { type Algebra f a = f a → a }
+    | ClassDefinition (Located String, [Located String])
+                              [AStatement]        -- ^ > { class Functor f where fmap: (a -> b) -> f a -> f b }
+    | InstanceDefinition (Located String, [AType])
+                                 [AStatement]     -- ^ > { instance Functor Identity where fmap f (Identity x) = Identity (f x) }
   deriving
     ( -- | Use only for debugging
       Show
