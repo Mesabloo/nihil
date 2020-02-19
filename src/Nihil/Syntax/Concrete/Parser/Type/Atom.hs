@@ -19,5 +19,6 @@ atoms :: Parser () -> [Parser Type]
 atoms s =
     [ TVar . annotated <$> pIdentifier
     , TId . annotated  <$> pIdentifier'
+    , MP.try (TId . annotated <$> pParens pAnySymbolᵗ)
     , MP.try (pTuple s)
     , TParens          <$> pParens (pType s) ]
