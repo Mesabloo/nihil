@@ -25,7 +25,11 @@ instance Pretty Statement' where
     pretty (TypeDefinition name tvs ct)  = case annotated ct of
         TypeAlias ty  -> text "type" <+> text name <+> sep (fmap text tvs) <+> equals <+> pretty ty
         SumType ctors -> text "data" <+> text name <+> sep (fmap text tvs) <+> text "where" <+> semiBraces (Map.elems (Map.mapWithKey pretty' ctors))
-          where pretty' name scheme = text name <+> colon <+> pretty scheme
+          where pretty' name scheme = text name <+> colon <+> pretty scheme <+> semi
+    pretty (ClassDefinition ty decls) =
+        text "class" <+> pretty ty <+> text "where" <+> semiBraces (fmap ((<+> semi) . pretty) decls)
+    pretty (InstanceDefinition ty defs) =
+        text "instance" <+> pretty ty <+> text "where" <+> semiBraces (fmap ((<+> semi) . pretty) defs)
 
 instance Pretty Type' where
     pretty (TId i)              = if isOperator i then parens (text i) else text i
