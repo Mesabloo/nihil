@@ -45,7 +45,13 @@ instance Pretty Statement where
             text "data" <+> text name <+> sep (fmap text tvs) <+> text "where"
              <+> semiBraces (Map.elems (Map.mapWithKey prettyCtor ctors))
           where prettyCtor :: String -> [AType] -> Doc
-                prettyCtor name ts = text name <+> colon <+> pretty ts
+                prettyCtor name ts = text name <+> colon <+> pretty ts <+> semi
+    pretty (ClassDefinition (name, params) decls) =
+        text "class" <+> text (annotated name) <+> sep (fmap (text . annotated) params) <+> text "where" <$>
+            indent 4 (mconcat (fmap pretty decls))
+    pretty (InstanceDefinition (name, args) defs) =
+        text "instance" <+> text (annotated name) <+> pretty args <+> text "where" <$>
+            indent 4 (mconcat (fmap pretty defs))
 
 instance {-# OVERLAPPING #-} Pretty [AType] where
     pretty = sep . fmap pretty
