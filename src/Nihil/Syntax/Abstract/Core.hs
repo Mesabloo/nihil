@@ -18,6 +18,8 @@ data Statement'
     = FunctionDeclaration String Type               -- ^ > { f : t }
     | FunctionDefinition String Expr                -- ^ > { f = e }
     | TypeDefinition String [String] CustomType     -- ^ > { type F s = s } or { data X a = X a }
+    | ClassDefinition Scheme [Statement]            -- ^ > { class ∀ c. Category c where id: ∀ c. Category c => c a a }
+    | InstanceDefinition Type [Statement]           -- ^ > { instance Category Op where id = Op id }
   deriving
     ( -- | use only for debugging
       Show

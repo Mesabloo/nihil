@@ -11,6 +11,7 @@ import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Syntax.Common (Desugarer)
 import Nihil.Utils.Source
 import Nihil.Utils.Debug (log)
+import Nihil.Utils.Annotation
 import Nihil.Utils.Impossible
 import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
@@ -22,6 +23,8 @@ import Data.Functor ((<&>))
 import Control.Monad (forM, when)
 import Control.Monad.Except (throwError)
 import Prelude hiding (log)
+import Data.Maybe (catMaybes)
+import Data.Foldable (foldlM)
 
 {-| Desugars a bunch of statements
 
@@ -74,6 +77,25 @@ desugarStatement s ss =
                 fold' _                            = impossible "Function definition for equational pattern matching are already filtered!"
 
                 generateID (supply :: Integer, acc) pat = (supply + 1, locate (CC.PId ("#" <> show supply)) (location pat):acc)
+        CC.ClassDefinition (name, params) stts -> do
+            let transformLocated f = hoistAnnotated (first f)
+                locate' acc t =
+                    let pos = location acc
+                    in locate (AC.TApplication acc (transformLocated AC.TVar t)) pos
+            let classType = foldl locate' (transformLocated AC.TId name) params
+
+            AC.Program stts <- desugarProgram (CC.Program stts)
+            pure (Just (AC.ClassDefinition (AC.Forall (annotated <$> params) classType) stts), ss)
+        CC.InstanceDefinition (name, args) defs -> do
+            let transformLocated f = hoistAnnotated (first f)
+                locate' acc t = do
+                    let pos = location acc
+                    ty <- desugarType [t]
+                    pure (locate (AC.TApplication acc ty) pos)
+            instanceType <- foldlM locate' (transformLocated AC.TId name) args
+
+            AC.Program stts <- desugarProgram (CC.Program defs)
+            pure (Just (AC.InstanceDefinition instanceType stts), ss)
 
 -- | Desugaring helper for “Equational Pattern Matching”.
 desugarEPM :: String -> [CC.APattern] -> [([CC.APattern], CC.AExpr)] -> SourcePos -> Desugarer (Maybe AC.Statement')

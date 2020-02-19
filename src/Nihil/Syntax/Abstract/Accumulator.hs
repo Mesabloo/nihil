@@ -66,6 +66,11 @@ accumulateOnStatement (FunDefinition _ pats ex) = do
 accumulateOnStatement (TypeDefinition _ _ ct) = do
     let ty = annotated ct
     accumulateOnCustomType ty
+accumulateOnStatement (ClassDefinition (_, _) ss) =
+    accumulateOnProgram (Program ss)
+accumulateOnStatement (InstanceDefinition (_, ts) ss) = do
+    accumulateOnType ts
+    accumulateOnProgram (Program ss)
 
 accumulateOnCustomType :: CustomType -> Desugarer ()
 accumulateOnCustomType (TypeAlias ty) = accumulateOnType ty
