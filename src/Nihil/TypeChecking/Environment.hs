@@ -3,6 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Nihil.TypeChecking.Environment where
@@ -17,7 +19,8 @@ newtype Env t = Env { unwrap :: Map.Map String t }
     ( -- | Use only for debugging
       Show
     , Monoid, Semigroup
-    , Functor )
+    , Functor
+    , Foldable, Traversable )
 
 instance Substitutable t => Substitutable (Env t) where
     type Subst (Env t) = Subst t
