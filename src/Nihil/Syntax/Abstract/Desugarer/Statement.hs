@@ -84,14 +84,14 @@ desugarStatement s ss =
                     in locate (AC.TApplication acc (transformLocated AC.TVar t)) pos
             let classType = foldl locate' (transformLocated AC.TId name) params
 
-            let addConstraint = hoistAnnotated (first plusConst)
+            let -- addConstraint = hoistAnnotated (first plusConst)
                 plusConst (AC.FunctionDeclaration name ty) =
                     let pos = location ty
                     in AC.FunctionDeclaration name (locate (AC.Implements classType ty) pos)
                 plusConst g = g
 
             AC.Program stts <- desugarProgram (CC.Program stts)
-            pure (Just (AC.ClassDefinition (AC.Forall (annotated <$> params) classType) (addConstraint <$> stts)), ss)
+            pure (Just (AC.ClassDefinition (AC.Forall (annotated <$> params) classType) {- (addConstraint <$> stts) -} stts), ss)
         CC.InstanceDefinition (name, args) defs -> do
             let transformLocated f = hoistAnnotated (first f)
                 locate' acc t = do
