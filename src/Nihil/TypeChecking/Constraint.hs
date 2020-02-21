@@ -12,6 +12,10 @@ data TypeConstraint
     = Type :>~ Type     -- ^ Type equality
   deriving Show
 
+data ClassConstraint
+    = Implements Type
+  deriving Show
+
 -- | Unification constraints for kinds
 data KindConstraint
     = Kind :*~ Kind     -- ^ Kind equality
@@ -29,3 +33,10 @@ instance Substitutable KindConstraint where
     free (k1 :*~ k2) = free k1 `Set.union` free k2
 
     apply s (k1 :*~ k2) = apply s k1 :*~ apply s k2
+
+instance Substitutable ClassConstraint where
+    type Subst ClassConstraint = Subst Type
+
+    free (Implements ty) = free ty
+
+    apply s (Implements ty) = Implements (apply s ty)
