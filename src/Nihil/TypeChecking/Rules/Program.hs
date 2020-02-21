@@ -12,7 +12,6 @@ import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType, coerceScheme)
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible (impossible)
-import Nihil.Utils.Debug hiding (error)
 import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.TypeChecking.Errors.RedeclaredFunction
 import Nihil.TypeChecking.Errors.Redefined
