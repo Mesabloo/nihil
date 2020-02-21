@@ -12,6 +12,7 @@ instance Pretty Kind where
     pretty KStar                = text "*"
     pretty (KVar v)             = text v
     pretty KArrow               = text "(->)"
+    pretty KConstraint          = text "Constraint"
     pretty (KApplication k1 k2) = prettyᵏ k1 <+> pretty k2
       where prettyᵏ k@KApplication{} = parens (pretty k)
             prettyᵏ k                = pretty k
@@ -28,6 +29,7 @@ instance Pretty Type' where
                     _                    -> parens (pretty t)
             prettyᵗ t                = pretty t
     pretty (TPrim ty)           = text ty
+    pretty (TImplements t1 t2)  = pretty t1 <+> text "=>" <+> pretty t2
 
 instance Pretty t => Pretty (Scheme t) where
     pretty (Forall vars x) = text "forall" <+> sep (fmap text vars) <> dot <+> pretty x

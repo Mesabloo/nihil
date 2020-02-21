@@ -21,6 +21,7 @@ data Kind
     | KVar String             -- ^ > { k }
     | KApplication Kind Kind  -- ^ > { k₁ k₂ }
     | KArrow                  -- ^ > { -> } or { → }
+    | KConstraint             -- ^ > { Eq: * -> Constraint }
   deriving
     ( -- | Use only for debugging
       Show
@@ -45,6 +46,7 @@ data Type'
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
     | TPrim String
+    | TImplements Type Type   -- ^ > { c => t }
   deriving
     ( -- | Use only for debugging
       Show
@@ -54,6 +56,7 @@ type CustomType = Located (Scheme CustomType')
 data CustomType'
     = TypeAlias Type                        -- ^ > type T = { U a b }
     | GADT (Map.Map String (Scheme Type))   -- ^ > data X where { C : X }
+    | Class (Map.Map String (Scheme Type))  -- ^ > class X a where { f: X a => a }
   deriving
     ( -- | Use only for debugging
       Show
@@ -71,11 +74,13 @@ instance Substitutable Type' where
     free (TVar v)             = Set.singleton v
     free (TTuple ts)          = free ts
     free (TApplication t1 t2) = free [t1, t2]
+    free (TImplements t1 t2)  = free [t1, t2]
     free _                    = mempty
 
     apply (Subst sub) tv@(TVar v) = fromMaybe tv (Map.lookup v sub)
     apply s (TTuple ts)           = TTuple (apply s ts)
     apply s (TApplication t1 t2)  = TApplication (apply s t1) (apply s t2)
+    apply s (TImplements t1 t2)   = TImplements (apply s t1) (apply s t2)
     apply _ t                     = t
 
 instance (Substitutable a, Subst a ~ Subst' b) => Substitutable (Scheme a) where

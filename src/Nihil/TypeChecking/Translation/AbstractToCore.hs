@@ -14,6 +14,7 @@ coerceType = hoistAnnotated f
     g (AC.TVar v            ) = TRigid v
     g (AC.TApplication t1 t2) = TApplication (coerceType t1) (coerceType t2)
     g (AC.TTuple ts         ) = TTuple (coerceType <$> ts)
+    g (AC.Implements t1 t2  ) = TImplements (coerceType t1) (coerceType t2)
 
 -- | Converts a desugared 'AC.Scheme' (@∀ vs. ty@) into a 'Scheme' understandable by the typechecker.
 coerceScheme :: AC.Scheme -> Scheme Type
