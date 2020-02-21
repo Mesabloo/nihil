@@ -21,10 +21,9 @@ import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Errors.UnboundName
 import Nihil.TypeChecking.Rules.Inference
 import Control.Arrow ((&&&))
-import Control.Monad.Writer (tell)
 import Control.Monad.Except (throwError)
 import Control.Monad.Reader (local)
-import Control.Lens (use, (+=), views, (%~), view)
+import Control.Lens (use, (+=), views, (%~), view, scribe)
 import Prelude hiding (lookup, log)
 import Control.Applicative ((<|>))
 import Control.Monad (guard, mapAndUnzipM, forM)
@@ -42,8 +41,8 @@ inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> Maybe Type -> Infer
 inferFunctionDefinition pos name ex ty = do
     tv  <- fresh "$" pos
     fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
-    maybe (pure ()) (\t -> tell [fty :>~ t]) ty
-    tell [fty :>~ tv]
+    maybe (pure ()) (\t -> scribe typeConstraint [fty :>~ t]) ty
+    scribe typeConstraint [fty :>~ tv]
     pure fty
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
@@ -72,7 +71,7 @@ inferETypeHole :: SourcePos -> InferType Type
 inferETypeHole pos = do
     hole <- fresh "_" pos
     ty   <- fresh "$" pos
-    tell [hole :>~ ty]
+    scribe typeConstraint [hole :>~ ty]
     pure hole
 
 -- | Infers the type of an identifier.
@@ -88,7 +87,7 @@ inferEApplication e1 e2 pos = do
     ty1 <- inferExpr e1
     ty2 <- inferExpr e2
     tyv <- fresh "$" pos
-    tell [ty1 :>~ tFun ty2 tyv pos]
+    scribe typeConstraint [ty1 :>~ tFun ty2 tyv pos]
     pure tyv
 
 -- | Infers the type of a tuple.
@@ -101,7 +100,7 @@ inferETuple es pos = do
 inferETypeAnnotated :: AC.Expr -> AC.Type -> SourcePos -> InferType Type
 inferETypeAnnotated expr ty pos = do
     exTy <- inferExpr expr
-    tell [exTy :>~ coerceType ty]
+    scribe typeConstraint [exTy :>~ coerceType ty]
     pure exTy
 
 -- | Infers the type of a lambda abstraction.
@@ -126,7 +125,7 @@ inferEMatch ex branches pos = do
     let (ret:xs, patsTy) = result
 
     let constraints = (uncurry (:>~) <$> (zipFrom ret xs <> zipFrom ty patsTy))
-    log constraints (tell constraints)
+    log constraints (scribe typeConstraint constraints)
     pure ret
   where zipFrom = zip . repeat
 
@@ -139,12 +138,12 @@ inferELet stts ex pos = do
   where inferStmt name (That def)       = do
             tv <- fresh "$" pos
             ty <- inEnvMany [(name, Forall [] tv)] (inferExpr def)
-            tell [ty :>~ tv]
+            scribe typeConstraint [ty :>~ tv]
             env <- view funDefCtx
             pure (generalize env ty)
         inferStmt name (These decl def) = do
             scheme@(Forall _ ty) <- inferStmt name (That def)
-            tell [ty :>~ coerceType decl]
+            scribe typeConstraint [ty :>~ coerceType decl]
             pure scheme
         inferStmt name (This _)         =
             throwError (lacksBind (locate name pos))
@@ -207,7 +206,7 @@ inferPTypeAnnotated :: AC.Pattern -> AC.Type -> SourcePos -> InferType PatternEn
 inferPTypeAnnotated pat ty pos = do
     (pty, env) <- inferPattern pat
     let ty' = coerceType ty
-    tell [ty' :>~ pty]
+    scribe typeConstraint [ty' :>~ pty]
     pure (ty', env)
 
 -- | Infers the type of a pattern data constructor.
@@ -220,7 +219,7 @@ inferPConstructor n ps pos = do
         <|> throwError (missingConstructorArgument (locate n pos) (length tys) (length ps))
 
     (tys', env) <- fmap mconcat <$> mapAndUnzipM inferPattern ps
-    tell (uncurry (:>~) <$> zip tys tys')
+    scribe typeConstraint (uncurry (:>~) <$> zip tys tys')
     pure (ret, env)
   where lookupCtor :: String -> InferType (Scheme Type)
         lookupCtor name = do
@@ -235,9 +234,6 @@ foldParams t = case annotated t of
           | annotated t3 == TId "→"  -> first (t4 :) (foldParams t2)
         _                            -> ([], t)
     _                  -> ([], t)
-
-instance Functor ((,,) a b) where
-    fmap f (a, b, c) = (a, b, f c)
 
 ---------------------------------------------------------------------------------------------------
 

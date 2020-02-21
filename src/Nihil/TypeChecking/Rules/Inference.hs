@@ -10,7 +10,7 @@ import Control.Monad.Except (runExcept)
 import qualified Data.Set as Set
 
 -- | Runs an inference action with a default environment, and return either an error or the result and constraints generated.
-runInfer :: e -> Infer e cs a -> Either Doc (a, [cs])
+runInfer :: e -> Infer e cs a -> Either Doc (a, cs)
 runInfer env inf = runExcept (evalRWST inf env (IState 0))
 
 -- | Generalizes a substitutable value with a substitutable environment and returns a 'Scheme' object.

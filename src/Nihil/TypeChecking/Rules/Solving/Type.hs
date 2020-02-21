@@ -12,7 +12,7 @@ import Nihil.TypeChecking.Environment
 import Nihil.TypeChecking.Rules.Solving (runSolve)
 import Nihil.TypeChecking.Errors.TypeHole
 import Nihil.Utils.Source
-import Nihil.Utils.Debug
+import Nihil.Utils.Debug hiding (error)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad (when)
@@ -20,16 +20,17 @@ import Control.Monad.Except (throwError, liftEither)
 import Prelude hiding (log)
 
 -- | Solves the 'TypeConstraint's given and returns a substitution to 'apply'.
-solve :: Subst Type -> [TypeConstraint] -> SolveType (Subst Type)
-solve sub []                 = do
+solve :: Subst Type -> TCConstraints -> SolveType (Subst Type)
+solve sub (TCConstraints [] [])                 = do
     log sub (liftEither (runTypeHoleInspector sub))
     pure sub
-solve sub ((t1 :>~ t2) : ts) = do
+solve sub (TCConstraints [] _) = error "Not yet implemented"
+solve sub (TCConstraints ((t1 :>~ t2) : ts) ccs) = do
     sub' <- unify t1 t2
-    solve (sub' <> sub) (apply sub' ts)
+    solve (sub' <> sub) (TCConstraints (apply sub' ts) (apply sub' ccs))
 
 -- | Runs the type constraints solver given an initial environment and returns a substitution to 'apply'.
-runTypeSolver :: GlobalEnv -> [TypeConstraint] -> Either Doc (Subst Type)
+runTypeSolver :: GlobalEnv -> TCConstraints -> Either Doc (Subst Type)
 runTypeSolver env cons = runSolve env (solve mempty cons)
 
 -- | Runs the type hole inspector on a substitution to detect type hole variables and throw errors.

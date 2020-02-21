@@ -10,6 +10,9 @@ module Nihil.TypeChecking.Common
 , SolveType
 , InferType
 , TypeCheck
+, TCConstraints(TCConstraints)
+, typeConstraint
+, classConstraint
   -- * Kinds
 , SolveKind
 , InferKind
@@ -28,14 +31,28 @@ type Solve e a = ExceptT Doc (Reader e) a
 type SolveType a = Solve GlobalEnv a
 type SolveKind a = Solve KindEnv a
 
-type Infer e cs a = RWST e [cs] InferState (Except Doc) a
-type InferType a = Infer GlobalEnv TypeConstraint a
-type InferKind a = Infer KindEnv KindConstraint a
-
 data InferState
     = IState
     { _supply :: Int    -- ^ Supply count; incremented each time a new variable is created.
     }
 makeLenses ''InferState
+
+data TCConstraints
+    = TCConstraints
+    { _typeConstraint  :: [TypeConstraint]
+    , _classConstraint :: [ClassConstraint]
+    }
+  deriving Show
+makeLenses ''TCConstraints
+
+instance Semigroup TCConstraints where
+    TCConstraints tc1 cc1 <> TCConstraints tc2 cc2 = TCConstraints (tc1 <> tc2) (cc1 <> cc2)
+
+instance Monoid TCConstraints where
+    mempty = TCConstraints mempty mempty
+
+type Infer e cs a = RWST e cs InferState (Except Doc) a
+type InferType a = Infer GlobalEnv TCConstraints a
+type InferKind a = Infer KindEnv [KindConstraint] a
 
 type TypeCheck a = StateT GlobalEnv (Except Doc) a
