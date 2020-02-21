@@ -43,14 +43,17 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
 
         tFun t1 t2 = locate (TApplication (locate (TApplication (locate (TId "->") dummyPos) t1) dummyPos) t2) dummyPos
         kArr k1 k2 = KApplication (KApplication KArrow k1) k2
-
+        infixr 1 `kArr`
+        
         defaultTypeCtx :: Map.Map String Kind
         defaultTypeCtx = Map.fromList
             [ ("Integer", KStar)
             , ("Double",  KStar)
             , ("Char",    KStar)
             , ("List",    KStar `kArr` KStar)
-            , ("()",      KStar) ]
+            , ("()",      KStar)
+            , ("->",      KStar `kArr` KStar `kArr` KStar)
+            , ("→",       KStar `kArr` KStar `kArr` KStar) ]
 
         defaultCustomTypes :: Map.Map String CustomType
         defaultCustomTypes = Map.fromList
