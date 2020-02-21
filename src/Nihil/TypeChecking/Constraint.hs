@@ -19,6 +19,7 @@ data ClassConstraint
 -- | Unification constraints for kinds
 data KindConstraint
     = Kind :*~ Kind     -- ^ Kind equality
+  deriving Show
 
 instance Substitutable TypeConstraint where
     type Subst TypeConstraint = Subst Type

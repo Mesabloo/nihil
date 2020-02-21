@@ -54,9 +54,9 @@ data Type'
 
 type CustomType = Located (Scheme CustomType')
 data CustomType'
-    = TypeAlias Type                        -- ^ > type T = { U a b }
-    | GADT (Map.Map String (Scheme Type))   -- ^ > data X where { C : X }
-    | Class (Map.Map String (Scheme Type))  -- ^ > class X a where { f: X a => a }
+    = TypeAlias Type                              -- ^ > type T = { U a b }
+    | GADT (Map.Map String (Scheme Type))         -- ^ > data X where { C : X }
+    | Class Type (Map.Map String (Scheme Type))   -- ^ > { class X a where f: X a => a }
   deriving
     ( -- | Use only for debugging
       Show

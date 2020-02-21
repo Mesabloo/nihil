@@ -27,9 +27,10 @@ import Nihil.TypeChecking.Errors.GADTWrongReturnType
 import Nihil.TypeChecking.Errors.BindLack
 import Nihil.TypeChecking.Errors.NonVisibleMemberOfClass
 import Nihil.TypeChecking.Rules.Inference.Type
+import Nihil.TypeChecking.Errors.UndefinedType
 import Data.Align (align)
 import qualified Data.Map.Unordered as UMap
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
 import Control.Monad (void, when, replicateM)
@@ -43,7 +44,8 @@ import Prelude hiding (lookup, log)
 import qualified Prelude (lookup)
 import Control.Arrow ((>>>))
 import qualified Data.Set as Set
-import Data.List (nub)
+import Data.List (nub, (\\))
+import Data.Functor ((<&>))
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
@@ -78,34 +80,44 @@ typecheckTypeDef name sc@(Forall tvs cty) = do
 
             pure ctors
         Forall _ (TypeAlias _)  -> pure mempty
-        Forall _ (Class _) -> impossible "Type classes are already filtered"
+        Forall _ (Class _ _) -> impossible "Type classes are already filtered"
 
     constructorCtx %= union (Env schemes)
 
-typeCheckClassDef :: Scheme Type -> [AC.Statement] -> TypeCheck ()
-typeCheckClassDef ty@(Forall tvs t) stts = do
+typecheckClassDef :: Scheme Type -> [AC.Statement] -> TypeCheck ()
+typecheckClassDef ty@(Forall tvs t) stts = do
     env <- use typeCtx
     let name = findClassName t
 
     when (isJust (lookup name env)) do
         throwError (redefinedType (locate name (location t)))
 
-    funs <- organizeStatements stts
+    funs@(_, decls) <- fmap (fmap (extractRigids . coerceType)) <$> organizeStatements stts
+    let minusTvs = decls <&> \(Forall tvs' ty) -> Forall (tvs' \\ tvs) ty
 
-    (kind, cs) <- liftEither (runInfer env (inferTypeClass ty (UMap.elems (Forall tvs . coerceType <$> snd funs))))
+    (kind, cs) <- liftEither (runInfer env (inferTypeClass ty (UMap.elems minusTvs)))
     sub        <- liftEither (runKindSolver env cs)
 
     typeCtx %= (`extend` (name, apply sub kind))
 
-    tcFuns <- Map.fromList . UMap.toList <$> UMap.traverseWithKey (handle' name) (uncurry align funs)
+    let funs' = second (const minusTvs) funs
+    tcFuns <- Map.fromList . UMap.toList <$> UMap.traverseWithKey (handle' name) (uncurry align funs')
 
-    customTypeCtx %= (`extend` (name, locate (Forall tvs (Class tcFuns)) (location t)))
-  where handle' :: String -> String -> These AC.Expr AC.Type -> TypeCheck (Scheme Type)
+    customTypeCtx %= (`extend` (name, locate (Forall tvs (Class t tcFuns)) (location t)))
+  where handle' :: String -> String -> These AC.Expr (Scheme Type) -> TypeCheck (Scheme Type)
         handle' cls name (This def) = throwError (nonVisibleMemberOf cls name (location def))
-        handle' cls name (That decl) = pure (generalize (mempty :: TypeEnv) (coerceType decl))
-        handle' cls name (These def decl) =
-            let ty = coerceType decl
-            in Forall tvs ty <$ check name def (Just ty)
+        handle' cls name (That decl) = pure decl
+        handle' cls name (These def decl@(Forall tvs ty)) =
+            decl <$ check name def (Just ty)
+
+typecheckInstance :: Type -> [AC.Statement] -> TypeCheck ()
+typecheckInstance ty stts = do
+    env <- use customTypeCtx
+    let name = findClassName ty
+
+    --()
+
+    pure ()
 
 findClassName :: Type -> String
 findClassName (annotated -> TId n) = n
@@ -121,9 +133,11 @@ separateTypeDefs ((annotated -> AC.TypeDefinition name tvs cty):ss) = do
     typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
     separateTypeDefs ss
 separateTypeDefs ((annotated -> AC.ClassDefinition ty stts):ss) = do
-    typeCheckClassDef (coerceScheme ty) stts
+    typecheckClassDef (coerceScheme ty) stts
     separateTypeDefs ss
-separateTypeDefs ((annotated -> AC.InstanceDefinition ty stts):ss) = error "Not yet implemented"
+separateTypeDefs ((annotated -> AC.InstanceDefinition ty stts):ss) = do
+    typecheckInstance (coerceType ty) stts
+    separateTypeDefs ss
 separateTypeDefs (d:ss) = (d :) <$> separateTypeDefs ss
 
 organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
@@ -156,7 +170,6 @@ handleStatement name (These def decl) = check name def (Just (coerceType decl))
 -- | Type checks a function definition.
 check :: String -> AC.Expr -> Maybe Type -> TypeCheck ()
 check name def decl = do
-    info ("For function " <> name <> ":") (pure ())
     let pos = location def
     env      <- get
 
@@ -169,21 +182,20 @@ check name def decl = do
             pure ()
 
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
-    info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
     let funType = apply sub ty
-    info funType (info (closeOver funType) (funDefCtx %= (`extend` (name, closeOver funType))))
+    funDefCtx %= (`extend` (name, closeOver funType))
 
 extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
-    where tvs = fold ty
+    where tvs = Set.toList (fold ty)
 
           fold (annotated -> t) = case t of
-              TRigid n -> [n]
+              TRigid n -> Set.singleton n
               TApplication t1 t2 -> fold t1 <> fold t2
-              TTuple ts -> concatMap fold ts
+              TTuple ts -> mconcat (fold <$> ts)
               TImplements t1 t2 -> fold t1 <> fold t2
-              _ -> []
+              _ -> mempty
 
 -------------------------------------------------------------------------------------------------------------------
 

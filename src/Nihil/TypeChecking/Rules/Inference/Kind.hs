@@ -7,12 +7,13 @@ module Nihil.TypeChecking.Rules.Inference.Kind
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Common
 import Nihil.Utils.Source
+import Nihil.Utils.Impossible
 import Nihil.TypeChecking.Environment
 import Nihil.TypeChecking.Constraint
 import Nihil.TypeChecking.Errors.UndefinedType
 import Nihil.TypeChecking.Substitution
 import Control.Arrow ((>>>))
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, log)
 import Control.Monad.Reader (asks, local)
 import Control.Monad.Except (throwError)
 import Control.Monad.Writer (tell)
@@ -60,18 +61,16 @@ inferTypeClass :: Scheme Type -> [Scheme Type] -> InferKind Kind
 inferTypeClass (Forall tvs classTy) funs = do
     typeArgs <- Env . Map.fromList <$> mapM ((<$> fresh "$") . (,)) tvs
 
-    let kind = foldl1 kApp typeArgs
+    let kind = foldl1 kArr typeArgs
     _ <- local (union typeArgs) (mapM inferScheme funs)
 
-    pure (kApp kind KConstraint)
-  where kApp = KApplication . KApplication KArrow
+    pure (kArr kind KConstraint)
 
 -- | Infers the kind of a generalized 'Type'.
 inferScheme :: Scheme Type -> InferKind Kind
 inferScheme (Forall vars ty) = do
-    newVars <- mapM (const (fresh "$")) vars
-    let sub = Env (Map.fromList (zip vars newVars))
-    local (union sub) (inferKind ty)
+    newVars <- Env . Map.fromList <$> mapM ((<$> fresh "$") . (,)) vars
+    local (union newVars) (inferKind ty)
 
 inferCustomTypeScheme :: Scheme CustomType -> InferKind Kind
 inferCustomTypeScheme (Forall vars cty) = do
@@ -79,7 +78,7 @@ inferCustomTypeScheme (Forall vars cty) = do
     kind     <- local (union typeArgs) case annotated cty of
         Forall _ (GADT ctors)   -> KStar <$ inferConstrs (Map.toList ctors)
         Forall _ (TypeAlias ty) -> inferKind ty
-        Forall _ (Class _)      -> error "Not yet implemented"
+        Forall _ (Class _ _)    -> impossible "Type classes are kind checked on their own."
     let kind' = foldr kArr kind ((typeArgs `at`) <$> vars)
     pure kind'
 
