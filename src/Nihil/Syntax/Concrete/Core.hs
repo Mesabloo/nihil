@@ -96,6 +96,8 @@ data Type
     | TApplication [AType]    -- ^ > { Maybe t }
     | TOperator String        -- ^ > { → }
     | TParens [AType]         -- ^ > { (t) }
+    | TImplements [(Located String, [AType])] [AType]
+                              -- ^ > { Class a b => } t
   deriving
     ( -- | Use only for debugging
       Show

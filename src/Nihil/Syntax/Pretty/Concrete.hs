@@ -57,12 +57,18 @@ instance {-# OVERLAPPING #-} Pretty [AType] where
     pretty = sep . fmap pretty
 
 instance Pretty Type where
-    pretty (TOperator name)  = text name
-    pretty (TId i)           = text i
-    pretty (TVar v)          = text v
-    pretty (TParens p)       = parens (pretty p)
-    pretty (TTuple t)        = tupled (fmap pretty t)
-    pretty (TApplication ts) = sep (fmap pretty ts)
+    pretty (TOperator name)     = text name
+    pretty (TId i)              = text i
+    pretty (TVar v)             = text v
+    pretty (TParens p)          = parens (pretty p)
+    pretty (TTuple t)           = tupled (fmap pretty t)
+    pretty (TApplication ts)    = sep (fmap pretty ts)
+    pretty (TImplements cls ty) = prettyClasses cls <+> text "=>" <+> pretty ty
+      where prettyClasses []  = empty
+            prettyClasses [c] = prettyClass c
+            prettyClasses xs  = tupled (fmap prettyClass xs)
+
+            prettyClass (name, tys) = text (annotated name) <+> pretty tys
 
 instance {-# OVERLAPPING #-} Pretty [AAtom] where
     pretty = sep . fmap pretty
