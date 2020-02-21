@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.TypeChecking.Rules.Program
 ( typecheck ) where
@@ -124,11 +125,30 @@ check name def decl = do
     info ("For function " <> name <> ":") (pure ())
     let pos = location def
     env      <- get
+    
+    case decl of
+        Nothing -> pure ()
+        Just t  -> do
+            env     <- use typeCtx
+            (_, cs) <- liftEither (runInfer env (inferScheme (extractRigids t)))
+            _       <- liftEither (runKindSolver env cs)
+            pure ()
+    
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
     info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
     let funType = apply sub ty
     info funType (info (closeOver funType) (funDefCtx %= (`extend` (name, closeOver funType))))
+
+extractRigids :: Type -> Scheme Type
+extractRigids ty = Forall tvs ty
+    where tvs = fold ty
+          
+          fold (annotated -> t) = case t of
+              TRigid n -> [n]
+              TApplication t1 t2 -> fold t1 <> fold t2
+              TTuple ts -> concatMap fold ts
+              _ -> []
 
 -------------------------------------------------------------------------------------------------------------------
 
