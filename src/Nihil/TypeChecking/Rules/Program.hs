@@ -9,10 +9,10 @@ module Nihil.TypeChecking.Rules.Program
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Common
 import qualified Nihil.Syntax.Abstract.Core as AC
-import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType)
+import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType, coerceScheme)
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible (impossible)
-import Nihil.Utils.Debug
+import Nihil.Utils.Debug hiding (error)
 import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.TypeChecking.Errors.RedeclaredFunction
 import Nihil.TypeChecking.Errors.Redefined
@@ -25,6 +25,7 @@ import Nihil.TypeChecking.Constraint
 import Nihil.TypeChecking.Rules.Solving.Type
 import Nihil.TypeChecking.Errors.GADTWrongReturnType
 import Nihil.TypeChecking.Errors.BindLack
+import Nihil.TypeChecking.Errors.NonVisibleMemberOfClass
 import Nihil.TypeChecking.Rules.Inference.Type
 import Data.Align (align)
 import qualified Data.Map.Unordered as UMap
@@ -72,25 +73,58 @@ typecheckTypeDef name sc@(Forall tvs cty) = do
 
             flip Map.traverseWithKey ctors \name' (Forall _ ty) -> do
                 let (_, r) = foldParams ty
-                (get >>= liftEither . flip runTypeSolver [(typeDef :>~ r)])
+                (get >>= liftEither . flip runTypeSolver (TCConstraints [(typeDef :>~ r)] mempty))
                     <|> throwError (gadtWrongReturnType name' r typeDef)
 
             pure ctors
         Forall _ (TypeAlias _)  -> pure mempty
+        Forall _ (Class _) -> impossible "Type classes are already filtered"
 
     constructorCtx %= union (Env schemes)
+
+typeCheckClassDef :: Scheme Type -> [AC.Statement] -> TypeCheck ()
+typeCheckClassDef ty@(Forall tvs t) stts = do
+    env <- use typeCtx
+    let name = findClassName t
+
+    when (isJust (lookup name env)) do
+        throwError (redefinedType (locate name (location t)))
+
+    funs <- organizeStatements stts
+
+    (kind, cs) <- liftEither (runInfer env (inferTypeClass ty (UMap.elems (Forall tvs . coerceType <$> snd funs))))
+    sub        <- liftEither (runKindSolver env cs)
+
+    typeCtx %= (`extend` (name, apply sub kind))
+
+    tcFuns <- Map.fromList . UMap.toList <$> UMap.traverseWithKey (handle' name) (uncurry align funs)
+
+    customTypeCtx %= (`extend` (name, locate (Forall tvs (Class tcFuns)) (location t)))
+  where handle' :: String -> String -> These AC.Expr AC.Type -> TypeCheck (Scheme Type)
+        handle' cls name (This def) = throwError (nonVisibleMemberOf cls name (location def))
+        handle' cls name (That decl) = pure (generalize (mempty :: TypeEnv) (coerceType decl))
+        handle' cls name (These def decl) =
+            let ty = coerceType decl
+            in Forall tvs ty <$ check name def (Just ty)
+
+findClassName :: Type -> String
+findClassName (annotated -> TId n) = n
+findClassName (annotated -> TApplication t1 _) = findClassName t1
+findClassName (annotated -> ty) = impossible ("Unfolding class names from type applications cannot take in account " <> show ty)
 
 -------------------------------------------------------------------------------------------------------------------
 
 separateTypeDefs :: [AC.Statement] -> TypeCheck [AC.Statement]
 separateTypeDefs []     = pure []
-separateTypeDefs (d:ss) = case annotated d of
-    AC.TypeDefinition name tvs cty -> do
-        let dummy = Forall tvs ()
-        typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
-        separateTypeDefs ss
-    _                              ->
-        (d :) <$> separateTypeDefs ss
+separateTypeDefs ((annotated -> AC.TypeDefinition name tvs cty):ss) = do
+    let dummy = Forall tvs ()
+    typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
+    separateTypeDefs ss
+separateTypeDefs ((annotated -> AC.ClassDefinition ty stts):ss) = do
+    typeCheckClassDef (coerceScheme ty) stts
+    separateTypeDefs ss
+separateTypeDefs ((annotated -> AC.InstanceDefinition ty stts):ss) = error "Not yet implemented"
+separateTypeDefs (d:ss) = (d :) <$> separateTypeDefs ss
 
 organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
 organizeStatements = go (mempty, mempty)
@@ -125,7 +159,7 @@ check name def decl = do
     info ("For function " <> name <> ":") (pure ())
     let pos = location def
     env      <- get
-    
+
     case decl of
         Nothing -> pure ()
         Just t  -> do
@@ -133,7 +167,7 @@ check name def decl = do
             (_, cs) <- liftEither (runInfer env (inferScheme (extractRigids t)))
             _       <- liftEither (runKindSolver env cs)
             pure ()
-    
+
     (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
     info ty (info cs (pure ()))
     sub      <- liftEither (runTypeSolver env cs)
@@ -143,11 +177,12 @@ check name def decl = do
 extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
     where tvs = fold ty
-          
+
           fold (annotated -> t) = case t of
               TRigid n -> [n]
               TApplication t1 t2 -> fold t1 <> fold t2
               TTuple ts -> concatMap fold ts
+              TImplements t1 t2 -> fold t1 <> fold t2
               _ -> []
 
 -------------------------------------------------------------------------------------------------------------------
