@@ -13,8 +13,9 @@ instance Pretty Kind where
     pretty (KVar v)             = text v
     pretty KArrow               = text "(->)"
     pretty (KApplication k1 k2) = prettyᵏ k1 <+> pretty k2
-      where prettyᵏ k@KApplication{} = parens (pretty k)
-            prettyᵏ k                = pretty k
+      where prettyᵏ k@(KApplication KArrow k2) = prettyᵏ k2 <+> text "->"
+            prettyᵏ k@KApplication{}           = parens (pretty k)
+            prettyᵏ k                          = pretty k
 
 instance Pretty Type' where
     pretty (TId i)              = text i -- if isOperator i then parens (text i) else text i
