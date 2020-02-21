@@ -60,6 +60,7 @@ data Type'
     | TTuple [Type]             -- ^ > { (t₁, t₂) }
     | TVar String               -- ^ > { a }
     | TApplication Type Type    -- ^ > { t₁ t₂ }
+    | Implements Type Type      -- ^ > { C => t }
   deriving
     ( -- | use only for debugging
       Show

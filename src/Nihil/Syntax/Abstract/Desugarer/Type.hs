@@ -4,12 +4,15 @@ module Nihil.Syntax.Abstract.Desugarer.Type
 import qualified Nihil.Syntax.Concrete.Core as CC
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Utils.Source
+import Nihil.Utils.Annotation
 import Nihil.Syntax.Common (Desugarer, typeLevelOperators)
 import Nihil.Utils.Debug
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
 import Control.Arrow ((&&&))
 import Control.Lens (use)
+import Data.Bifunctor (first)
+import Data.Foldable (foldrM)
 
 {-| Desugars a type.
 
@@ -55,3 +58,15 @@ desugarAtom ops out (CC.TTuple ts) pos               = do
     types <- mapM (\t -> shuntingYard t [] []) ts
     let tTuple = locate (AC.TTuple types) pos
     pure (ops, tTuple : out)
+desugarAtom ops out (CC.TImplements classes ty) pos  = do
+    dTy <- desugarType ty
+    tImpl <- foldrM foldConstraint dTy classes
+    pure (ops, tImpl : out)
+  where desugarClass (name, args) = do
+            let transform acc t = locate (AC.TApplication acc t) (location acc)
+            dTys <- mapM (\t -> desugarType [t]) args
+            pure (foldl transform (hoistAnnotated (first AC.TId) name) dTys)
+
+        foldConstraint cls acc = do
+            c <- desugarClass cls
+            pure (locate (AC.Implements c acc) (location acc))

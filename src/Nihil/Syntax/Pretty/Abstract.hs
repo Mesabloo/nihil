@@ -39,6 +39,7 @@ instance Pretty Type' where
       where prettyᵗ :: Type' -> Doc
             prettyᵗ t@TApplication{} = parens (pretty t)
             prettyᵗ t                = pretty t
+    pretty (Implements t1 t2)   = pretty t1 <+> text "=>" <+> pretty t2
 
 instance Pretty Expr' where
     pretty (EId i)                = if isOperator i then parens (text i) else text i
