@@ -1,5 +1,7 @@
 library:
   source-dirs: src
+  ghc-options:
+  - -dynamic
 
 when:
 - condition: flag(debug)
@@ -18,7 +20,7 @@ ghc-options:
 - -Wno-name-shadowing
 - -Wno-unused-matches
 - -O2
-- -optc-O3
+- -optc-Os
 
 author: Ghilain Bergeron (Mesabloo)
 github: mesabloo/nihil
@@ -82,6 +84,8 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -optc-O2
+    - -dynamic
     dependencies:
     - nihil
 
