@@ -1,5 +1,8 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE ViewPatterns #-}
+
 module Nihil.TypeChecking.Rules.Inference.Kind
-( inferKind, inferScheme, inferCustomType ) where
+( inferKind, inferScheme, inferCustomType, inferTypeClass ) where
 
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Common
@@ -46,6 +49,22 @@ inferKind = annotated >>> f
             tell [k1 :*~ kArr k2 kv]
             pure kv
         f (TPrim _) = pure KStar
+        f (TImplements t1 t2) = do
+            k1 <- inferKind t1
+            k2 <- inferKind t2
+            tell [k1 :*~ KConstraint, k2 :*~ KStar]
+            pure KStar
+
+-- | Infers the kind of a typeclass
+inferTypeClass :: Scheme Type -> [Scheme Type] -> InferKind Kind
+inferTypeClass (Forall tvs classTy) funs = do
+    typeArgs <- Env . Map.fromList <$> mapM ((<$> fresh "$") . (,)) tvs
+
+    let kind = foldl1 kApp typeArgs
+    _ <- local (union typeArgs) (mapM inferScheme funs)
+
+    pure (kApp kind KConstraint)
+  where kApp = KApplication . KApplication KArrow
 
 -- | Infers the kind of a generalized 'Type'.
 inferScheme :: Scheme Type -> InferKind Kind
@@ -57,9 +76,10 @@ inferScheme (Forall vars ty) = do
 inferCustomTypeScheme :: Scheme CustomType -> InferKind Kind
 inferCustomTypeScheme (Forall vars cty) = do
     typeArgs <- Env . Map.fromList <$> mapM ((<$> fresh "$") . (,)) vars
-    kind     <- local (union typeArgs) $ case annotated cty of
+    kind     <- local (union typeArgs) case annotated cty of
         Forall _ (GADT ctors)   -> KStar <$ inferConstrs (Map.toList ctors)
         Forall _ (TypeAlias ty) -> inferKind ty
+        Forall _ (Class _)      -> error "Not yet implemented"
     let kind' = foldr kArr kind ((typeArgs `at`) <$> vars)
     pure kind'
 
