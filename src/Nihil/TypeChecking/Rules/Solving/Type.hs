@@ -12,7 +12,6 @@ import Nihil.TypeChecking.Environment
 import Nihil.TypeChecking.Rules.Solving (runSolve)
 import Nihil.TypeChecking.Errors.TypeHole
 import Nihil.Utils.Source
-import Nihil.Utils.Debug hiding (error)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Data.Map as Map
 import Control.Monad (when)
@@ -22,7 +21,7 @@ import Prelude hiding (log)
 -- | Solves the 'TypeConstraint's given and returns a substitution to 'apply'.
 solve :: Subst Type -> TCConstraints -> SolveType (Subst Type)
 solve sub (TCConstraints [] [])                 = do
-    log sub (liftEither (runTypeHoleInspector sub))
+    liftEither (runTypeHoleInspector sub)
     pure sub
 solve sub (TCConstraints [] _) = error "Not yet implemented"
 solve sub (TCConstraints ((t1 :>~ t2) : ts) ccs) = do
