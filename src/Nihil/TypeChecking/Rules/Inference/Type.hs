@@ -1,9 +1,12 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.TypeChecking.Rules.Inference.Type
 ( inferExpr
-, inferFunctionDefinition ) where
+, inferFunctionDefinition
+, inferInstanceHead, inferInstanceBody ) where
 
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Environment
@@ -43,7 +46,18 @@ inferFunctionDefinition pos name ex ty = do
     fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
     maybe (pure ()) (\t -> scribe typeConstraint [fty :>~ t]) ty
     scribe typeConstraint [fty :>~ tv]
+
     pure fty
+
+inferInstanceHead :: String -> Type -> InferType ()
+inferInstanceHead name ty =
+    customTypeCtx `views` lookup name >>= \case
+        Nothing -> impossible ("Typeclass " <> name <> " is forced to exist! It already has been filtered out!")
+        Just (annotated -> Forall _ (Class head _)) -> scribe typeConstraint [relax head :>~ ty]
+        Just _ -> impossible "A custom type cannot have the Constraint kind"
+
+inferInstanceBody :: Scheme Type -> Scheme Type
+inferInstanceBody (Forall _ ty) = Forall [] (relax ty)
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
 inferExpr :: AC.Expr -> InferType Type
@@ -114,18 +128,14 @@ inferELambda pat ex pos = do
 inferEMatch :: AC.Expr -> [(AC.Pattern, AC.Expr)] -> SourcePos -> InferType Type
 inferEMatch ex branches pos = do
     ty     <- inferExpr ex
-    log "match expr type" (pure ())
-    log ty (pure ())
     result <- unzip <$> forM branches \(pat, expr) -> do
         (pTy, env) <- inferPattern pat
-        log "match pattern environment:" (pure ())
-        log env (pure ())
-        exTy       <- inEnvMany (Map.toList env) (inferExpr expr)
+        exTy       <- log env (inEnvMany (Map.toList env) (inferExpr expr))
         pure (exTy, pTy)
     let (ret:xs, patsTy) = result
 
     let constraints = (uncurry (:>~) <$> (zipFrom ret xs <> zipFrom ty patsTy))
-    log constraints (scribe typeConstraint constraints)
+    scribe typeConstraint constraints
     pure ret
   where zipFrom = zip . repeat
 

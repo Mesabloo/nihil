@@ -11,6 +11,7 @@ import Nihil.TypeChecking.Common
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType, coerceScheme)
 import Nihil.Utils.Source
+import Nihil.Utils.Debug (info)
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.TypeChecking.Errors.RedeclaredFunction
@@ -26,17 +27,16 @@ import Nihil.TypeChecking.Errors.GADTWrongReturnType
 import Nihil.TypeChecking.Errors.BindLack
 import Nihil.TypeChecking.Errors.NonVisibleMemberOfClass
 import Nihil.TypeChecking.Rules.Inference.Type
-import Nihil.TypeChecking.Errors.UndefinedType
 import Data.Align (align)
 import qualified Data.Map.Unordered as UMap
 import Data.Bifunctor (first, second)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
 import Control.Monad (void, when, replicateM)
-import Control.Lens (use, (%=))
+import Control.Lens (use, (%=), uses, (%~))
 import qualified Data.Map as Map
 import Control.Applicative ((<|>))
-import Control.Monad.State (get)
+import Control.Monad.State (get, put)
 import Data.These (These(..))
 import Data.Maybe (isJust, fromJust)
 import Prelude hiding (lookup, log)
@@ -45,6 +45,7 @@ import Control.Arrow ((>>>))
 import qualified Data.Set as Set
 import Data.List (nub, (\\))
 import Data.Functor ((<&>))
+import Data.Function ((&))
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
@@ -111,12 +112,69 @@ typecheckClassDef ty@(Forall tvs t) stts = do
 
 typecheckInstance :: Type -> [AC.Statement] -> TypeCheck ()
 typecheckInstance ty stts = do
-    env <- use customTypeCtx
     let name = findClassName ty
 
-    --()
+    -- Check that the current instance is valid (that is, a valid typeclass type can be unified to it)
+    -- => Kind check the instance's head
 
-    pure ()
+    env' <- use typeCtx
+    (k, cs) <- liftEither (runInfer env' (inferScheme (extractRigids ty)))
+    _ <- liftEither (runKindSolver env' (cs <> [k :*~ KConstraint]))
+
+    -- Generate a substitution between the class' head and the instance's head
+
+    env'' <- get
+    (_, cs) <- liftEither (runInfer env'' (inferInstanceHead name ty))
+    sub <- liftEither (runTypeSolver env'' cs)
+
+    info sub (pure ())
+
+    -- ! Do not take in account function declarations for now
+
+    env <- use customTypeCtx
+    let Just (annotated -> Forall _ (Class _ record)) = lookup name env
+
+    -- Infer the type of each function definition
+    -- => Do not forget to apply the substitution generated above in order to check for function validity
+    -- | If the function is not in the class, generate an error because the function is not a visible method of the class.
+
+    env <- get
+    let classCtx = apply sub (inferInstanceBody <$> Env record)
+    funDefCtx %= union classCtx
+
+    funs@(defs, _) <- organizeStatements stts
+    _ <- UMap.traverseWithKey (handle' name record) (uncurry align funs)
+
+    put env
+    -- If all the functions are well-formed, add the instance to the instance environment
+
+    instanceCtx %= Map.insert ty (Env (Map.fromList (UMap.toList defs)))
+  where handle' :: String -> Map.Map String (Scheme Type) -> String -> These AC.Expr AC.Type -> TypeCheck ()
+        handle' cls record name these
+            | name `Map.notMember` record = throwError (nonVisibleMemberOf cls name (getPos these))
+        handle' cls _ name (That ty) = throwError (lacksBind (locate name (location ty)))
+        handle' cls _ name (This ex) = do
+            env <- get
+
+            fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
+
+            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
+            subst <- liftEither (runTypeSolver env cs)
+
+            pure ()
+        handle' cls _ name (These ex ty) = do
+            env <- get
+
+            fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
+
+            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
+            subst <- liftEither (runTypeSolver env (cs & typeConstraint %~ (<> [coerceType ty :>~ fromJust fun])))
+
+            pure ()
+
+        getPos (This e) = location e
+        getPos (That d) = location d
+        getPos (These e d) = location e
 
 findClassName :: Type -> String
 findClassName (annotated -> TId n) = n

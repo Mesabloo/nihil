@@ -12,6 +12,7 @@ module Nihil.TypeChecking.Environment where
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Substitution
 import qualified Data.Map as Map
+import qualified Nihil.Syntax as AC
 import Control.Lens (makeLenses)
 
 newtype Env t = Env { unwrap :: Map.Map String t }
@@ -34,6 +35,8 @@ type KindEnv = Env Kind
 type TypeEnv = Env (Scheme Type)
 
 type CustomTypeEnv = Env CustomType
+
+type InstEnv = Map.Map Type (Env AC.Expr)
 
 -- | Removes an entry from an enviroment given its name.
 remove :: Env t -> String -> Env t
@@ -69,6 +72,7 @@ data GlobalEnv
     , _customTypeCtx  :: CustomTypeEnv  -- ^ Data constructor holder
     , _funDefCtx      :: TypeEnv        -- ^ Function definitions holder
     , _constructorCtx :: TypeEnv        -- ^ Constructor definitions holder
+    , _instanceCtx    :: InstEnv        -- ^ Instance records holder
     }
   deriving
   ( -- | Use only for debugging

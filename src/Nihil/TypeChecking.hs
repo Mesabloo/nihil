@@ -38,13 +38,13 @@ runTypeChecker env prog = runExcept (execStateT (RP.typecheck prog) env)
 
 -- | The minimal default environment for typechecking (contains built-in types and functions).
 defaultGlobalEnv :: GlobalEnv
-defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env defaultFunCtx) (Env defaultConstructors)
+defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env defaultFunCtx) (Env defaultConstructors) mempty
   where dummyPos = NoSource
 
         tFun t1 t2 = locate (TApplication (locate (TApplication (locate (TId "->") dummyPos) t1) dummyPos) t2) dummyPos
         kArr k1 k2 = KApplication (KApplication KArrow k1) k2
         infixr 1 `kArr`
-        
+
         defaultTypeCtx :: Map.Map String Kind
         defaultTypeCtx = Map.fromList
             [ ("Integer", KStar)
