@@ -1,7 +1,5 @@
 library:
   source-dirs: src
-  ghc-options:
-  - -dynamic
 
 when:
 - condition: flag(debug)
@@ -12,6 +10,9 @@ when:
   - -prof
   - -auto-all
   - -with-rtsopts=-p,-s
+- condition: flag(dynamic)
+  ghc-options:
+  - -dynamic
 
 ghc-options:
 - -Wall
@@ -85,7 +86,6 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -optc-O2
-    - -dynamic
     dependencies:
     - nihil
 
@@ -96,6 +96,10 @@ flags:
     default: false
   profile:
     description: "Enable/disable compiler profiling."
+    manual: true
+    default: false
+  dynamic:
+    description: "Dynamically link libraries"
     manual: true
     default: false
 
