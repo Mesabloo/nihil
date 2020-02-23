@@ -33,7 +33,7 @@ import Data.Bifunctor (first, second)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
 import Control.Monad (void, when, replicateM)
-import Control.Lens (use, (%=), uses, (%~))
+import Control.Lens (use, (%=))
 import qualified Data.Map as Map
 import Control.Applicative ((<|>))
 import Control.Monad.State (get, put)
@@ -43,20 +43,23 @@ import Prelude hiding (lookup, log)
 import qualified Prelude (lookup)
 import Control.Arrow ((>>>))
 import qualified Data.Set as Set
-import Data.List (nub, (\\))
+import Data.List (nub, (\\), partition)
 import Data.Functor ((<&>))
-import Data.Function ((&))
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
 typecheck (AC.Program stts) = do
-    defsAndDecls <- separateTypeDefs stts
-    statements   <- organizeStatements defsAndDecls
-
-    let toHandle = uncurry align statements
+    let (types, funs) = partition isTypeOrClass stts
+    toHandle <- uncurry align <$> organizeStatements funs
 
     void (UMap.traverseWithKey prehandleStatement toHandle)
+    mapM handleType types
+
     void (UMap.traverseWithKey handleStatement toHandle)
+  where isTypeOrClass (annotated -> AC.TypeDefinition{}) = True
+        isTypeOrClass (annotated -> AC.ClassDefinition{}) = True
+        isTypeOrClass (annotated -> AC.InstanceDefinition{}) = True
+        isTypeOrClass _ = False
 
 -- | Type checks a custom type definition.
 typecheckTypeDef :: String -> Scheme CustomType -> TypeCheck ()
@@ -111,8 +114,8 @@ typecheckClassDef ty@(Forall tvs t) stts = do
   where handle' :: String -> String -> These AC.Expr (Scheme Type) -> TypeCheck (Scheme Type)
         handle' cls name (This def) = throwError (nonVisibleMemberOf cls name (location def))
         handle' cls name (That decl) = pure decl
-        handle' cls name (These def decl@(Forall tvs ty)) =
-            -- TODO: handle explicit type declarations
+        handle' cls name (These def decl@(Forall tvs ty)) = do
+            funDefCtx %= (`extend` (name, decl))
             decl <$ check name def
 
 typecheckInstance :: Type -> [AC.Statement] -> TypeCheck ()
@@ -164,10 +167,11 @@ typecheckInstance ty stts = do
         handle' cls _ name (These ex ty) = do
             env <- get
 
-            fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
+            (fTy, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex))
+            subst <- liftEither (runTypeSolver env cs)
 
-            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex))
-            subst <- liftEither (runTypeSolver env (cs & typeConstraint %~ (<> [fromJust fun :>~ coerceType ty])))
+            (_, cs) <- liftEither (runInfer env (checkReturnType (coerceType ty) (apply subst fTy)))
+            _ <- liftEither (runTypeSolver env cs)
 
             pure ()
 
@@ -182,19 +186,15 @@ findClassName (annotated -> ty) = impossible ("Unfolding class names from type a
 
 -------------------------------------------------------------------------------------------------------------------
 
-separateTypeDefs :: [AC.Statement] -> TypeCheck [AC.Statement]
-separateTypeDefs []     = pure []
-separateTypeDefs ((annotated -> AC.TypeDefinition name tvs cty):ss) = do
+handleType :: AC.Statement -> TypeCheck ()
+handleType (annotated -> AC.TypeDefinition name tvs cty) = do
     let dummy = Forall tvs ()
     typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
-    separateTypeDefs ss
-separateTypeDefs ((annotated -> AC.ClassDefinition ty stts):ss) = do
+handleType (annotated -> AC.ClassDefinition ty stts) = do
     typecheckClassDef (coerceScheme ty) stts
-    separateTypeDefs ss
-separateTypeDefs ((annotated -> AC.InstanceDefinition ty stts):ss) = do
+handleType (annotated -> AC.InstanceDefinition ty stts) = do
     typecheckInstance (coerceType ty) stts
-    separateTypeDefs ss
-separateTypeDefs (d:ss) = (d :) <$> separateTypeDefs ss
+handleType _ = impossible "Functions should have been removed!"
 
 organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
 organizeStatements = go (mempty, mempty)

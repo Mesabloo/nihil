@@ -6,7 +6,7 @@
 module Nihil.TypeChecking.Rules.Inference.Type
 ( inferExpr
 , inferFunctionDefinition
-, inferInstanceHead, inferInstanceBody
+, inferInstanceHead, inferInstanceBody, checkReturnType
 , fresh ) where
 
 import Nihil.TypeChecking.Core
@@ -49,7 +49,8 @@ inferFunctionDefinition pos name ex = do
     funDefCtx `views` lookup name >>= \case
         Nothing           -> impossible "All functions must have types"
         Just (Forall _ t) -> do
-            scribe typeConstraint [t :>~ fty]
+            ty <- unconstrain t
+            scribe typeConstraint [ty :>~ fty]
 
     pure fty
 
@@ -62,6 +63,12 @@ inferInstanceHead name ty =
 
 inferInstanceBody :: Scheme Type -> Scheme Type
 inferInstanceBody (Forall _ ty) = Forall [] (relax ty)
+
+checkReturnType :: Type -> Type -> InferType ()
+checkReturnType ty1 ty2 = do
+    ty1 <- unconstrain ty1
+    ty2 <- unconstrain ty2
+    scribe typeConstraint [ty1 :>~ ty2]
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
 inferExpr :: AC.Expr -> InferType Type
@@ -268,7 +275,15 @@ instantiate :: SourcePos -> Scheme Type -> InferType Type
 instantiate pos (Forall vars ty) = do
     tvs <- fmap annotated <$> mapM (const (fresh "$" pos)) vars
     let sub = Subst (Map.fromList (zip vars tvs))
-    pure (apply sub (relax ty))
+
+    unconstrain (apply sub (relax ty))
+
+unconstrain :: Type -> InferType Type
+unconstrain t@(annotated -> ty) = case ty of
+    TImplements t1 t2 -> do
+        scribe classConstraint [Implements t1]
+        unconstrain t2
+    _ -> pure t
 
 -- | Relaxing a type means to transform rigid type variables into substitutable type variables.
 relax :: Type -> Type
