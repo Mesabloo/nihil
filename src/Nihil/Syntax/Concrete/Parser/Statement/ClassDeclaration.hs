@@ -18,6 +18,6 @@ pTypeClass = debug "pTypeClass" $ withPosition do
     lineFold \s -> do
         pKeyword "class" <* MP.try s
         cls <- (,) <$> pIdentifier' <*> MP.some (MP.try (s *> pIdentifier))
-        pKeyword "where"
+        MP.try s *> pKeyword "where"
 
         ClassDefinition cls <$> indentBlock (MP.try pFunctionDeclaration <|> pFunctionDefinition)

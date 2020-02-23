@@ -19,5 +19,5 @@ pInstanceDeclaration = debug "pInstanceDeclaration" $ withPosition do
     lineFold \s -> do
         pKeyword "instance" <* MP.try s
         cls <- (,) <$> pIdentifier' <*> MP.some (MP.try (s *> Type.pAtom s))
-        pKeyword "where"
+        MP.try s *> pKeyword "where"
         InstanceDefinition cls <$> indentBlock (MP.try pFunctionDeclaration <|> pFunctionDefinition)
