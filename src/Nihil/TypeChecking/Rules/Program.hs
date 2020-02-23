@@ -52,7 +52,11 @@ typecheck :: AC.Program -> TypeCheck ()
 typecheck (AC.Program stts) = do
     defsAndDecls <- separateTypeDefs stts
     statements   <- organizeStatements defsAndDecls
-    void (UMap.traverseWithKey handleStatement (uncurry align statements))
+
+    let toHandle = uncurry align statements
+
+    void (UMap.traverseWithKey prehandleStatement toHandle)
+    void (UMap.traverseWithKey handleStatement toHandle)
 
 -- | Type checks a custom type definition.
 typecheckTypeDef :: String -> Scheme CustomType -> TypeCheck ()
@@ -108,7 +112,8 @@ typecheckClassDef ty@(Forall tvs t) stts = do
         handle' cls name (This def) = throwError (nonVisibleMemberOf cls name (location def))
         handle' cls name (That decl) = pure decl
         handle' cls name (These def decl@(Forall tvs ty)) =
-            decl <$ check name def (Just ty)
+            -- TODO: handle explicit type declarations
+            decl <$ check name def
 
 typecheckInstance :: Type -> [AC.Statement] -> TypeCheck ()
 typecheckInstance ty stts = do
@@ -151,9 +156,7 @@ typecheckInstance ty stts = do
         handle' cls _ name (This ex) = do
             env <- get
 
-            fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
-
-            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
+            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex))
             log cs (pure ())
             subst <- liftEither (runTypeSolver env cs)
 
@@ -163,7 +166,7 @@ typecheckInstance ty stts = do
 
             fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
 
-            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
+            (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex))
             subst <- liftEither (runTypeSolver env (cs & typeConstraint %~ (<> [fromJust fun :>~ coerceType ty])))
 
             pure ()
@@ -217,27 +220,34 @@ organizeStatements = go (mempty, mempty)
 
 handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck ()
 handleStatement name (That ty)        = throwError (lacksBind (locate name (location ty)))
-handleStatement name (This def)       = check name def Nothing
-handleStatement name (These def decl) = check name def (Just (coerceType decl))
+handleStatement name (This def)       = check name def
+handleStatement name (These def decl) = check name def
+
+prehandleStatement :: String -> These AC.Expr AC.Type -> TypeCheck ()
+prehandleStatement name (That ty)        = throwError (lacksBind (locate name (location ty)))
+prehandleStatement name (This def)       = do
+    env <- get
+    (ty, _) <- liftEither (runInfer env (fresh "%" (location def)))
+    funDefCtx %= (`extend` (name, Forall [] ty))
+prehandleStatement name (These def decl) = do
+    let ty = extractRigids (coerceType decl)
+    env <- use typeCtx
+    (k, cs) <- liftEither (runInfer env (inferScheme ty))
+    _ <- liftEither (runKindSolver env cs)
+    funDefCtx %= (`extend` (name, ty))
 
 -- | Type checks a function definition.
-check :: String -> AC.Expr -> Maybe Type -> TypeCheck ()
-check name def decl = do
+check :: String -> AC.Expr -> TypeCheck ()
+check name def = do
     let pos = location def
     env      <- get
 
-    case decl of
-        Nothing -> pure ()
-        Just t  -> do
-            env     <- use typeCtx
-            (_, cs) <- liftEither (runInfer env (inferScheme (extractRigids t)))
-            _       <- liftEither (runKindSolver env cs)
-            pure ()
-
-    (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def decl))
+    (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def))
     sub      <- liftEither (runTypeSolver env cs)
     let funType = apply sub ty
+
     funDefCtx %= (`extend` (name, closeOver funType))
+    funDefCtx %= apply sub -- we apply the substitution to remove types such as %1 which are somewhat placeholders.
 
 extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty

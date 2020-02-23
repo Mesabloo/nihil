@@ -6,7 +6,8 @@
 module Nihil.TypeChecking.Rules.Inference.Type
 ( inferExpr
 , inferFunctionDefinition
-, inferInstanceHead, inferInstanceBody ) where
+, inferInstanceHead, inferInstanceBody
+, fresh ) where
 
 import Nihil.TypeChecking.Core
 import Nihil.TypeChecking.Environment
@@ -38,13 +39,17 @@ import qualified Data.Map.Unordered as UMap
 import Data.List (partition)
 
 -- | Infers the type of a function definition (has a form of @f = e@) given its initial position, its name,
---   its value and its type (if declared).
-inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> Maybe Type -> InferType Type
-inferFunctionDefinition pos name ex ty = do
+--   its value.
+inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> InferType Type
+inferFunctionDefinition pos name ex = do
     tv  <- fresh "$" pos
     fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
-    maybe (pure ()) (\t -> scribe typeConstraint [fty :>~ t]) ty
     scribe typeConstraint [fty :>~ tv]
+
+    funDefCtx `views` lookup name >>= \case
+        Nothing           -> impossible "All functions must have types"
+        Just (Forall _ t) -> do
+            scribe typeConstraint [t :>~ fty]
 
     pure fty
 
