@@ -57,12 +57,14 @@ inferKind = annotated >>> f
             pure KStar
 
 -- | Infers the kind of a typeclass
-inferTypeClass :: Scheme Type -> [Scheme Type] -> InferKind Kind
-inferTypeClass (Forall tvs classTy) funs = do
+inferTypeClass :: String -> Scheme Type -> [Scheme Type] -> InferKind Kind
+inferTypeClass name (Forall tvs classTy) funs = do
     typeArgs <- Env . Map.fromList <$> mapM ((<$> fresh "$") . (,)) tvs
+    kv <- fresh "$"
 
     let kind = foldl1 kArr typeArgs
-    _ <- local (union typeArgs) (mapM inferScheme funs)
+    _ <- local (union (Env (Map.fromList [(name, kv)]))) do
+        local (union typeArgs) (mapM inferScheme funs)
 
     pure (kArr kind KConstraint)
 

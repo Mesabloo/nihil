@@ -11,7 +11,7 @@ import Nihil.TypeChecking.Common
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceCustomType, coerceType, coerceScheme)
 import Nihil.Utils.Source
-import Nihil.Utils.Debug (info)
+import Nihil.Utils.Debug (info, log)
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Utils.Annotation (hoistAnnotated)
 import Nihil.TypeChecking.Errors.RedeclaredFunction
@@ -95,7 +95,7 @@ typecheckClassDef ty@(Forall tvs t) stts = do
     funs@(_, decls) <- fmap (fmap (extractRigids . coerceType)) <$> organizeStatements stts
     let minusTvs = decls <&> \(Forall tvs' ty) -> Forall (tvs' \\ tvs) ty
 
-    (kind, cs) <- liftEither (runInfer env (inferTypeClass ty (UMap.elems minusTvs)))
+    (kind, cs) <- liftEither (runInfer env (inferTypeClass name ty (UMap.elems minusTvs)))
     sub        <- liftEither (runKindSolver env cs)
 
     typeCtx %= (`extend` (name, apply sub kind))
@@ -113,6 +113,11 @@ typecheckClassDef ty@(Forall tvs t) stts = do
 typecheckInstance :: Type -> [AC.Statement] -> TypeCheck ()
 typecheckInstance ty stts = do
     let name = findClassName ty
+    env <- use customTypeCtx
+    let Just (annotated -> Forall _ (Class _ record)) = lookup name env
+
+    funs@(defs, _) <- organizeStatements stts
+    instanceCtx %= Map.insert ty (Env (Map.fromList (UMap.toList defs)))
 
     -- Check that the current instance is valid (that is, a valid typeclass type can be unified to it)
     -- => Kind check the instance's head
@@ -127,13 +132,6 @@ typecheckInstance ty stts = do
     (_, cs) <- liftEither (runInfer env'' (inferInstanceHead name ty))
     sub <- liftEither (runTypeSolver env'' cs)
 
-    info sub (pure ())
-
-    -- ! Do not take in account function declarations for now
-
-    env <- use customTypeCtx
-    let Just (annotated -> Forall _ (Class _ record)) = lookup name env
-
     -- Infer the type of each function definition
     -- => Do not forget to apply the substitution generated above in order to check for function validity
     -- | If the function is not in the class, generate an error because the function is not a visible method of the class.
@@ -142,13 +140,10 @@ typecheckInstance ty stts = do
     let classCtx = apply sub (inferInstanceBody <$> Env record)
     funDefCtx %= union classCtx
 
-    funs@(defs, _) <- organizeStatements stts
     _ <- UMap.traverseWithKey (handle' name record) (uncurry align funs)
 
     put env
     -- If all the functions are well-formed, add the instance to the instance environment
-
-    instanceCtx %= Map.insert ty (Env (Map.fromList (UMap.toList defs)))
   where handle' :: String -> Map.Map String (Scheme Type) -> String -> These AC.Expr AC.Type -> TypeCheck ()
         handle' cls record name these
             | name `Map.notMember` record = throwError (nonVisibleMemberOf cls name (getPos these))
@@ -159,6 +154,7 @@ typecheckInstance ty stts = do
             fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
 
             (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
+            log cs (pure ())
             subst <- liftEither (runTypeSolver env cs)
 
             pure ()
@@ -168,7 +164,7 @@ typecheckInstance ty stts = do
             fun <- (funDefCtx `uses` lookup name) <&> fmap \(Forall _ t) -> t
 
             (_, cs) <- liftEither (runInfer env (inferFunctionDefinition (location ex) name ex fun))
-            subst <- liftEither (runTypeSolver env (cs & typeConstraint %~ (<> [coerceType ty :>~ fromJust fun])))
+            subst <- liftEither (runTypeSolver env (cs & typeConstraint %~ (<> [fromJust fun :>~ coerceType ty])))
 
             pure ()
 
@@ -290,4 +286,5 @@ normalize (Forall _ t) = Forall (snd <$> ord) (rigidify t)
           where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
                 f (TTuple ts)          = TTuple (rigidify <$> ts)
                 f (TVar x)             = TRigid (fromJust (Prelude.lookup x ord))
+                f (TImplements t1 t2)  = TImplements (rigidify t1) (rigidify t2)
                 f t                    = t
