@@ -15,7 +15,6 @@ import Nihil.TypeChecking.Common
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible
 import Nihil.Utils.Annotation
-import Nihil.Utils.Debug
 import Nihil.TypeChecking.Substitution
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceType)
 import Nihil.TypeChecking.Errors.MissingArgument
@@ -130,7 +129,7 @@ inferEMatch ex branches pos = do
     ty     <- inferExpr ex
     result <- unzip <$> forM branches \(pat, expr) -> do
         (pTy, env) <- inferPattern pat
-        exTy       <- log env (inEnvMany (Map.toList env) (inferExpr expr))
+        exTy       <- inEnvMany (Map.toList env) (inferExpr expr)
         pure (exTy, pTy)
     let (ret:xs, patsTy) = result
 
@@ -272,6 +271,7 @@ relax = hoistAnnotated (first f)
   where f (TApplication t1 t2) = TApplication (relax t1) (relax t2)
         f (TTuple ts)          = TTuple (relax <$> ts)
         f (TRigid v)           = TVar v
+        f (TImplements t1 t2)  = TImplements (relax t1) (relax t2)
         f t                    = t
 
 inEnvMany :: [(String, Scheme Type)] -> InferType a -> InferType a
