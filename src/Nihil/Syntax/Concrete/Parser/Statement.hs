@@ -20,5 +20,6 @@ pStatement = nonIndented do
         , pTypeAlias
         , MP.try pADT
         , pGADT
+        , pRecord
         , MP.try pFunctionDeclaration
         , pFunctionDefinition ]

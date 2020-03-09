@@ -18,7 +18,7 @@ import Control.Applicative ((<|>))
 keywords :: [Text.Text]
 keywords =
     [ "match", "with"
-    , "data", "type"
+    , "data", "type", "record"
     , "let", "in", "where"
     , "infixl", "infixr" ]
 

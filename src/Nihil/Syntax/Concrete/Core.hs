@@ -110,6 +110,7 @@ data CustomType
     = SumType (Map.Map String [AType])  -- ^ > data Maybe a = { Just a | Nothing }
     | TypeAlias [AType]                 -- ^ > type String = { List Char }
     | GADT (Map.Map String [AType])     -- ^ > data List a where { Nil : List a ; Cons : a → List a → List a }
+    | Record (Map.Map String [AType])   -- ^ > record Product a b where { fst :: a ; snd :: b }
   deriving
     ( -- | Use only for debugging
       Show
