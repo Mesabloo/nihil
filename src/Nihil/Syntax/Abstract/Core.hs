@@ -76,6 +76,7 @@ type CustomType = Located CustomType'
 data CustomType'
     = SumType (Map.Map String Scheme)   -- ^ > data X a where { X : a → X a }
     | TypeAlias Type                    -- ^ > type T a = { List a }
+    | Record (Map.Map String Scheme)    -- ^ > record W b where { f : b }
   deriving
     ( -- | use only for debugging
       Show

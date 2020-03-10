@@ -110,3 +110,6 @@ desugarCustomType' name tvs pos (CC.SumType ctors) = do
     AC.SumType <$> sequence transformed
   where mkApp pos t1 t2 = locate (AC.TApplication t1 t2) pos
         mkApp' pos t1 t2 = locate (AC.TApplication (locate (AC.TApplication (locate (AC.TId "->") pos) t1) pos) t2) pos
+desugarCustomType' _ tvs _ (CC.Record fields) = do
+    AC.Record <$> flip traverse fields \ty -> do
+        AC.Forall tvs <$> desugarType ty
