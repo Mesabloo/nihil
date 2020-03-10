@@ -6,6 +6,7 @@ import Nihil.Syntax.Concrete.Core
 import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Parser.Type.Tuple
+import Nihil.Syntax.Concrete.Parser.Type.Record
 import Nihil.Syntax.Concrete.Parser.Enclosed
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Utils.Source
@@ -20,4 +21,5 @@ atoms s =
     [ TVar . annotated <$> pIdentifier
     , TId . annotated  <$> pIdentifier'
     , MP.try (pTuple s)
+    , pRecord
     , TParens          <$> pParens (pType s) ]

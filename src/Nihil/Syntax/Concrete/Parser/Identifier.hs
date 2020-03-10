@@ -118,4 +118,4 @@ reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
 
 reservedTypeOperators :: [Text.Text]
-reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";" ]
+reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";", "{", "}", "⦃", "⦄" ]
