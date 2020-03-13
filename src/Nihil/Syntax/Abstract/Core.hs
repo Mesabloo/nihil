@@ -34,6 +34,7 @@ data Expr'
     | ETypeHole                         -- ^ > { _ }
     | ETypeAnnotated Expr Type          -- ^ > { e : t }
     | ELet [Statement] Expr             -- ^ > { let x = y in e }
+    | ERecord [Statement]               -- ^ > { { id x = x ; f = 0 } }
   deriving
     ( -- | use only for debugging
       Show
@@ -58,6 +59,8 @@ data Type'
     | TTuple [Type]             -- ^ > { (t₁, t₂) }
     | TVar String               -- ^ > { a }
     | TApplication Type Type    -- ^ > { t₁ t₂ }
+    | TRecord [Statement] (Maybe Type)
+                                -- ^ > { { f: Integer | r } }
   deriving
     ( -- | use only for debugging
       Show

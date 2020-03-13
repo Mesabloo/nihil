@@ -8,6 +8,7 @@ import Nihil.Syntax.Common (Desugarer, typeLevelOperators)
 import Nihil.Utils.Debug
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
+import Nihil.Syntax.Abstract.Desugarer.Statement (desugarProgram)
 import Control.Arrow ((&&&))
 import Control.Lens (use)
 
@@ -55,3 +56,7 @@ desugarAtom ops out (CC.TTuple ts) pos               = do
     types <- mapM (\t -> shuntingYard t [] []) ts
     let tTuple = locate (AC.TTuple types) pos
     pure (ops, tTuple : out)
+desugarAtom ops out (CC.TRecord stts rest) pos        = do
+    AC.Program ss <- desugarProgram (CC.Program stts)
+    rest' <- maybe (pure Nothing) (\t -> Just <$> shuntingYard [t] [] []) rest
+    pure (ops, locate (AC.TRecord ss rest') pos : out)

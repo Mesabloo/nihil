@@ -87,6 +87,8 @@ accumulateOnType = mapM_ (accumulateOnType' <<< annotated)
             accumulateOnType t
         accumulateOnType' (TTuple ts)       =
             mapM_ accumulateOnType ts
+        accumulateOnType' (TRecord stts _)  =
+            accumulateOnProgram (Program stts)
         accumulateOnType' _                 = pure ()
 
 accumulateOnPattern :: [APattern] -> Desugarer ()
@@ -133,5 +135,7 @@ accumulateOnExpression = mapM_ accumulateOnExpression' <<< annotated
                 accumulateOnExpression ex
             AWhere ex stts       -> do
                 accumulateOnExpression ex
+                accumulateOnProgram (Program stts)
+            ARecord stts         ->
                 accumulateOnProgram (Program stts)
             _                    -> pure ()

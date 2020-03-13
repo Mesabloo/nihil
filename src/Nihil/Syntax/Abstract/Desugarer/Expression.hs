@@ -111,3 +111,6 @@ desugarAtom ops out (CC.AMatch e1 branches) pos         = do
             pat <- desugarPattern p
             ex  <- desugarExpression e
             pure (pat, ex)
+desugarAtom ops out (CC.ARecord stts) pos               = do
+    AC.Program ss <- desugarProgram (CC.Program stts)
+    pure (ops, locate (AC.ERecord ss) pos : out)
