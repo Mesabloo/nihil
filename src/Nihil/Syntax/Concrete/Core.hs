@@ -93,7 +93,7 @@ data Type
     | TApplication [AType]    -- ^ > { Maybe t }
     | TOperator String        -- ^ > { → }
     | TParens [AType]         -- ^ > { (t) }
-    | TRecord [(Located String, [AType])] (Maybe AType)
+    | TRecord [AStatement] (Maybe AType)
                               -- ^ > { { x: Int ; y: Int | r } }
   deriving
     ( -- | Use only for debugging

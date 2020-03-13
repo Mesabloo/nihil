@@ -21,5 +21,5 @@ atoms s =
     [ TVar . annotated <$> pIdentifier
     , TId . annotated  <$> pIdentifier'
     , MP.try (pTuple s)
-    , pRecord
+    , pRecord s
     , TParens          <$> pParens (pType s) ]
