@@ -15,6 +15,7 @@ import Nihil.Syntax.Concrete.Parser.Expression.Let
 import Nihil.Syntax.Concrete.Parser.Expression.Match
 import Nihil.Syntax.Concrete.Parser.Expression.Tuple
 import Nihil.Syntax.Concrete.Parser.Expression.TypeHole
+import Nihil.Syntax.Concrete.Parser.Expression.Record
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Utils.Source
@@ -33,6 +34,7 @@ pAtomNoApp s = withPosition (MP.choice atoms)
             [ pTypeHole
             , pLambda s
             , pMatch s
+            , pRecord s
             , MP.try (pTuple s)
             , pLet s
             , AId . annotated      <$> MP.choice

@@ -40,6 +40,7 @@ data Atom
     | ATypeAnnotated AExpr [AType]          -- ^ > { e : t }
     | ALet [AStatement] AExpr               -- ^ > { let x = y in e }
     | AWhere AExpr [AStatement]             -- ^ > { f = g where g = e }
+    | ARecord [AStatement]                  -- ^ > { { f x = x ; g = 0 } }
   deriving
     ( -- | Use only for debugging
       Show
