@@ -15,6 +15,7 @@ import Nihil.TypeChecking.Substitution
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Foldable (fold)
 
 data Kind
     = KStar                   -- ^ > { * }
@@ -45,6 +46,8 @@ data Type'
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
     | TPrim String
+    | TRecord (Map.Map String Type) Type
+                              -- ^ > { { f : t1 ; g : t2 | rest } }
   deriving
     ( -- | Use only for debugging
       Show
@@ -71,11 +74,13 @@ instance Substitutable Type' where
     free (TVar v)             = Set.singleton v
     free (TTuple ts)          = free ts
     free (TApplication t1 t2) = free [t1, t2]
+    free (TRecord funs ty)    = fold (free <$> funs) <> free ty
     free _                    = mempty
 
     apply (Subst sub) tv@(TVar v) = fromMaybe tv (Map.lookup v sub)
     apply s (TTuple ts)           = TTuple (apply s ts)
     apply s (TApplication t1 t2)  = TApplication (apply s t1) (apply s t2)
+    apply s (TRecord ss r)        = TRecord (apply s <$> ss) (apply s r)
     apply _ t                     = t
 
 instance (Substitutable a, Subst a ~ Subst' b) => Substitutable (Scheme a) where
