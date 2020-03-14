@@ -18,7 +18,7 @@ pRecord :: Parser () -> Parser Type
 pRecord s = debug "p[Type]Record" $ do
     (fields, extended) <- pBraces do
         MP.try s
-        fields <- ((pFunctionDeclaration <* MP.try s) `MP.sepBy1` (pSymbol' ";" <* MP.try s))
+        fields <- ((pFunctionDeclaration <* MP.try s) `MP.sepBy` (pSymbol' ";" <* MP.try s))
         ext <- MP.optional do
             withPosition do
                 MP.try s
