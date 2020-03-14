@@ -48,9 +48,9 @@ inferKind = annotated >>> f
             pure kv
         f (TPrim _) = pure KStar
         f (TRecord stts rest)  = do
-            traverse_ (inferKind >=> \k -> tell [k :*~ KStar]) stts
+            traverse_ (inferKind >=> \k -> tell [KStar :*~ k]) stts
             k <- inferKind rest
-            tell [k :*~ KStar]
+            tell [KStar :*~ k]
             pure KStar
 
 -- | Infers the kind of a generalized 'Type'.
