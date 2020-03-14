@@ -7,6 +7,7 @@ import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Parser.Type.Tuple
 import Nihil.Syntax.Concrete.Parser.Type.Record
+import Nihil.Syntax.Concrete.Parser.Type.Row
 import Nihil.Syntax.Concrete.Parser.Enclosed
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Utils.Source
@@ -19,7 +20,8 @@ pAtom s = debug "p[Type]Atom" $ withPosition (MP.choice (atoms s))
 atoms :: Parser () -> [Parser Type]
 atoms s =
     [ TVar . annotated <$> pIdentifier
-    , TId . annotated  <$> pIdentifier'
+    , TId . annotated  <$> MP.try pIdentifier'
     , MP.try (pTuple s)
     , pRecord s
+    , pRow s
     , TParens          <$> pParens (pType s) ]

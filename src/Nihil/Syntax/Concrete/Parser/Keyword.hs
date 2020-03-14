@@ -10,7 +10,6 @@ import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
 import qualified Data.Char as Ch
-import Control.Arrow ((&&&), (<<<), (>>>))
 import Control.Monad (guard, void)
 import Control.Applicative ((<|>))
 
@@ -20,13 +19,14 @@ keywords =
     [ "match", "with"
     , "data", "type", "record"
     , "let", "in", "where"
-    , "infixl", "infixr" ]
+    , "infixl", "infixr"
+    , "Π" ]
 
 -- | A lexer for any keyword (found in 'keywords').
 pKeyword :: Text.Text -> Parser ()
 pKeyword kw = debug "pKeyword" $ lexeme do
     guard (kw `elem` keywords)
         <|> fail "Trying to parse non-keyword in keyword parser"
-    void (MP.try (MPC.string kw <* MP.notFollowedBy anyPrintableChar))
-  where anyPrintableChar :: Parser Char
-        anyPrintableChar = MP.satisfy (Ch.isPrint &&& (not <<< Ch.isSpace) >>> uncurry (&&))
+    void (MP.try (MPC.string kw <* MP.notFollowedBy anyLetterChar))
+  where anyLetterChar :: Parser Char
+        anyLetterChar = MP.satisfy (Ch.isLetter)

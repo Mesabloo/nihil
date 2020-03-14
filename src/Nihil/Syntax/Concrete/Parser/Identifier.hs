@@ -37,7 +37,10 @@ pIdentifier = debug "pIdentifier" $ lexeme do
 -}
 pIdentifier' :: Parser (Located String)
 pIdentifier' = debug "pIdentifier'" $ lexeme do
-    withPosition (identifier MPC.upperChar)
+    withPosition (identifier MPC.upperChar >>= check)
+  where check x | Text.pack x `elem` keywords =
+                    fail ("“" <> x <> "” is a keyword and thus cannot be used as an identifier")
+                | otherwise                   = pure x
 
 identifier :: Parser Char -> Parser String
 identifier front =
@@ -118,4 +121,4 @@ reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
 
 reservedTypeOperators :: [Text.Text]
-reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";", "{", "}", "⦃", "⦄" ]
+reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";", "{", "}", "×", "*", "Π" ]
