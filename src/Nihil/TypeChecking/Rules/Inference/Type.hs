@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.TypeChecking.Rules.Inference.Type
 ( inferExpr
@@ -66,6 +67,7 @@ inferExpr e =
         AC.ELambda pat ex     -> inferELambda pat ex
         AC.EMatch ex branches -> inferEMatch ex branches
         AC.ELet stts ex       -> inferELet stts ex
+        AC.ERecord stts       -> inferRecord stts
 
 -- | Infers the type of an expression 'AC.Literal'.
 inferELiteral :: AC.Literal -> SourcePos -> InferType Type
@@ -167,6 +169,17 @@ inferELet stts ex pos = do
         toDecl _ = impossible "Let expressions cannot contain type definitions."
         toDef  (AC.FunctionDefinition name def)   = (name, def)
         toDef  _ = impossible "Let expressions cannot contain type definitions."
+
+inferRecord :: [AC.Statement] -> SourcePos -> InferType Type
+inferRecord funs pos = do
+    recordTy <- TRecord . Map.fromList
+        <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> fresh "$" (location ex)) funs
+        <*> fresh "$" pos
+    inferedRecord <- TRecord . Map.fromList
+        <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> inferExpr ex) funs
+        <*> pure (locate (TId "()") pos)
+    tell [locate inferedRecord pos :>~ locate recordTy pos]
+    pure (locate inferedRecord pos)
 
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
