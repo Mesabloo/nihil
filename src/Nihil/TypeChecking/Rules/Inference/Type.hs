@@ -172,14 +172,16 @@ inferELet stts ex pos = do
 
 inferRecord :: [AC.Statement] -> SourcePos -> InferType Type
 inferRecord funs pos = do
-    recordTy <- TRecord . Map.fromList
+    rowTy <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> fresh "$" (location ex)) funs
-        <*> fresh "$" pos
-    inferedRecord <- TRecord . Map.fromList
+        <*> (Just <$> fresh "$" pos)
+    inferedRow <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> inferExpr ex) funs
-        <*> pure (locate (TId "()") pos)
-    tell [locate inferedRecord pos :>~ locate recordTy pos]
-    pure (locate inferedRecord pos)
+        <*> pure Nothing
+    let irec = locate inferedRow pos
+        trec = locate rowTy pos
+    tell [irec :>~ trec]
+    pure (locate (TRecord irec) pos)
 
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
