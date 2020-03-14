@@ -18,6 +18,7 @@ import Nihil.Utils.Impossible (impossible)
 import Nihil.TypeChecking.Errors.Infinite (infiniteType)
 import Nihil.TypeChecking.Errors.Unification (unifyType)
 import Nihil.TypeChecking.Errors.TypeHole (typeHole)
+import Nihil.TypeChecking.Errors.RecordDomainSubset (cannotSubtypeRecordDomains)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Except (throwError)
@@ -37,6 +38,12 @@ instance Unifiable Type GlobalEnv where
         (TApplication t1 t2, TApplication t3 t4) -> unifyMany [t1, t2] [t3, t4]
         (TApplication{}, _)                      -> unifyCustom t1 t2
         (_, TApplication{})                      -> unifyCustom t2 t1
+        (TRecord ss1 t1', TRecord ss2 t2')         -> do
+            let dom1 = Set.fromList (Map.keys ss1)
+                dom2 = Set.fromList (Map.keys ss2)
+            when (not (dom2 `Set.isSubsetOf` dom1)) do
+                throwError (cannotSubtypeRecordDomains dom2 dom1 (location t1))
+            pure mempty
         _                                        -> throwError (unifyType t1 t2)
 
 -- | Unifies custom types and checks for well formed type applications.
