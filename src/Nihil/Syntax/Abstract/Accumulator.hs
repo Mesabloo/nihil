@@ -73,8 +73,6 @@ accumulateOnCustomType (GADT ctors) =
     traverse_ accumulateOnType ctors
 accumulateOnCustomType (SumType ctors) =
     traverse_ accumulateOnType ctors
-accumulateOnCustomType (Record fields) =
-    traverse_ accumulateOnType fields
 
 accumulateOnType :: [AType] -> Desugarer ()
 accumulateOnType = mapM_ (accumulateOnType' <<< annotated)

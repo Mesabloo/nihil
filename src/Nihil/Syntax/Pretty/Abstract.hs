@@ -26,8 +26,6 @@ instance Pretty Statement' where
         TypeAlias ty  -> text "type" <+> text name <+> sep (fmap text tvs) <+> equals <+> pretty ty
         SumType ctors -> text "data" <+> text name <+> sep (fmap text tvs) <+> text "where" <+> semiBraces (Map.elems (Map.mapWithKey pretty' ctors))
           where pretty' name scheme = text name <+> colon <+> pretty scheme
-        Record fields -> text "record" <+> text name <+> sep (fmap text tvs) <+> text "where" <+> semiBraces (Map.elems (Map.mapWithKey pretty' fields))
-          where pretty' name scheme = text name <+> colon <+> pretty scheme
 
 instance Pretty Type' where
     pretty (TId i)              = if isOperator i then parens (text i) else text i

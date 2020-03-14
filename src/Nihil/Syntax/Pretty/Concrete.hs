@@ -46,11 +46,6 @@ instance Pretty Statement where
              <+> semiBraces (Map.elems (Map.mapWithKey prettyCtor ctors))
           where prettyCtor :: String -> [AType] -> Doc
                 prettyCtor name ts = text name <+> colon <+> pretty ts
-        Record fields ->
-            text "record" <+> text name <+> sep (fmap text tvs) <+> text "where"
-              <+> semiBraces (Map.elems (Map.mapWithKey prettyField fields))
-          where prettyField :: String -> [AType] -> Doc
-                prettyField name ts = text name <+> colon <+> pretty ts
 
 
 instance {-# OVERLAPPING #-} Pretty [AType] where

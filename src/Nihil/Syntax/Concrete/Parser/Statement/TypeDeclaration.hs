@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 
 module Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
-( pADT, pGADT, pTypeAlias, pRecord ) where
+( pADT, pGADT, pTypeAlias ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Syntax.Concrete.Core
@@ -55,17 +55,3 @@ pTypeAlias = debug "pTypeAlias" $ withPosition do
         MP.try s *> pSymbol' "="
         ty   <- withPosition (TypeAlias <$> (MP.try s *> pType s))
         pure (TypeDefinition name tvs ty)
-
-pRecord :: Parser AStatement
-pRecord = debug "pRecord" $ withPosition do
-    lineFold \s -> do
-        pKeyword "record"
-        name <- annotated <$> (MP.try s *> pIdentifier')
-        tvs <- fmap annotated <$> MP.many (MP.try (s *> pIdentifier))
-        MP.try s *> pKeyword "where"
-
-        let ~constructor = lineFold \s -> do
-                (,) <$> (annotated <$> pIdentifier) <*> (MP.try s *> pSymbol' ":" *> MP.try s *> pType s)
-
-        TypeDefinition name tvs <$> withPosition do
-            Record . Map.fromList <$> indentBlock constructor
