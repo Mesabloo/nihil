@@ -37,7 +37,8 @@ instance Pretty Type' where
       where prettyᵗ :: Type' -> Doc
             prettyᵗ t@TApplication{} = parens (pretty t)
             prettyᵗ t                = pretty t
-    pretty (TRecord ss r)       = braces (maybe id (\ty t -> t <+> text "|" <+> pretty ty) r (mconcat (fmap pretty ss)))
+    pretty (TRow ss r)          = braces (mconcat (punctuate semi (fmap pretty ss)) <+> text "|" <+> maybe (text "{}") pretty r)
+    pretty (TRecord row)        = text "*" <> pretty row
 
 instance Pretty Expr' where
     pretty (EId i)                = if isOperator i then parens (text i) else text i

@@ -63,7 +63,8 @@ instance Pretty Type where
     pretty (TParens p)       = parens (pretty p)
     pretty (TTuple t)        = tupled (fmap pretty t)
     pretty (TApplication ts) = sep (fmap pretty ts)
-    pretty (TRecord stts r)  = semiBraces (fmap pretty stts <> [maybe empty pretty r])
+    pretty (TRow stts r)     = braces (mconcat (punctuate semi (fmap pretty stts)) <+> maybe empty (\t -> text "|" <+> pretty t) r)
+    pretty (TRecord row)     = text "*" <> pretty row
 
 instance {-# OVERLAPPING #-} Pretty [AAtom] where
     pretty = sep . fmap pretty
