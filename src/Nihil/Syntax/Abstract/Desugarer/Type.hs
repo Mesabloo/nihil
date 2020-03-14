@@ -56,7 +56,10 @@ desugarAtom ops out (CC.TTuple ts) pos               = do
     types <- mapM (\t -> shuntingYard t [] []) ts
     let tTuple = locate (AC.TTuple types) pos
     pure (ops, tTuple : out)
-desugarAtom ops out (CC.TRecord stts rest) pos        = do
+desugarAtom ops out (CC.TRecord row) pos      = do
+    record <- AC.TRecord <$> shuntingYard [row] [] []
+    pure (ops, locate record pos : out)
+desugarAtom ops out (CC.TRow stts rest) pos          = do
     AC.Program ss <- desugarProgram (CC.Program stts)
-    rest' <- maybe (pure Nothing) (\t -> Just <$> shuntingYard [t] [] []) rest
-    pure (ops, locate (AC.TRecord ss rest') pos : out)
+    rest' <- maybe (pure Nothing) (\r -> Just <$> shuntingYard [r] [] []) rest
+    pure (ops, locate (AC.TRow ss rest') pos : out)
