@@ -63,6 +63,7 @@ instance Pretty Type where
     pretty (TParens p)       = parens (pretty p)
     pretty (TTuple t)        = tupled (fmap pretty t)
     pretty (TApplication ts) = sep (fmap pretty ts)
+    pretty (TRecord stts r)  = semiBraces (fmap pretty stts <> [maybe empty pretty r])
 
 instance {-# OVERLAPPING #-} Pretty [AAtom] where
     pretty = sep . fmap pretty
@@ -92,6 +93,7 @@ instance Pretty Atom where
     pretty (AMatch e1 branches) = nest indent' (text "match" <+> pretty e1 <+> text "with" <$> prettyBranches branches)
       where prettyBranches  = foldl1 ($$) . fmap f
             f (pat, ex)     = sep (fmap pretty pat) <+> text "->" <+> pretty ex
+    pretty (ARecord stts)       = semiBraces (fmap pretty stts)
 
 instance Pretty Literal where
     pretty (LString s)    = text (show s)

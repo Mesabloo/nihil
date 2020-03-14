@@ -37,6 +37,7 @@ instance Pretty Type' where
       where prettyᵗ :: Type' -> Doc
             prettyᵗ t@TApplication{} = parens (pretty t)
             prettyᵗ t                = pretty t
+    pretty (TRecord ss r)       = braces (maybe id (\ty t -> t <+> text "|" <+> pretty ty) r (mconcat (fmap pretty ss)))
 
 instance Pretty Expr' where
     pretty (EId i)                = if isOperator i then parens (text i) else text i
@@ -56,6 +57,7 @@ instance Pretty Expr' where
       where prettyBranches = foldl1 ($$) . fmap f
             f (pat, expr)  = pretty pat <+> text "->" <+> pretty expr
     pretty (ELet stts expr)       = text "let" <+> pretty (Program stts) </> text "in" <+> pretty expr
+    pretty (ERecord ss)           = semiBraces (fmap pretty ss)
 
 instance Pretty Pattern' where
     pretty PWildcard               = text "_"
