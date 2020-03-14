@@ -22,6 +22,7 @@ data Kind
     | KVar String             -- ^ > { k }
     | KApplication Kind Kind  -- ^ > { k₁ k₂ }
     | KArrow                  -- ^ > { -> } or { → }
+    | KRow                    -- ^ A special kind for row types
   deriving
     ( -- | Use only for debugging
       Show
@@ -46,8 +47,9 @@ data Type'
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
     | TPrim String
-    | TRecord (Map.Map String Type) Type
-                              -- ^ > { { f : t1 ; g : t2 | rest } }
+    | TRow (Map.Map String Type) (Maybe Type)
+                              -- ^ > { f : t1 ; g : t2 | rest }
+    | TRecord Type            -- ^ > { { f : t1 ; g : t2 | rest } }
   deriving
     ( -- | Use only for debugging
       Show
@@ -74,13 +76,15 @@ instance Substitutable Type' where
     free (TVar v)             = Set.singleton v
     free (TTuple ts)          = free ts
     free (TApplication t1 t2) = free [t1, t2]
-    free (TRecord funs ty)    = fold (free <$> funs) <> free ty
+    free (TRow funs ty)       = fold (free <$> funs) <> maybe mempty free ty
+    free (TRecord row)        = free row
     free _                    = mempty
 
     apply (Subst sub) tv@(TVar v) = fromMaybe tv (Map.lookup v sub)
     apply s (TTuple ts)           = TTuple (apply s ts)
     apply s (TApplication t1 t2)  = TApplication (apply s t1) (apply s t2)
-    apply s (TRecord ss r)        = TRecord (apply s <$> ss) (apply s r)
+    apply s (TRow ss r)           = TRow (apply s <$> ss) (apply s <$> r)
+    apply s (TRecord row)         = TRecord (apply s row)
     apply _ t                     = t
 
 instance (Substitutable a, Subst a ~ Subst' b) => Substitutable (Scheme a) where

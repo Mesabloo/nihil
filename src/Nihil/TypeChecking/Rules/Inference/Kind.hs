@@ -47,11 +47,14 @@ inferKind = annotated >>> f
             tell [k1 :*~ kArr k2 kv]
             pure kv
         f (TPrim _) = pure KStar
-        f (TRecord stts rest)  = do
+        f (TRecord row)        = KStar <$ inferKind row
+        f (TRow stts Nothing)  = do
             traverse_ (inferKind >=> \k -> tell [KStar :*~ k]) stts
-            k <- inferKind rest
-            tell [KStar :*~ k]
-            pure KStar
+            pure KRow
+        f (TRow stts (Just r)) = do
+            row <- f (TRow stts Nothing)
+            r <- inferKind r
+            row <$ tell [KRow :*~ r]
 
 -- | Infers the kind of a generalized 'Type'.
 inferScheme :: Scheme Type -> InferKind Kind
