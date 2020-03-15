@@ -47,6 +47,7 @@ inferKind = annotated >>> f
             tell [k1 :*~ kArr k2 kv]
             pure kv
         f (TPrim _) = pure KStar
+        f (TPrimC _) = pure KConstraint
         f (TRecord row)        = KStar <$ inferKind row
         f (TRow stts Nothing)  = do
             traverse_ (inferKind >=> \k -> tell [KStar :*~ k]) stts

@@ -23,6 +23,7 @@ data Kind
     | KApplication Kind Kind  -- ^ > { k₁ k₂ }
     | KArrow                  -- ^ > { -> } or { → }
     | KRow                    -- ^ A special kind for row types
+    | KConstraint             -- ^ A special kind for type constraints
   deriving
     ( -- | Use only for debugging
       Show
@@ -46,7 +47,8 @@ data Type'
     | TRigid String           -- ^ > { a }
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
-    | TPrim String
+    | TPrim String            -- ^ Primitive type
+    | TPrimC String           -- ^ Primitive constraint
     | TRow (Map.Map String Type) (Maybe Type)
                               -- ^ > { f : t1 ; g : t2 | rest }
     | TRecord Type            -- ^ > { { f : t1 ; g : t2 | rest } }
