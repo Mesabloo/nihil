@@ -53,7 +53,12 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
             , ("List",    KStar `kArr` KStar)
             , ("()",      KStar)
             , ("->",      KStar `kArr` KStar `kArr` KStar)
-            , ("→",       KStar `kArr` KStar `kArr` KStar) ]
+            , ("→",       KStar `kArr` KStar `kArr` KStar)
+            , ("=>",      KConstraint `kArr` KStar `kArr` KStar)
+            , ("⇒",       KConstraint `kArr` KStar `kArr` KStar)
+            , ("~",       KStar `kArr` KStar `kArr` KConstraint)
+            , ("∼",       KStar `kArr` KStar `kArr` KConstraint)
+            ]
 
         defaultCustomTypes :: Map.Map String CustomType
         defaultCustomTypes = Map.fromList
@@ -73,6 +78,10 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
             , ("Char", locate (Forall [] (TypeAlias (locate (TPrim "Char") dummyPos))) dummyPos)
             , ("->", locate (Forall [] (TypeAlias (locate (TPrim "->") dummyPos))) dummyPos)
             , ("→", locate (Forall [] (TypeAlias (locate (TPrim "->") dummyPos))) dummyPos)
+            , ("=>", locate (Forall [] (TypeAlias (locate (TPrim "=>") dummyPos))) dummyPos)
+            , ("⇒", locate (Forall [] (TypeAlias (locate (TPrim "=>") dummyPos))) dummyPos)
+            , ("~", locate (Forall [] (TypeAlias (locate (TPrimC "~") dummyPos))) dummyPos)
+            , ("∼", locate (Forall [] (TypeAlias (locate (TPrimC "~") dummyPos))) dummyPos)
             ]
 
         defaultConstructors :: Map.Map String (Scheme Type)
