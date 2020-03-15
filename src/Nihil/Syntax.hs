@@ -34,7 +34,9 @@ runDesugarer p = runExcept (evalStateT (desugar p) defaultOperators)
         defaultOperators = DState defaultTOps defaultVOps defaultPOps
 
         defaultTOps = Map.fromList
-            [ ("->", (CC.R, 0)), ("→", (CC.R, 0)) ]
+            [ ("->", (CC.R, -1)), ("→", (CC.R, -1))
+            , ("=>", (CC.R, -1)), ("̄̄⇒", (CC.R, -1))
+            , ("~", (CC.L, 0)),   ("∼", (CC.L, 0))  ]
         defaultVOps = Map.fromList
             [ ("*", (CC.L, 7)), ("/", (CC.L, 7))
             , ("+", (CC.L, 6)), ("-", (CC.L, 6))
