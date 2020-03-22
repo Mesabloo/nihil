@@ -48,8 +48,8 @@ inferFunctionDefinition pos name ex = do
     tell [fty :>~ tv]
 
     funDefCtx `views` lookup name >>= \case
-        Nothing           -> impossible "All functions must have types"
-        Just (Forall _ t) -> tell [t :>~ fty]
+        Nothing -> impossible "All functions must have types"
+        Just ty -> instantiate pos ty >>= \t -> tell [t :>~ fty]
 
     pure fty
 
@@ -279,7 +279,34 @@ instantiate :: SourcePos -> Scheme Type -> InferType Type
 instantiate pos (Forall vars ty) = do
     tvs <- fmap annotated <$> mapM (const (fresh "$" pos)) vars
     let sub = Subst (Map.fromList (zip vars tvs))
-    pure (apply sub (relax ty))
+    let newTy = apply sub (relax ty)
+    constraign' newTy
+
+constraign' :: Type -> InferType Type
+constraign' t =
+    let (pos, ty) = (location &&& annotated) t
+    in (`locate` pos) <$> constraign ty
+
+constraign :: Type' -> InferType Type'
+constraign (TApplication t@(annotated -> t1) t3) =
+    case t1 of
+        TApplication (annotated -> t1) t2
+            | t1 == TId "=>" || t1 == TId "⇒" -> do
+                addConstraint t2
+                annotated <$> constraign' t3
+        _ -> TApplication <$> constraign' t <*> constraign' t3
+constraign (TTuple ts) = TTuple <$> traverse constraign' ts
+constraign (TRecord t) = TRecord <$> constraign' t
+constraign (TRow fields ext) = TRow <$> traverse constraign' fields <*> pure ext
+constraign t = pure t
+
+addConstraint :: Type -> InferType ()
+addConstraint (annotated -> TApplication t1 t2) =
+    case annotated t1 of
+        TApplication (annotated -> sim) t3
+            | sim == TId "~" || sim == TId "̃̃∼" -> tell [t3 :>~ t2]
+        _ -> pure ()
+addConstraint _ = pure ()
 
 -- | Relaxing a type means to transform rigid type variables into substitutable type variables.
 relax :: Type -> Type

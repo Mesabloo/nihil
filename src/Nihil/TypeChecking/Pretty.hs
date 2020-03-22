@@ -18,6 +18,7 @@ instance Pretty Kind where
             prettyᵏ k@KApplication{}           = parens (pretty k)
             prettyᵏ k                          = pretty k
     pretty KRow                 = text "Row"
+    pretty KConstraint          = text "Constraint"
 
 instance Pretty Type' where
     pretty (TId i)              = text i -- if isOperator i then parens (text i) else text i
@@ -31,6 +32,7 @@ instance Pretty Type' where
                     _                    -> parens (pretty t)
             prettyᵗ t                = pretty t
     pretty (TPrim ty)           = text ty
+    pretty (TPrimC ty)          = text ty
     pretty (TRecord row)        = text "×" <> pretty row
     pretty (TRow ss ty)      =
         braces (mconcat (punctuate semi (prettyStts ss)) <+> text "|" <+> maybe (text "{}") pretty ty)
