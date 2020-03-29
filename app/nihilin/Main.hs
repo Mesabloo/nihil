@@ -6,7 +6,7 @@
 module Main
 ( main ) where
 
-import Nihil hiding (pretty)
+import Nihil
 import Nihil.Utils.Debug
 import Nihil.Utils.Source
 import Nihil.CommonError
@@ -38,10 +38,7 @@ workWith input = do
 
     let !res = log "Parsing code..."      $ runParser input filename
     !ast <- case res of
-        Left err -> let (_, _, pst) = MP.reachOffset (MP.errorOffset (MP.bundleErrors err !! 0)) (MP.bundlePosState err)
-                        pos = MP.pstateSourcePos pst
-                        parseError = CError (fromSourcePos pos) (ParseError err)
-                    in throwError (pretty inputLines parseError)
+        Left err -> throwError (pretty (err `withCode` inputLines))
         Right ast -> pure ast
     !dast    <- log "Desugaring AST..."    $ liftEither (runDesugarer ast)
     info (PP.pretty dast) (pure ())
