@@ -17,18 +17,28 @@ import Control.Applicative ((<|>))
 import qualified Text.Megaparsec as MP
 
 pFunctionDeclaration :: Parser AStatement
-pFunctionDeclaration = debug "pFunctionDeclaration" $ withPosition do
-    lineFold \s -> do
-        name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
-        MP.try s *> pSymbol' ":"
-        ty   <- MP.try s *> pType s
-        pure (FunDeclaration name ty)
+pFunctionDeclaration = debug "pFunctionDeclaration" do
+    withPosition do
+        lineFold \s -> do
+            name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
+            MP.try s
+            pSymbol' ":"
+            MP.try s
+            ty   <- pType s
+            MP.try space1
+            pure (FunDeclaration name ty)
+    MP.<?> "function declaration"
 
 pFunctionDefinition :: Parser AStatement
-pFunctionDefinition = debug "pFunctionDefinition" $ withPosition do
-    lineFold \s -> do
-        name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
-        args <- MP.many (MP.try (s *> Pattern.pAtom))
-        MP.try s *> pSymbol' "="
-        val  <- MP.try s *> pExpression s
-        pure (FunDefinition name args val)
+pFunctionDefinition = debug "pFunctionDefinition" do
+    withPosition do
+        lineFold \s -> do
+            name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
+            args <- Pattern.pAtom `MP.sepBy` MP.try s
+            MP.try s
+            pSymbol' "="
+            MP.try s
+            val  <- pExpression s
+            MP.try space1
+            pure (FunDefinition name args val)
+    MP.<?> "function definition"

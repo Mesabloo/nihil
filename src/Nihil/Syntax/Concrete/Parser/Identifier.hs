@@ -24,7 +24,7 @@ import Control.Monad (void)
 -}
 pIdentifier :: Parser (Located String)
 pIdentifier = debug "pIdentifier" $ lexeme do
-    withPosition (identifier MPC.lowerChar >>= check)
+    withPosition (MP.try (identifier MPC.lowerChar >>= check))
   where check x | Text.pack x `elem` keywords =
                     fail ("“" <> x <> "” is a keyword and thus cannot be used as an identifier")
                 | otherwise                   = pure x
@@ -106,13 +106,13 @@ pUnderscore = lexeme do
     withPosition (void (MP.some (MPC.char '_')))
 
 pAnySymbolᵉ :: Parser (Located String)
-pAnySymbolᵉ = debug "pAnySymbolᵉ" $ pSymbol >>= check
+pAnySymbolᵉ = debug "pAnySymbolᵉ" $ MP.try (pSymbol >>= check)
   where check l@(annotated -> s)
             | Text.pack s `elem` reservedExpressionOperators = fail "Cannot use reserved operator as an operator"
             | otherwise                                      = pure l
 
 pAnySymbolᵗ :: Parser (Located String)
-pAnySymbolᵗ = debug "pAnySymbolᵗ" $ pSymbol >>= check
+pAnySymbolᵗ = debug "pAnySymbolᵗ" $ MP.try (pSymbol >>= check)
   where check l@(annotated -> s)
             | Text.pack s `elem` reservedTypeOperators = fail "Cannot use reserved operator as an operator"
             | otherwise                                = pure l
@@ -121,4 +121,4 @@ reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
 
 reservedTypeOperators :: [Text.Text]
-reservedTypeOperators = [ ":", "|", ",", "(", ")", ";", "{", "}", "×", "*", "Π" ]
+reservedTypeOperators = [ ":", "|", ",", "(", ")", ";", "{", "}", "×", "Π", "=>", "⇒" ]
