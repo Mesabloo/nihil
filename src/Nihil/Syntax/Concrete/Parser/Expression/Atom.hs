@@ -38,7 +38,7 @@ pAtomNoApp s = withPosition (MP.choice atoms)
             , AId . annotated      <$> MP.choice
                 [ pIdentifier
                 , MP.try (pParens pAnySymbolᵉ)
-                , pIdentifier' ] MP.<?> "identifier"
+                ] MP.<?> "identifier"
             , ALiteral . annotated <$> MP.try pFloat
             , ALiteral . annotated <$> pInteger
             , ALiteral . annotated <$> pCharacter

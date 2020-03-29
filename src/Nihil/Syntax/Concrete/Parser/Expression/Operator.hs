@@ -11,4 +11,4 @@ import Nihil.Utils.Source
 
 pOperator :: Parser AAtom
 pOperator = debug "p[Expression]Operator" $
-    withPosition (AOperator . annotated <$> (pTicks (pIdentifier <|> pIdentifier') <|> pAnySymbolᵉ))
+    withPosition (AOperator . annotated <$> (pTicks pIdentifier <|> pAnySymbolᵉ))
