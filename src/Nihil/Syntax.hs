@@ -16,16 +16,17 @@ import Nihil.Syntax.Abstract.Accumulator (accumulateOnProgram)
 import Nihil.Syntax.Abstract.Desugarer.Statement (desugarProgram)
 import Nihil.Syntax.Pretty
 import qualified Data.Text as Text
-import qualified Text.Megaparsec as MP (runParser, errorBundlePretty)
+import qualified Text.Megaparsec as MP (runParser, ParseErrorBundle)
 import Control.Monad.State (evalStateT)
 import Control.Monad.Except (runExcept)
+import Data.Void
 import qualified Data.Map as Map
 import Data.Bifunctor (first)
 import Text.PrettyPrint.ANSI.Leijen (Doc, text)
 
 {-| Runs the parser on a @['Token']@ stream, returning either an error, or the AST parsed. -}
-runParser :: Text.Text -> String -> Either Doc CC.Program
-runParser input file = first (text . MP.errorBundlePretty) (MP.runParser pProgram file input)
+runParser :: Text.Text -> String -> Either (MP.ParseErrorBundle Text.Text Void) CC.Program
+runParser input file = MP.runParser pProgram file input
 
 {-| Runs the desugarer on a given AST, returning either an error or the new AST desugared. -}
 runDesugarer :: CC.Program -> Either Doc AC.Program

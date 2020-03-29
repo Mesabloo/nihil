@@ -1,17 +1,21 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main
 ( main ) where
 
-import Nihil
+import Nihil hiding (pretty)
 import Nihil.Utils.Debug
 import Nihil.Utils.Source
-import Prelude hiding (log, error, lookup)
+import Nihil.CommonError
+import Prelude hiding (log, error, lookup, (!!))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Text.PrettyPrint.ANSI.Leijen (Doc, text, red)
+import Text.PrettyPrint.ANSI.Leijen (Doc, text, red, putDoc, hardline)
+import qualified Text.PrettyPrint.ANSI.Leijen as PP (pretty)
+import qualified Text.Megaparsec as MP
 import System.Exit
 import Control.Monad.Except (ExceptT, runExceptT, liftEither, throwError)
 import Control.Lens ((%~), (^.))
@@ -20,18 +24,27 @@ import Control.Monad (when)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (isNothing)
+import Data.List.NonEmpty ((!!))
 
 main :: IO ()
 main = (runExceptT . workWith =<< T.getContents) >>= \case
-    Left err -> error err (print (red err)) *> exitFailure
+    Left err -> error err (putDoc (red err <> hardline)) *> exitFailure
     Right _  -> exitSuccess
 
 workWith :: T.Text -> ExceptT Doc IO ()
 workWith input = do
     let filename = "stdin"
-    !ast     <- log "Parsing code..."      $ liftEither (runParser input filename)
+        inputLines = T.lines input <> [""]
+
+    let !res = log "Parsing code..."      $ runParser input filename
+    !ast <- case res of
+        Left err -> let (_, _, pst) = MP.reachOffset (MP.errorOffset (MP.bundleErrors err !! 0)) (MP.bundlePosState err)
+                        pos = MP.pstateSourcePos pst
+                        parseError = CError (fromSourcePos pos) (ParseError err)
+                    in throwError (pretty inputLines parseError)
+        Right ast -> pure ast
     !dast    <- log "Desugaring AST..."    $ liftEither (runDesugarer ast)
-    info (pretty dast) (pure ())
+    info (PP.pretty dast) (pure ())
     log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
     let !env = addToEnv defaultEvalEnv dast
 
@@ -39,7 +52,7 @@ workWith input = do
         throwError (text "Function \"main\" not found.")
 
     val      <- log "Evaluating code..."   $ liftEither =<< liftIO (evaluate (dummyPos'ed (EId "main")) env)
-    info (pretty val) (pure ())
+    info (PP.pretty val) (pure ())
   where addToEnv :: EvalState -> Program -> EvalState
         addToEnv env (Program [])     = env
         addToEnv env (Program (s:ss)) = case annotated s of
