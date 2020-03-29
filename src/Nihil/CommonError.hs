@@ -2,64 +2,138 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Nihil.CommonError where
 
 import Nihil.Utils.Source
-import Data.Void (Void)
-import qualified Text.Megaparsec as MP
-import Text.PrettyPrint.ANSI.Leijen hiding (Pretty, pretty, space)
+import Text.PrettyPrint.ANSI.Leijen
 import qualified Data.Text as T
 import Prelude hiding ((<$>))
-import Data.List.NonEmpty (NonEmpty((:|)))
+import qualified Data.Set as Set
+import Control.Lens ((^.))
 
-data CompilerError
-    = CError { pos :: SourcePos, err :: AnyError }
-  deriving (Show, Eq)
+type FileContent = [T.Text]
+type Message = String
+type Note = String
 
-data AnyError
-    = ParseError (MP.ParseErrorBundle T.Text Void)
-  deriving (Show, Eq)
+data Severity
+    = Error
+    | Warning
 
-class Pretty s a where
-    pretty :: [s] -> a -> Doc
+data Diagnostic
+    = Diag Severity FileContent Message (Set.Set Label) [Note]
 
-instance Pretty T.Text CompilerError where
-    pretty input CError{..} = case pos of
-        NoSource             -> undefined
-        Loc line column file -> let spacing c = space (length (show line)) c in
-            empty <+> blue (spacing '─') <> blue (text "─┬─") <+> white (bold (pretty input pos)) <+> blue (text "──") <> hardline <>
-            empty <+> spacing ' ' <+> blue (text "│") <> hardline <>
-            showMultipleLinesIfNeeded line input <> showOneLine line id input <> hardline <>
---dullblue (text (show line)) <+> blue (text "│") <+> empty <+> white (text (T.unpack (input !! (unPos line - 1)))) <> hardline <>
-            empty <+> spacing ' ' <+> blue (text "│") <+> empty <+> space (unPos column - 1) ' ' <> red (text "^" <+> prettyError err) <> hardline <>
-            empty <+> spacing ' ' <+> blue (text "│") <> hardline <>
-            empty <+> spacing ' ' <+> blue (text "└─╸") <+> dullred (bold (text "Fatal compiler error detected")) <> hardline
+data Style
+    = Primary
+    | Secondary
+  deriving Eq
 
-showMultipleLinesIfNeeded :: Position -> [T.Text] -> Doc
-showMultipleLinesIfNeeded line input
-    | unPos line - 2 >= 1 =
-        showOneLine line (2 `subtract`) input <> hardline <>
-        showOneLine line (1 `subtract`) input <> hardline
-    | unPos line - 1 >= 1 =
-        showOneLine line (1 `subtract`) input <> hardline
-    | otherwise           = empty
+data Label
+    = Label Style SourcePos Message
+  deriving Eq
 
-showOneLine :: Position -> (Int -> Int) -> [T.Text] -> Doc
-showOneLine line transform input =
-    empty <+> dullblue (int (transform (unPos line))) <+> blue (text "│") <+> empty <+> white (text (T.unpack (input !! (transform (unPos line) - 1))))
+instance Ord Label where
+    Label _ pos1 _ <= Label _ pos2 _ = pos1 <= pos2
 
-space :: Int -> Char -> Doc
-space n sep = text (replicate n sep)
+primaryLabel, secondaryLabel :: SourcePos -> Label
+primaryLabel pos   = Label Primary pos ""
+secondaryLabel pos = Label Secondary pos ""
 
-prettyError :: AnyError -> Doc
-prettyError (ParseError MP.ParseErrorBundle{..}) =
-    let parseError :| _ = bundleErrors
-    in text (head (lines (MP.parseErrorTextPretty parseError)))
+withLabelMessage :: Label -> Message -> Label
+withLabelMessage (Label style pos _) msg = Label style pos msg
 
-instance Pretty T.Text SourcePos where
-    pretty _ NoSource            = text "<unknown>:0:0"
-    pretty i (Loc line col file) = angles (text file) <> colon <> pretty i line <> colon <> pretty i col
 
-instance Pretty T.Text Position where
-    pretty _ p = int (unPos p)
+newDiagnostic :: Severity -> Diagnostic
+newDiagnostic sev = Diag sev mempty "" mempty mempty
+
+errorDiagnostic, warningDiagnostic :: Diagnostic
+errorDiagnostic = newDiagnostic Error
+warningDiagnostic = newDiagnostic Warning
+
+withCode :: Diagnostic -> FileContent -> Diagnostic
+withCode (Diag sev _ msg labels notes) content = Diag sev content msg labels notes
+
+withMessage :: Diagnostic -> Message  -> Diagnostic
+withMessage (Diag sev content _ labels notes) msg = Diag sev content msg labels notes
+
+withLabels :: Diagnostic -> [Label] -> Diagnostic
+withLabels (Diag sev content msg _ notes) labels = Diag sev content msg (Set.fromList labels) notes
+
+withNotes :: Diagnostic -> [Note] -> Diagnostic
+withNotes (Diag sev content msg labels _) notes = Diag sev content msg labels notes
+
+andAddLabel :: Diagnostic -> Label -> Diagnostic
+andAddLabel (Diag sev content msg labels notes) label = Diag sev content msg (label `Set.insert` labels) notes
+
+andAddNote :: Diagnostic -> Note -> Diagnostic
+andAddNote (Diag sev content msg labels notes) note = Diag sev content msg labels (note : notes)
+
+
+
+type CompilerError = Diagnostic
+
+instance Pretty Diagnostic where
+    pretty (Diag sev content msg labels notes) =
+        let severity = case sev of
+                Error   -> bold (red (text "[error]"))
+                Warning -> bold (yellow (text "[warning]"))
+        in severity <+> bold (white (text msg)) <> hardline <>
+           showAllLabels content labels <>
+           showAllNotes notes
+
+showAllLabels :: FileContent -> Set.Set Label -> Doc
+showAllLabels content labels
+    | null labels = empty
+    | otherwise   =
+        let Label _ pos _ = Set.elemAt 0 labels
+            lineNumber    = unPos (pos ^. sourceLine)
+
+            (toShow, rem) = Set.spanAntitone (\(Label _ p _) -> p ^. sourceLine == Pos lineNumber) labels
+
+            lineToShow    = T.unpack (content !! (lineNumber - 1))
+                                  --          ^^ Very unsafe here but we shouldn't be able to under/overflow
+
+            lastElem      = Set.lookupMax rem
+            maxLine       = case lastElem of
+                Nothing            -> pos ^. sourceLine
+                Just (Label _ p _) -> p ^. sourceLine
+
+            !padding      = text . replicate (length (show maxLine))
+
+        in
+           empty <+> cyan (padding ' ')    <+> cyan (text "├────") <+> bold (white (pretty pos)) <+> cyan (text "──") <> hardline <>
+           empty <+> cyan (padding ' ')    <+> cyan (text "│")                                                        <> hardline <>
+           empty <+> blue (int lineNumber) <+> cyan (text "│  ")   <+> white (text lineToShow)                        <> hardline <>
+
+           foldl (prettify padding) empty toShow                                                                                  <>
+           empty <+> cyan (padding ' ')    <+> cyan (text "│")                                                        <> hardline <>
+
+           showAllLabels content rem
+  where prettify :: (Char -> Doc) -> Doc -> Label -> Doc
+        prettify padding doc label = doc                                                                                          <>
+           empty <+> cyan (padding ' ')    <+> cyan (text "│  ")   <+> pretty label                                   <> hardline
+
+instance Pretty Label where
+    pretty (Label style pos message) =
+        let columnNumber = unPos (pos ^. sourceColumn)
+
+            styled t = case style of
+                Primary   -> dullred (text "^"  <+> t)
+                Secondary -> dullblue (text "-" <+> t)
+
+            rpadding = text (replicate (columnNumber - 1) ' ')
+        in rpadding <> styled (text message)
+
+instance Pretty SourcePos where
+    pretty NoSource          = text "<unknown>:0"
+    pretty (Loc line _ file) = angles (text file) <> colon <> int (unPos line)
+
+showAllNotes :: [Note] -> Doc
+showAllNotes = foldl prettyNote empty
+  where prettyNote doc n = doc <> pretty n <> hardline
+
+instance {-# OVERLAPPING #-} Pretty Note where
+    pretty n = empty <+> cyan equals <+> white (text n)
