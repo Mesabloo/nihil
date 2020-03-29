@@ -34,13 +34,8 @@ import Control.Lens (use)
     * Multi parameters lambda abstractions are converted to multiple lambda abstractions.
       @λ x y → e@ becomes @λ x → λ y → e@.
 -}
-desugarExpression :: CC.AExpr -> Desugarer AC.Expr
-desugarExpression expr = initShuntingYard expr [] []
-
-initShuntingYard :: CC.AExpr -> OperatorStack -> ValueStack AC.Expr -> Desugarer AC.Expr
-initShuntingYard expr ops vals = do
-    let (ann, _) = (annotated &&& location) expr
-    shuntingYard ann ops vals
+desugarExpression :: CC.Expr -> Desugarer AC.Expr
+desugarExpression expr = shuntingYard expr [] []
 
 shuntingYard :: [CC.AAtom] -> OperatorStack -> ValueStack AC.Expr -> Desugarer AC.Expr
 shuntingYard [] ops []     = impossible "incomplete output stack"
@@ -106,7 +101,7 @@ desugarAtom ops out (CC.AMatch e1 branches) pos         = do
     ex    <- desugarExpression e1
     match <- AC.EMatch ex <$> desugarBranches branches
     pure (ops, locate match pos : out)
-  where desugarBranches :: [([CC.APattern], CC.AExpr)] -> Desugarer [(AC.Pattern, AC.Expr)]
+  where desugarBranches :: [([CC.APattern], CC.Expr)] -> Desugarer [(AC.Pattern, AC.Expr)]
         desugarBranches = mapM \(p, e) -> do
             pat <- desugarPattern p
             ex  <- desugarExpression e

@@ -23,7 +23,7 @@ pMatch s = debug "pMatch" $ do
     MP.try s *> pKeyword "with"
     AMatch expr <$> indentBlock pBranch
 
-pBranch :: Parser ([APattern], AExpr)
+pBranch :: Parser ([APattern], Expr)
 pBranch = debug "pBranch" $ lexeme do
     lineFold \s -> do
         pat <- pPattern
