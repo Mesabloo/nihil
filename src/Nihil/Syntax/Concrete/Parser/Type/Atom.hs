@@ -17,7 +17,8 @@ pAtom s = debug "p[Type]Atom" $ withPosition (MP.choice (atoms s))
 
 atoms :: Parser () -> [Parser Type]
 atoms s =
-    [ TVar . annotated <$> pIdentifier
-    , TId . annotated  <$> pIdentifier'
-    , MP.try (pTuple s)
-    , TParens          <$> pParens (pType s) ]
+    [ TVar . annotated <$> pIdentifier MP.<?> "type variable"
+    , TId . annotated  <$> pIdentifier' MP.<?> "type identifier"
+    , MP.try (pTuple s) MP.<?> "tuple"
+    , TParens          <$> pParens (pType s) MP.<?> "parenthesized type"
+    ]
