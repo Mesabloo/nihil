@@ -176,8 +176,10 @@ showLabels content padding labels
 
             lineToShow           = T.unpack (content !! (lineNumber - 1))
                                          --          ^^ Very unsafe here but we shouldn't be able to under/overflow
+            !rpadding            = text (drop (length (show lineNumber)) (show (padding ' ')))
+
             item                 =
-                if | Label{} <- label -> empty <+> blue (int lineNumber) <+> cyan (text "│  ")    <+> white (text lineToShow) <> hardline
+                if | Label{} <- label -> empty <+> rpadding <> blue (int lineNumber) <+> cyan (text "│  ") <+> white (text lineToShow) <> hardline
                    | otherwise        -> empty
 
         in item                                                                                                                                    <>
