@@ -36,7 +36,7 @@ runParser :: Text.Text -> String -> Either Diagnostic CC.Program
 runParser input file = first megaparsecErrorToCommonError (MP.runParser pProgram file input)
 
 {-| Runs the desugarer on a given AST, returning either an error or the new AST desugared. -}
-runDesugarer :: CC.Program -> Either Doc AC.Program
+runDesugarer :: CC.Program -> Either Diagnostic AC.Program
 runDesugarer p = runExcept (evalStateT (desugar p) defaultOperators)
   where desugar p = accumulateOnProgram p *> desugarProgram p
         defaultOperators = DState defaultTOps defaultVOps defaultPOps
@@ -54,7 +54,7 @@ megaparsecErrorToCommonError :: MP.ParseErrorBundle Text.Text Void -> Diagnostic
 megaparsecErrorToCommonError MP.ParseErrorBundle{..} =
     let diag = errorDiagnostic
             `withMessage` "Parse error on input"
-            `withLabels` (NonEmpty.toList bundleErrors >>= parseErrorToLabel bundlePosState)
+            `withBatches` [ newBatch `withLabels` (NonEmpty.toList bundleErrors >>= parseErrorToLabel bundlePosState) ]
     in diag
   where parseErrorToLabel :: MP.PosState Text.Text -> MP.ParseError Text.Text Void -> [Label]
         parseErrorToLabel pst err =
