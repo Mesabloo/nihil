@@ -15,6 +15,7 @@ module Nihil.Syntax.Common
  ) where
 
 import Nihil.Syntax.Concrete.Core (Associativity)
+import Nihil.CommonError
 import Text.Megaparsec (Parsec)
 import Data.Void (Void)
 import Control.Monad.State
@@ -22,11 +23,10 @@ import Control.Monad.Except
 import Control.Lens (makeLenses)
 import qualified Data.Text as Text
 import qualified Data.Map as Map
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 
 type Parser = Parsec Void Text.Text
 
-type Desugarer a = StateT DesugarerState (Except Doc) a
+type Desugarer a = StateT DesugarerState (Except Diagnostic) a
 
 -- | A type alias for the map retaining operators information when desugaring.
 type OperatorTable = Map.Map String (Associativity, Integer)

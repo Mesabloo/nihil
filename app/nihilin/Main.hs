@@ -28,7 +28,7 @@ import Data.List.NonEmpty ((!!))
 
 main :: IO ()
 main = (runExceptT . workWith =<< T.getContents) >>= \case
-    Left err -> error err (putDoc (red err <> hardline)) *> exitFailure
+    Left err -> error err (putDoc (err <> hardline)) *> exitFailure
     Right _  -> exitSuccess
 
 workWith :: T.Text -> ExceptT Doc IO ()
@@ -38,9 +38,12 @@ workWith input = do
 
     let !res = log "Parsing code..."      $ runParser input filename
     !ast <- case res of
-        Left err -> throwError (pretty (err `withCode` inputLines))
+        Left err  -> throwError (pretty (err `withCode` inputLines))
         Right ast -> pure ast
-    !dast    <- log "Desugaring AST..."    $ liftEither (runDesugarer ast)
+    let !res = log "Desugaring AST..."    $ runDesugarer ast
+    !dast <- case res of
+        Left err   -> throwError (pretty (err `withCode` inputLines))
+        Right dast -> pure dast
     info (PP.pretty dast) (pure ())
     log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
     let !env = addToEnv defaultEvalEnv dast
