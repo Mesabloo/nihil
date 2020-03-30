@@ -55,6 +55,7 @@ data Style
 
 data Label
     = Label Style SourcePos Message
+    | Ellipsis SourcePos
   deriving Eq
 
 instance Ord Batch where
@@ -66,6 +67,9 @@ instance Ord Batch where
 
 instance Ord Label where
     Label _ pos1 _ <= Label _ pos2 _ = pos1 <= pos2
+    Label _ pos1 _ <= Ellipsis pos2  = pos1 <= pos2
+    Ellipsis pos1  <= Label _ pos2 _ = pos1 <= pos2
+    Ellipsis pos1  <= Ellipsis pos2  = pos1 <= pos2
 
 primaryLabel, secondaryLabel :: SourcePos -> Label
 primaryLabel pos   = Label Primary pos ""
@@ -140,27 +144,43 @@ showAllLabels content labels
             maxLine       = case Set.lookupMax labels of
                 Nothing            -> pos ^. sourceLine
                 Just (Label _ p _) -> p ^. sourceLine
+                Just (Ellipsis p)  -> p ^. sourceLine
             !padding      = text . replicate (length (show maxLine))
+
+            lbls = if length labels <= 3
+                   then showLabels content padding labels
+                   else
+                       let labels'               = Set.elems labels
+                           (end, l3:_)           = span (\(Label sev _ _) -> sev /= Primary) (reverse labels')
+                           l1:l2:(Label _ p _):_ = labels'
+                       in showLabels content padding (Set.fromList ([l1, l2, Ellipsis p, l3] <> reverse end))
         in
             empty <+> cyan (padding ' ')   <+> cyan (text "├─────") <+> bold (white (text (pos ^. sourceFile))) <+> cyan (text "────") <> hardline <>
             empty <+> cyan (padding ' ')   <+> cyan (text "│")                                                                         <> hardline <>
-            showLabels content padding labels                                                                                                      <>
+            lbls                                                                                                                                   <>
             empty <+> cyan (padding ' ')   <+> cyan (text "│")                                                                         <> hardline
 
 showLabels :: FileContent -> (Char -> Doc) -> Set.Set Label -> Doc
 showLabels content padding labels
     | null labels = empty
     | otherwise   =
-        let Label _ pos _ = Set.elemAt 0 labels
-            lineNumber    = unPos (pos ^. sourceLine)
+        let label                = Set.elemAt 0 labels
+            pos                  = case label of
+                Label _ p _ -> p
+                Ellipsis p  -> p
+            lineNumber           = unPos (pos ^. sourceLine)
 
-            (toShow, rem) = Set.spanAntitone (\(Label _ p _) -> p ^. sourceLine == Pos lineNumber) labels
+            divide (Label _ p _) = p ^. sourceLine == Pos lineNumber
+            divide (Ellipsis p)  = p ^. sourceLine == Pos lineNumber
+            (toShow, rem)        = Set.spanAntitone divide labels
 
-            lineToShow    = T.unpack (content !! (lineNumber - 1))
-                                  --          ^^ Very unsafe here but we shouldn't be able to under/overflow
-        in
-           empty <+> blue (int lineNumber) <+> cyan (text "│  ")    <+> white (text lineToShow)                                        <> hardline <>
+            lineToShow           = T.unpack (content !! (lineNumber - 1))
+                                         --          ^^ Very unsafe here but we shouldn't be able to under/overflow
+            item                 =
+                if | Label{} <- label -> empty <+> blue (int lineNumber) <+> cyan (text "│  ")    <+> white (text lineToShow) <> hardline
+                   | otherwise        -> empty
 
+        in item                                                                                                                                    <>
            foldl (prettify padding) empty toShow                                                                                                   <>
 
            showLabels content padding rem
@@ -178,6 +198,7 @@ instance Pretty Label where
 
             rpadding = text (replicate (columnNumber - 1) ' ')
         in rpadding <> styled (text message)
+    pretty (Ellipsis _) = text "  ⋮"
 
 instance Pretty SourcePos where
     pretty NoSource          = text "<unknown>:0"
