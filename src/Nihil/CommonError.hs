@@ -5,6 +5,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Nihil.CommonError where
 
@@ -18,13 +19,34 @@ import Control.Lens ((^.))
 type FileContent = [T.Text]
 type Message = String
 type Note = String
+type Labels = Set.Set Label
+type Batches = Set.Set Batch
+
+data Batch
+    = Batch Labels
+  deriving (Eq)
+
+instance Monoid Batch where
+    mempty = Batch mempty
+
+instance Semigroup Batch where
+    Batch b1 <> Batch b2 = Batch (b1 <> b2)
 
 data Severity
     = Error
     | Warning
 
 data Diagnostic
-    = Diag Severity FileContent Message (Set.Set Label) [Note]
+    = Diag Severity FileContent Message Batches [Note]
+
+instance Monoid Diagnostic where
+    mempty = newDiagnostic Error
+
+instance Semigroup Diagnostic where
+    Diag Error file1 msg1 labels1 notes1 <> Diag Error _ msg2 labels2 notes2 = Diag Error file1 (msg1 <> "\n" <> msg2) (labels1 <> labels2) (notes1 <> notes2)
+    Diag Warning file1 msg1 labels1 notes1 <> Diag Warning _ msg2 labels2 notes2 = Diag Warning file1 (msg1 <> "\n" <> msg2) (labels1 <> labels2) (notes1 <> notes2)
+    d@(Diag Error _ _ _ _) <> _ = d
+    _ <> d@(Diag Error _ _ _ _) = d
 
 data Style
     = Primary
@@ -35,6 +57,13 @@ data Label
     = Label Style SourcePos Message
   deriving Eq
 
+instance Ord Batch where
+    Batch b1 <= Batch b2
+        | null b1 && null b2 = True
+        | null b1            = True
+        | null b2            = False
+        | otherwise          = Set.elemAt 0 b1 <= Set.elemAt 0 b2
+
 instance Ord Label where
     Label _ pos1 _ <= Label _ pos2 _ = pos1 <= pos2
 
@@ -44,6 +73,16 @@ secondaryLabel pos = Label Secondary pos ""
 
 withLabelMessage :: Label -> Message -> Label
 withLabelMessage (Label style pos _) msg = Label style pos msg
+
+
+newBatch :: Batch
+newBatch = Batch mempty
+
+withLabels :: Batch -> [Label] -> Batch
+withLabels (Batch _) labels = Batch (Set.fromList labels)
+
+andAddLabel :: Batch -> Label -> Batch
+andAddLabel (Batch labels) label = Batch (label `Set.insert` labels)
 
 
 newDiagnostic :: Severity -> Diagnostic
@@ -59,14 +98,14 @@ withCode (Diag sev _ msg labels notes) content = Diag sev content msg labels not
 withMessage :: Diagnostic -> Message  -> Diagnostic
 withMessage (Diag sev content _ labels notes) msg = Diag sev content msg labels notes
 
-withLabels :: Diagnostic -> [Label] -> Diagnostic
-withLabels (Diag sev content msg _ notes) labels = Diag sev content msg (Set.fromList labels) notes
+withBatches :: Diagnostic -> [Batch] -> Diagnostic
+withBatches (Diag sev content msg _ notes) labels = Diag sev content msg (Set.fromList labels) notes
 
 withNotes :: Diagnostic -> [Note] -> Diagnostic
 withNotes (Diag sev content msg labels _) notes = Diag sev content msg labels notes
 
-andAddLabel :: Diagnostic -> Label -> Diagnostic
-andAddLabel (Diag sev content msg labels notes) label = Diag sev content msg (label `Set.insert` labels) notes
+andAddBatch :: Diagnostic -> Batch -> Diagnostic
+andAddBatch (Diag sev content msg labels notes) label = Diag sev content msg (label `Set.insert` labels) notes
 
 andAddNote :: Diagnostic -> Note -> Diagnostic
 andAddNote (Diag sev content msg labels notes) note = Diag sev content msg labels (note : notes)
@@ -76,16 +115,40 @@ andAddNote (Diag sev content msg labels notes) note = Diag sev content msg label
 type CompilerError = Diagnostic
 
 instance Pretty Diagnostic where
-    pretty (Diag sev content msg labels notes) =
+    pretty (Diag sev content msg batches notes) =
         let severity = case sev of
                 Error   -> bold (red (text "[error]"))
                 Warning -> bold (yellow (text "[warning]"))
         in severity <+> bold (white (text msg)) <> hardline <>
-           showAllLabels content labels <>
+           showAllBatches content batches <>
+
            showAllNotes notes
+
+showAllBatches :: FileContent -> Set.Set Batch -> Doc
+showAllBatches content batches
+    | null batches = empty
+    | otherwise    =
+        let (Batch labels, remaining) = Set.deleteFindMin batches
+        in showAllLabels content labels <>
+           showAllBatches content remaining
 
 showAllLabels :: FileContent -> Set.Set Label -> Doc
 showAllLabels content labels
+    | null labels = empty
+    | otherwise   =
+        let Label _ pos _ = Set.elemAt 0 labels
+            maxLine       = case Set.lookupMax labels of
+                Nothing            -> pos ^. sourceLine
+                Just (Label _ p _) -> p ^. sourceLine
+            !padding      = text . replicate (length (show maxLine))
+        in
+            empty <+> cyan (padding ' ')   <+> cyan (text "├─────") <+> bold (white (text (pos ^. sourceFile))) <+> cyan (text "────") <> hardline <>
+            empty <+> cyan (padding ' ')   <+> cyan (text "│")                                                                         <> hardline <>
+            showLabels content padding labels                                                                                                      <>
+            empty <+> cyan (padding ' ')   <+> cyan (text "│")                                                                         <> hardline
+
+showLabels :: FileContent -> (Char -> Doc) -> Set.Set Label -> Doc
+showLabels content padding labels
     | null labels = empty
     | otherwise   =
         let Label _ pos _ = Set.elemAt 0 labels
@@ -95,26 +158,15 @@ showAllLabels content labels
 
             lineToShow    = T.unpack (content !! (lineNumber - 1))
                                   --          ^^ Very unsafe here but we shouldn't be able to under/overflow
-
-            lastElem      = Set.lookupMax rem
-            maxLine       = case lastElem of
-                Nothing            -> pos ^. sourceLine
-                Just (Label _ p _) -> p ^. sourceLine
-
-            !padding      = text . replicate (length (show maxLine))
-
         in
-           empty <+> cyan (padding ' ')    <+> cyan (text "├────") <+> bold (white (pretty pos)) <+> cyan (text "──") <> hardline <>
-           empty <+> cyan (padding ' ')    <+> cyan (text "│")                                                        <> hardline <>
-           empty <+> blue (int lineNumber) <+> cyan (text "│  ")   <+> white (text lineToShow)                        <> hardline <>
+           empty <+> blue (int lineNumber) <+> cyan (text "│  ")    <+> white (text lineToShow)                                        <> hardline <>
 
-           foldl (prettify padding) empty toShow                                                                                  <>
-           empty <+> cyan (padding ' ')    <+> cyan (text "│")                                                        <> hardline <>
+           foldl (prettify padding) empty toShow                                                                                                   <>
 
-           showAllLabels content rem
+           showLabels content padding rem
   where prettify :: (Char -> Doc) -> Doc -> Label -> Doc
-        prettify padding doc label = doc                                                                                          <>
-           empty <+> cyan (padding ' ')    <+> cyan (text "│  ")   <+> pretty label                                   <> hardline
+        prettify padding doc label = doc                                                                                                           <>
+           empty <+> cyan (padding ' ')    <+> cyan (text "│  ")    <+> pretty label                                                   <> hardline
 
 instance Pretty Label where
     pretty (Label style pos message) =
