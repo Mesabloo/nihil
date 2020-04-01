@@ -1,6 +1,7 @@
 module Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator where
 
 import Nihil.Utils.Source
+import Nihil.Syntax.Concrete
 import Nihil.CommonError
 import Nihil.Utils.Debug
 import Prelude hiding (error)
@@ -27,7 +28,7 @@ import Text.PrettyPrint.ANSI.Leijen
 
     * Delete the erroneous token and try again.
 -}
-unexpected :: String -> SourcePos -> Diagnostic
+unexpected :: String -> SourcePos -> Diagnostic Token
 unexpected operator pos =
     errorDiagnostic
         `withMessage` "Infix operator used with one or less operands"
