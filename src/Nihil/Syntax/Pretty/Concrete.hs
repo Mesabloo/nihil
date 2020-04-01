@@ -7,6 +7,7 @@ module Nihil.Syntax.Pretty.Concrete
 
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (annotated)
+import Nihil.Syntax.Concrete.Lexer (TokenClass(..))
 import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import Control.Arrow ((>>>))
@@ -19,6 +20,44 @@ indent' = 4
 -- | Aligns two documents on the same column.
 ($$) :: Doc -> Doc -> Doc
 ($$) x y = align (x <$> y)
+
+instance Pretty TokenClass where
+    pretty TkMatch                = text "keyword 'match'"
+    pretty TkWith                 = text "keyword 'with'"
+    pretty TkData                 = text "keyword 'data'"
+    pretty TkType                 = text "keyword 'type'"
+    pretty TkLet                  = text "keyword 'let'"
+    pretty TkIn                   = text "keyword 'in'"
+    pretty TkWhere                = text "keyword 'where'"
+    pretty TkInfixL               = text "keyword 'infixl'"
+    pretty TkInfixR               = text "keyword 'infixr'"
+    pretty TkEquals               = text "symbol '='"
+    pretty TkColon                = text "symbol ':'"
+    pretty TkSemi                 = text "symbol ';'"
+    pretty TkBackslash            = text "symbol '\\'"
+    pretty TkArrow                = text "symbol '->'"
+    pretty TkImplies              = text "symbol '=>'"
+    pretty TkBacktick             = text "symbol '`'"
+    pretty TkLambda               = text "symbol 'λ'"
+    pretty TkUnderscore           = text "symbol '_'"
+    pretty (TkInt i)              = text "integer " <> squotes (integer i)
+    pretty (TkFloat d)            = text "float " <> squotes (double d)
+    pretty (TkString s)           = text "string " <> string s
+    pretty (TkChar c)             = text "character " <> char c
+    pretty (TkLIdent i)           = text "identifier " <> squotes (text i)
+    pretty (TkUIdent i)           = text "identifier " <> squotes (text i)
+    pretty (TkSym s)              = text "symbol " <> squotes (text s)
+    pretty TkLParen               = text "symbol '('"
+    pretty TkRParen               = text "symbol ')'"
+    pretty TkComma                = text "symbol ','"
+    pretty TkBar                  = text "symbol '|'"
+    pretty (TkInlineComment c)    = text "-- " <> text c
+    pretty (TkMultilineComment c) = text "{- " <> text c <> text "-}"
+    pretty TkEOF                  = text "<EOF>"
+    pretty TkEOL                  = text "<newline>"
+
+instance Show TokenClass where
+    show = show . pretty
 
 instance Pretty Program where
     pretty (Program [])   = linebreak
