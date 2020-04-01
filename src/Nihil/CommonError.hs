@@ -5,18 +5,17 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Nihil.CommonError where
 
 import Nihil.Utils.Source
 import Text.PrettyPrint.ANSI.Leijen
-import qualified Data.Text as T
 import Prelude hiding ((<$>))
 import qualified Data.Set as Set
 import Control.Lens ((^.))
 
-type FileContent = [T.Text]
+type FileContent s = (Show s, Pretty s) => [s]
 type Message = String
 type Note = String
 type Labels = Set.Set Label
@@ -36,13 +35,13 @@ data Severity
     = Error
     | Warning
 
-data Diagnostic
-    = Diag Severity FileContent Message Batches [Note]
+data Diagnostic s
+    = Diag Severity (FileContent s) Message Batches [Note]
 
-instance Monoid Diagnostic where
+instance Monoid (Diagnostic s) where
     mempty = newDiagnostic Error
 
-instance Semigroup Diagnostic where
+instance Semigroup (Diagnostic s) where
     Diag Error file1 msg1 labels1 notes1 <> Diag Error _ msg2 labels2 notes2 = Diag Error file1 (msg1 <> "\n" <> msg2) (labels1 <> labels2) (notes1 <> notes2)
     Diag Warning file1 msg1 labels1 notes1 <> Diag Warning _ msg2 labels2 notes2 = Diag Warning file1 (msg1 <> "\n" <> msg2) (labels1 <> labels2) (notes1 <> notes2)
     d@(Diag Error _ _ _ _) <> _ = d
@@ -89,46 +88,46 @@ andAddLabel :: Batch -> Label -> Batch
 andAddLabel (Batch labels) label = Batch (label `Set.insert` labels)
 
 
-newDiagnostic :: Severity -> Diagnostic
+newDiagnostic :: Severity -> Diagnostic s
 newDiagnostic sev = Diag sev mempty "" mempty mempty
 
-errorDiagnostic, warningDiagnostic :: Diagnostic
+errorDiagnostic, warningDiagnostic :: Diagnostic s
 errorDiagnostic = newDiagnostic Error
 warningDiagnostic = newDiagnostic Warning
 
-withCode :: Diagnostic -> FileContent -> Diagnostic
+withCode :: Diagnostic s -> [s] -> Diagnostic s
 withCode (Diag sev _ msg labels notes) content = Diag sev content msg labels notes
 
-withMessage :: Diagnostic -> Message  -> Diagnostic
+withMessage :: Diagnostic s -> Message  -> Diagnostic s
 withMessage (Diag sev content _ labels notes) msg = Diag sev content msg labels notes
 
-withBatches :: Diagnostic -> [Batch] -> Diagnostic
+withBatches :: Diagnostic s -> [Batch] -> Diagnostic s
 withBatches (Diag sev content msg _ notes) labels = Diag sev content msg (Set.fromList labels) notes
 
-withNotes :: Diagnostic -> [Note] -> Diagnostic
+withNotes :: Diagnostic s -> [Note] -> Diagnostic s
 withNotes (Diag sev content msg labels _) notes = Diag sev content msg labels notes
 
-andAddBatch :: Diagnostic -> Batch -> Diagnostic
+andAddBatch :: Diagnostic s -> Batch -> Diagnostic s
 andAddBatch (Diag sev content msg labels notes) label = Diag sev content msg (label `Set.insert` labels) notes
 
-andAddNote :: Diagnostic -> Note -> Diagnostic
+andAddNote :: Diagnostic s -> Note -> Diagnostic s
 andAddNote (Diag sev content msg labels notes) note = Diag sev content msg labels (note : notes)
 
 
 
 type CompilerError = Diagnostic
 
-instance Pretty Diagnostic where
+instance (Show s, Pretty s) => Pretty (Diagnostic s) where
     pretty (Diag sev content msg batches notes) =
         let severity = case sev of
                 Error   -> bold (red (text "[error]"))
                 Warning -> bold (yellow (text "[warning]"))
-        in severity <+> bold (white (text msg)) <> hardline <>
+        in severity <+> bold (white (prettyList msg)) <> hardline <>
            showAllBatches content batches <>
 
            showAllNotes notes
 
-showAllBatches :: FileContent -> Set.Set Batch -> Doc
+showAllBatches :: (Show s, Pretty s) => [s] -> Set.Set Batch -> Doc
 showAllBatches content batches
     | null batches = empty
     | otherwise    =
@@ -136,7 +135,7 @@ showAllBatches content batches
         in showAllLabels content labels <>
            showAllBatches content remaining
 
-showAllLabels :: FileContent -> Set.Set Label -> Doc
+showAllLabels :: (Show s, Pretty s) => [s] -> Set.Set Label -> Doc
 showAllLabels content labels
     | null labels = empty
     | otherwise   =
@@ -160,7 +159,7 @@ showAllLabels content labels
             lbls                                                                                                                                   <>
             empty <+> cyan (padding ' ')   <+> cyan (text "│")                                                                         <> hardline
 
-showLabels :: FileContent -> (Char -> Doc) -> Set.Set Label -> Doc
+showLabels :: (Show s, Pretty s) => [s] -> (Char -> Doc) -> Set.Set Label -> Doc
 showLabels content padding labels
     | null labels = empty
     | otherwise   =
@@ -174,12 +173,12 @@ showLabels content padding labels
             divide (Ellipsis p)  = p ^. sourceLine == Pos lineNumber
             (toShow, rem)        = Set.spanAntitone divide labels
 
-            lineToShow           = T.unpack (content !! (lineNumber - 1))
-                                         --          ^^ Very unsafe here but we shouldn't be able to under/overflow
+            lineToShow           = content !! (lineNumber - 1)
+                                        -- ^^ Very unsafe here but we shouldn't be able to under/overflow
             !rpadding            = text (drop (length (show lineNumber)) (show (padding ' ')))
 
             item                 =
-                if | Label{} <- label -> empty <+> rpadding <> blue (int lineNumber) <+> cyan (text "│  ") <+> white (text lineToShow) <> hardline
+                if | Label{} <- label -> empty <+> rpadding <> blue (int lineNumber) <+> cyan (text "│  ") <+> white (pretty lineToShow) <> hardline
                    | otherwise        -> empty
 
         in item                                                                                                                                    <>
