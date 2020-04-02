@@ -4,7 +4,9 @@ module Nihil.Syntax.Concrete.Parser.Comment
 ( pLineComment, pBlockComment ) where
 
 import Nihil.Syntax.Common (Parser)
-import qualified Text.Megaparsec.Char.Lexer as MPL
+import Nihil.Utils.Source
+import Nihil.Syntax.Concrete.Lexer
+import qualified Text.Megaparsec as MP
 
 {-| Skips a line comment.
 
@@ -13,7 +15,9 @@ import qualified Text.Megaparsec.Char.Lexer as MPL
     @\<lineComment\> ::= "--" [ \<anyCharacterButEOL\> ] ;@
 -}
 pLineComment :: Parser ()
-pLineComment = MPL.skipLineComment "--"
+pLineComment = () <$ MP.satisfy (f . annotated)
+  where f (TkInlineComment _) = True
+        f _                   = False
 
 {-| Skips a block comment.
     Block comments cannot be nested, i.e. trying to parse @{\- comments {\- nested -\} -\}@
@@ -24,4 +28,6 @@ pLineComment = MPL.skipLineComment "--"
     @\<blockComment\> ::= "{\-" [ \<anyCharacter\> ] "-\}" ;@
 -}
 pBlockComment :: Parser ()
-pBlockComment = MPL.skipBlockComment "{-" "-}"
+pBlockComment = () <$ MP.satisfy (f . annotated)
+  where f (TkMultilineComment _) = True
+        f _                      = False

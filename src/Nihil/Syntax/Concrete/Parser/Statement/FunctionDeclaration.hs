@@ -24,8 +24,7 @@ pFunctionDeclaration = debug "pFunctionDeclaration" do
             MP.try s
             pSymbol' ":"
             MP.try s
-            ty   <- pType s
-            MP.try space1
+            ty   <- lexeme (pType s)
             pure (FunDeclaration name ty)
     MP.<?> "function declaration"
 
@@ -38,7 +37,6 @@ pFunctionDefinition = debug "pFunctionDefinition" do
             MP.try s
             pSymbol' "="
             MP.try s
-            val  <- pExpression s
-            MP.try space1
+            val  <- lexeme (pExpression s)
             pure (FunDefinition name args val)
     MP.<?> "function definition"

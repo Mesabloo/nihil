@@ -29,7 +29,7 @@ pADT = debug "pADT" $ withPosition do
         TypeDefinition name tvs <$> do
             MP.try s *> pSymbol' "="
             withPosition do
-                let ~constructor = (,) <$> (annotated <$> pIdentifier' <* MP.try s) <*> (pAtom s `MP.sepBy` MP.try s) <* MP.try spacen1 MP.<?> "datatype constructor"
+                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier' <* MP.try s) <*> (pAtom s `MP.sepBy` MP.try s)) MP.<?> "datatype constructor"
                 ctors <- constructor `MP.sepBy1` (pSymbol' "|" <* MP.try s)
                 pure (SumType (Map.fromList ctors))
 
@@ -42,7 +42,7 @@ pGADT = debug "pGADT" $ withPosition do
         tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` MP.try spaces)
         MP.try spaces *> pKeyword "where"
 
-        let ~constructor = lineFold \s -> do
+        let ~constructor = lineFold \s -> lexeme do
                 (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s)) MP.<?> "GADT constructor"
 
         ctors <- indentBlock constructor
