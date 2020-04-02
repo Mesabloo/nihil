@@ -36,15 +36,18 @@ workWith input = do
     let filename = "stdin"
         inputLines = T.lines input <> [""]
 
-    let !res = log "Parsing code..."      $ runParser input filename
+    let !res = log "Lexing code..."       $ runLexer input filename
+    !lex <- case res of
+        Left err  -> throwError (pretty (err `withCode` inputLines))
+        Right lex -> info (PP.pretty lex) $ pure lex
+    let !res = log "Parsing code..."      $ runParser lex filename
     !ast <- case res of
         Left err  -> throwError (pretty (err `withCode` inputLines))
-        Right ast -> pure ast
+        Right ast -> info (PP.pretty ast) $ pure ast
     let !res = log "Desugaring AST..."    $ runDesugarer ast
     !dast <- case res of
         Left err   -> throwError (pretty (err `withCode` inputLines))
-        Right dast -> pure dast
-    info (PP.pretty dast) (pure ())
+        Right dast -> info (PP.pretty dast) $ pure dast
     log "Typechecking code..."             $ liftEither (runTypeChecker defaultGlobalEnv dast)
     let !env = addToEnv defaultEvalEnv dast
 
