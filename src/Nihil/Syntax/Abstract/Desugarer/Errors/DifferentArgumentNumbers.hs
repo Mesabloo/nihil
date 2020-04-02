@@ -8,8 +8,9 @@ import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import Control.Arrow ((&&&))
 import Data.Functor ((<&>))
+import Data.Text (Text)
 
-differentNumberOfArguments :: String -> Int -> [SourcePos] -> Located Int -> Diagnostic Token
+differentNumberOfArguments :: String -> Int -> [SourcePos] -> Located Int -> Diagnostic Text
 differentNumberOfArguments name expected pos actual =
     let (loc, fun)        = (location &&& annotated) actual
         labelsForExpected = pos <&> \p -> secondaryLabel p `withLabelMessage` ("Found " <> show expected <> " argument" <> if expected == 1 then "" else "s")
