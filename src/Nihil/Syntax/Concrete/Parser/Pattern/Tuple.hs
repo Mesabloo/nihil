@@ -17,7 +17,7 @@ pTuple = debug "p[Pattern]Tuple" $ do
     MP.try unit <|> tuple
   where unit = PTuple [] <$ pParens (pure ())
         tuple = PTuple <$>
-            pParens (lexemeN pPattern `sepBy2` lexemeN (pSymbol' ","))
+            pParens (lexeme pPattern `sepBy2` lexeme (pSymbol' ","))
 
         sepBy2 p sep = do
             (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)

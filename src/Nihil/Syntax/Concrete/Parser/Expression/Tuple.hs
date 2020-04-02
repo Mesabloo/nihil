@@ -20,7 +20,7 @@ pTuple s = debug "p[Expression]Tuple" $ lexeme do
         tuple = ATuple <$> p
 
         p = do
-            pParens (lexemeN (pExpression s) `sepBy2` lexemeN (pSymbol' ","))
+            pParens (lexeme (pExpression s) `sepBy2` lexeme (pSymbol' ","))
 
         sepBy2 p sep = do
             (:) <$> (p <* sep) <*> (p `MP.sepBy1` sep)

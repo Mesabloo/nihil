@@ -2,21 +2,32 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Nihil.Syntax.Concrete.Parser
 ( -- * Getting source position
   getSourcePos, withPosition
   -- * Indentation-sensitive parsing
-, nonIndented, indentBlock, indentLevel, lineFold, lexeme, lexemeN, space1, spacen1, MPL.IndentOpt(..) ) where
+, nonIndented, indentBlock, indentLevel, lineFold
+  -- * Misc
+, lexeme ) where
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
+import Nihil.Syntax.Pretty()
+import qualified Nihil.Syntax.Concrete.Lexer as L
 import Nihil.Syntax.Concrete.Parser.Comment
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Text.Megaparsec.Char.Lexer as MPL
 import Control.Monad (void)
 import qualified Data.Char as Ch
+import Text.PrettyPrint.ANSI.Leijen (prettyList)
+import qualified Data.List.NonEmpty as NonEmpty
+import Control.Lens ((^.))
+import Control.Applicative
 
 -- | Gets the source position of the next token, unwrapping it from the 'Nihil.Utils.Source.Located' data type.
 getSourcePos :: Parser SourcePos
@@ -29,26 +40,9 @@ withPosition parse = do
     a <- parse
     pure (locate a pos)
 
-isSpace :: Char -> Bool
-isSpace c =
-    let code = Ch.ord c
-    in code == 9 || code == 32 || code == 160 || code == 8200 || code == 8201 || code == 8202
-
-space1 :: Parser ()
-space1 = MPL.space sc1 pLineComment pBlockComment
-
-spacen1 :: Parser ()
-spacen1 = MPL.space scn1 pLineComment pBlockComment
-
-sc1 :: Parser ()
-sc1 = void (MP.satisfy isSpace)
-
-scn1 :: Parser ()
-scn1 = void MPC.spaceChar
-
 -- | See @'MPL.nonIndented'@.
 nonIndented :: Parser a -> Parser a
-nonIndented = MPL.nonIndented spacen1
+nonIndented = MPL.nonIndented space
 
 -- | See @'MPL.indentLevel'@.
 indentLevel :: Parser MP.Pos
@@ -57,17 +51,17 @@ indentLevel = MPL.indentLevel
 -- | See @'MPL.indentBlock'@.
 indentBlock :: Parser a -> Parser [a]
 indentBlock p = do
-    MP.try spacen1
+    MP.try space
     pos <- indentLevel
-    p `MP.sepBy1` MP.try (MPL.indentGuard spacen1 EQ pos)
+    p `MP.sepBy1` MP.try (MPL.indentGuard space EQ pos)
 
 -- | See @'MPL.lineFold'@.
 lineFold :: (Parser () -> Parser a) -> Parser a
-lineFold = MPL.lineFold spacen1
+lineFold = MPL.lineFold space
 
--- | See @'MPL.lexeme'@.
+space :: Parser ()
+space = MPL.space pEOL pLineComment pBlockComment
+  where pEOL = MP.skipSome $ MP.satisfy (\(annotated -> t) -> t == L.TkEOL)
+
 lexeme :: Parser a -> Parser a
-lexeme = MPL.lexeme space1
-
-lexemeN :: Parser a -> Parser a
-lexemeN = MPL.lexeme spacen1
+lexeme = MPL.lexeme (MP.try space)
