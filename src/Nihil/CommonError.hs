@@ -14,6 +14,8 @@ import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import qualified Data.Set as Set
 import Control.Lens ((^.))
+import Data.Text (Text)
+import qualified Data.Text as T
 
 type FileContent s = (Show s, Pretty s) => [s]
 type Message = String
@@ -211,3 +213,6 @@ showAllNotes = foldl prettyNote empty
 
 instance {-# OVERLAPPING #-} Pretty Note where
     pretty n = empty <+> cyan equals <+> white (text n)
+
+instance Pretty Text where
+    pretty t = text (T.unpack t)
