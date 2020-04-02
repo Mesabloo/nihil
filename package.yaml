@@ -28,7 +28,7 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 
 dependencies:
 - base
-- megaparsec
+- megaparsec >8
 - mtl
 - lens
 - ansi-wl-pprint
