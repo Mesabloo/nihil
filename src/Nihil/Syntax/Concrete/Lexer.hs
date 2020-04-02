@@ -68,20 +68,11 @@ type InterToken = Maybe Token
 
 type Parser = MP.Parsec Void Text.Text
 
-runLexer :: Text.Text -> String -> Either (Diagnostic Text.Text) [[Token]]
+runLexer :: Text.Text -> String -> Either (Diagnostic Text.Text) [Token]
 runLexer input fileName =
     let res = MP.runParser lexProgram fileName input
     in bimap toDiagnostic toTokens res
-  where toTokens list =
-            let lst = catMaybes list
-            in splitOn (\(annotated -> t) -> t == TkEOL) lst
-
-        splitOn f xs =
-            let go []       acc = [reverse acc]
-                go (y : ys) acc
-                    | f y       = reverse acc : go ys []
-                    | otherwise = go ys (y : acc)
-            in go xs []
+  where toTokens = catMaybes
 
         toDiagnostic MP.ParseErrorBundle{..} =
             let diag = errorDiagnostic
@@ -91,7 +82,7 @@ runLexer input fileName =
 
         parseErrorToLabel :: MP.PosState Text.Text -> MP.ParseError Text.Text Void -> [Label]
         parseErrorToLabel pst err =
-            let (_, _, pos) = MP.reachOffset (MP.errorOffset err) pst
+            let (_, pos)    = MP.reachOffset (MP.errorOffset err) pst
                 !source     = fromSourcePos (MP.pstateSourcePos pos)
                 msgs        = lines (MP.parseErrorTextPretty err)
             in  if | length msgs == 1 ->
@@ -103,7 +94,10 @@ runLexer input fileName =
                        [ primaryLabel source `withLabelMessage` "unknown parse error" ]
 
 lexProgram :: Parser [InterToken]
-lexProgram = MP.many anyToken
+lexProgram = do
+    tokens <- MP.many anyToken
+    eof    <- Just <$> withSourceSpan (TkEOF <$ MP.eof)
+    pure (tokens <> [eof])
   where anyToken = MP.choice
             [ white
             , keywordOrLIdent
@@ -111,7 +105,6 @@ lexProgram = MP.many anyToken
             , comment
             , symbolOrSpecial
             , literal
-            , Just <$> (withSourceSpan do TkEOF <$ MP.eof)
             ]
 
 withSourceSpan :: Parser a -> Parser (Located a)
@@ -127,7 +120,7 @@ withSourceSpan p = do
 white :: Parser InterToken
 white = MP.label "" do
     MP.choice [ Just    <$> withSourceSpan (TkEOL <$ MPC.charCategory LineSeparator)
-              , Nothing <$  MPC.symbolChar
+              , Nothing <$  MPC.spaceChar
               ]
 
 keywordOrLIdent :: Parser InterToken
