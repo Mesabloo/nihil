@@ -15,7 +15,7 @@ import Control.Applicative ((<|>))
 pType :: Parser () -> Parser [AType]
 pType s = debug "pType" $ lexeme do
     let ~t = MP.try pOperator <|> pType' s
-    t `MP.sepBy1` MP.try s
+    t `MP.sepBy1` s
 
 pType' :: Parser () -> Parser AType
 pType' s = MP.try (pApplication s) <|> (pAtom s)
@@ -24,4 +24,4 @@ pApplication :: Parser () -> Parser AType
 pApplication s = debug "p[Type]Application" $ do
     withPosition (TApplication <$> types)
   where types = lexeme do
-            (:) <$> (pAtom s <* MP.try s) <*> (pAtom s `MP.sepBy1` MP.try s)
+            (:) <$> (pAtom s <* s) <*> (pAtom s `MP.sepBy1` s)

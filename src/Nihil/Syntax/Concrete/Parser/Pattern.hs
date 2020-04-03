@@ -19,11 +19,11 @@ pPattern :: Parser [APattern]
 pPattern = debug "pPattern" $ lexeme do
     lineFold \s -> do
         let ~t = pOperator <|> MP.try (constructor s) <|> pAtom
-        atoms <- (:) <$> t <*> MP.many (MP.try s *> t)
+        atoms <- t `MP.sepBy1` s
 
-        typed <- MP.try (MP.optional (MP.try s *> pSymbol' ":" *> MP.try s *> pType s))
+        typed <- MP.try (MP.optional (s *> pSymbol' ":" *> s *> pType s))
         let annotate t = [locate (PTypeAnnotated atoms t) NoSource]
         pure (maybe atoms annotate typed)
   where constructor sp =
             withPosition (PConstructor <$> (annotated <$> pIdentifier')
-                                       <*> MP.many (MP.try sp *> pAtom))
+                                       <*> MP.many (sp *> pAtom))

@@ -21,9 +21,9 @@ pFunctionDeclaration = debug "pFunctionDeclaration" do
     withPosition do
         lineFold \s -> do
             name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
-            MP.try s
+            s
             pSymbol' ":"
-            MP.try s
+            s
             ty   <- lexeme (pType s)
             pure (FunDeclaration name ty)
     MP.<?> "function declaration"
@@ -33,10 +33,10 @@ pFunctionDefinition = debug "pFunctionDefinition" do
     withPosition do
         lineFold \s -> do
             name <- annotated <$> (pParens pAnySymbolᵉ <|> pIdentifier)
-            args <- Pattern.pAtom `MP.sepBy` MP.try s
-            MP.try s
+            args <- Pattern.pAtom `MP.sepBy` s
+            s
             pSymbol' "="
-            MP.try s
+            s
             val  <- lexeme (pExpression s)
             pure (FunDefinition name args val)
     MP.<?> "function definition"
