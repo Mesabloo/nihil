@@ -4,7 +4,7 @@
 module Nihil.B_ParserSpec (spec) where
 
 import Test.Hspec
-import Nihil.Syntax (runParser)
+import Nihil.Syntax (runParser, runLexer)
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (locate, SourcePos(NoSource), Located)
 import qualified Data.Text as Text (Text)
@@ -44,8 +44,8 @@ spec = parallel do
         describe "Test on parenthesized expression"   expressionParensValueTest
         describe "Test on let expression"             expressionLetInValueTest
         describe "Test on where expression"           expressionWhereValueTest
-        describe "Test on lambda expression"           expressionLambdaValueTest
-        describe "Test on match expression"            expressionMatchWithValueTest
+        describe "Test on lambda expression"          expressionLambdaValueTest
+        describe "Test on match expression"           expressionMatchWithValueTest
     describe "Test on top-level statements" do
         describe "Test on function declaration"        toplevelFunctionDeclarationTest
         describe "Test on function definition"         toplevelFunctionDefinitionTest
@@ -54,7 +54,7 @@ spec = parallel do
 
 blankInputStreamTest :: Spec
 blankInputStreamTest = do
-    let (Left ____) = runParser "" "test"
+    let (Left ____) = runParser [] "test"
     pure ()
 
 typeUnitDeclarationTest :: Spec
@@ -97,114 +97,114 @@ typeParensDeclarationTest = do
 patternUnitMatchTest :: Spec
 patternUnitMatchTest = do
     testAST "f = \\() -> 0" "unit pattern"
-        (Program [node (FunDefinition "f" [] (node [node (ALambda [node (PTuple [])] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "f" [] [node (ALambda [node (PTuple [])] [node (ALiteral (LInteger 0))])])])
 
 patternLiteralMatchTest :: Spec
 patternLiteralMatchTest = do
     testAST "g = \\0 -> 0" "literal pattern"
-        (Program [node (FunDefinition "g" [] (node [node (ALambda [node (PLiteral (LInteger 0))] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "g" [] [node (ALambda [node (PLiteral (LInteger 0))] [node (ALiteral (LInteger 0))])])])
 
 patternIdentifierMatchTest :: Spec
 patternIdentifierMatchTest = do
     testAST "f = \\id -> 0" "identifier pattern"
-        (Program [node (FunDefinition "f" [] (node [node (ALambda [node (PId "id")] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "f" [] [node (ALambda [node (PId "id")] [node (ALiteral (LInteger 0))])])])
 
 patternWildcardMatchTest :: Spec
 patternWildcardMatchTest = do
     testAST "f = \\_ -> 0" "wildcard pattern"
-        (Program [node (FunDefinition "f" [] (node [node (ALambda [node PWildcard] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "f" [] [node (ALambda [node PWildcard] [node (ALiteral (LInteger 0))])])])
 
 patternTupleMatchTest :: Spec
 patternTupleMatchTest = do
     testAST "f = \\(a, b) -> 0" "tuple pattern"
-        (Program [node (FunDefinition "f" [] (node [node (ALambda [node (PTuple [[node (PId "a")], [node (PId "b")]])] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "f" [] [node (ALambda [node (PTuple [[node (PId "a")], [node (PId "b")]])] [node (ALiteral (LInteger 0))])])])
 
 patternParensMatchTest :: Spec
 patternParensMatchTest = do
     testAST "f (a) = 0" "parenthesized pattern"
-        (Program [node (FunDefinition "f" [node (PParens [node (PId "a")])] (node [node (ALiteral (LInteger 0))]))])
+        (Program [node (FunDefinition "f" [node (PParens [node (PId "a")])] [node (ALiteral (LInteger 0))])])
 
 patternTypeAnnotatedMatchTest :: Spec
 patternTypeAnnotatedMatchTest = do
     testAST "g = \\(x: Char) -> 0" "type annotated pattern"
-        (Program [node (FunDefinition "g" [] (node [node (ALambda [node (PParens [node (PTypeAnnotated [node (PId "x")] [node (TId "Char")])])] (node [node (ALiteral (LInteger 0))]))]))])
+        (Program [node (FunDefinition "g" [] [node (ALambda [node (PParens [node (PTypeAnnotated [node (PId "x")] [node (TId "Char")])])] [node (ALiteral (LInteger 0))])])])
 
 patternConstructorMatchTest :: Spec
 patternConstructorMatchTest = do
     testAST "h (Cons x xs) = 0" "constructor pattern"
-        (Program [node (FunDefinition "h" [node (PParens [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])])] (node [node (ALiteral (LInteger 0))]))])
+        (Program [node (FunDefinition "h" [node (PParens [node (PConstructor "Cons" [node (PId "x"), node (PId "xs")])])] [node (ALiteral (LInteger 0))])])
 
 patternOperatorMatchTest :: Spec
 patternOperatorMatchTest = do
     testAST "x (a `Cons` b) = 0" "pattern operator"
-        (Program [node (FunDefinition "x" [node (PParens [node (PId "a"), node (POperator "Cons"), node (PId "b")])] (node [node (ALiteral (LInteger 0))]))])
+        (Program [node (FunDefinition "x" [node (PParens [node (PId "a"), node (POperator "Cons"), node (PId "b")])] [node (ALiteral (LInteger 0))])])
 
 
 
 expressionLiteralValueTest :: Spec
 expressionLiteralValueTest = do
     testAST "w = 0.36" "literal expression"
-        (Program [node (FunDefinition "w" [] (node [node (ALiteral (LDouble 0.36))]))])
+        (Program [node (FunDefinition "w" [] [node (ALiteral (LDouble 0.36))])])
 
 expressionIdentifierValueTest :: Spec
 expressionIdentifierValueTest = do
     testAST "x = y" "identifier expression"
-        (Program [node (FunDefinition "x" [] (node [node (AId "y")]))])
+        (Program [node (FunDefinition "x" [] [node (AId "y")])])
 
 expressionTypeholeValueTest :: Spec
 expressionTypeholeValueTest = do
     testAST "x = _" "typehole expression"
-        (Program [node (FunDefinition "x" [] (node [node ATypeHole]))])
+        (Program [node (FunDefinition "x" [] [node ATypeHole])])
 
 expressionUnitValueTest :: Spec
 expressionUnitValueTest = do
     testAST "unit = ()" "unit expression"
-        (Program [node (FunDefinition "unit" [] (node [node (ATuple [])]))])
+        (Program [node (FunDefinition "unit" [] [node (ATuple [])])])
 
 expressionTupleValueTest :: Spec
 expressionTupleValueTest = do
     testAST "k = (0, 3, 'c')" "tuple expression"
-        (Program [node (FunDefinition "k" [] (node [node (ATuple [node [node (ALiteral (LInteger 0))], node [node (ALiteral (LInteger 3))], node [node (ALiteral (LCharacter 'c'))]])]))])
+        (Program [node (FunDefinition "k" [] [node (ATuple [[node (ALiteral (LInteger 0))], [node (ALiteral (LInteger 3))], [node (ALiteral (LCharacter 'c'))]])])])
 
 expressionOperatorValueTest :: Spec
 expressionOperatorValueTest = do
     testAST "k = f >=> g" "expression operator"
-        (Program [node (FunDefinition "k" [] (node [node (AId "f"), node (AOperator ">=>"), node (AId "g")]))])
+        (Program [node (FunDefinition "k" [] [node (AId "f"), node (AOperator ">=>"), node (AId "g")])])
 
 expressionTypeAnnotatedValueTest :: Spec
 expressionTypeAnnotatedValueTest = do
     testAST "s = 0 : Integer" "type annotated expression"
-        (Program [node (FunDefinition "s" [] (node [node (ATypeAnnotated (node [node (ALiteral (LInteger 0))]) [node (TId "Integer")])]))])
+        (Program [node (FunDefinition "s" [] [node (ATypeAnnotated [node (ALiteral (LInteger 0))] [node (TId "Integer")])])])
 
 expressionApplicationValueTest :: Spec
 expressionApplicationValueTest = do
     testAST "m = f x" "expression application"
-        (Program [node (FunDefinition "m" [] (node [node (AApplication [node (AId "f"), node (AId "x")])]))])
+        (Program [node (FunDefinition "m" [] [node (AApplication [node (AId "f"), node (AId "x")])])])
 
 expressionParensValueTest :: Spec
 expressionParensValueTest = do
     testAST "m = (0 + 1)" "parenthesized expression"
-        (Program [node (FunDefinition "m" [] (node [node (AParens (node [node (ALiteral (LInteger 0)), node (AOperator "+"), node (ALiteral (LInteger 1))]))]))])
+        (Program [node (FunDefinition "m" [] [node (AParens [node (ALiteral (LInteger 0)), node (AOperator "+"), node (ALiteral (LInteger 1))])])])
 
 expressionLetInValueTest :: Spec
 expressionLetInValueTest = do
     testAST "g = let\n      f = 0\n      h = f in h" "let expression"
-        (Program [node (FunDefinition "g" [] (node [node (ALet [node (FunDefinition "f" [] (node [node (ALiteral (LInteger 0))])), node (FunDefinition "h" [] (node [node (AId "f")]))] (node [node (AId "h")]))]))])
+        (Program [node (FunDefinition "g" [] [node (ALet [node (FunDefinition "f" [] [node (ALiteral (LInteger 0))]), node (FunDefinition "h" [] [node (AId "f")])] [node (AId "h")])])])
 
 expressionWhereValueTest :: Spec
 expressionWhereValueTest = do
     testAST "w = f\n  where\n    g = 0\n    f = g" "where expression"
-        (Program [node (FunDefinition "w" [] (node [node (AWhere (node [node (AId "f")]) [node (FunDefinition "g" [] (node [node (ALiteral (LInteger 0))])), node (FunDefinition "f" [] (node [node (AId "g")]))])]))])
+        (Program [node (FunDefinition "w" [] [node (AWhere [node (AId "f")] [node (FunDefinition "g" [] [node (ALiteral (LInteger 0))]), node (FunDefinition "f" [] [node (AId "g")])])])])
 
 expressionLambdaValueTest :: Spec
 expressionLambdaValueTest = do
     testAST "f = \\_ -> \"test\"" "lambda expression"
-        (Program [node (FunDefinition "f" [] (node [node (ALambda [node PWildcard] (node [node (ALiteral (LString "test"))]))]))])
+        (Program [node (FunDefinition "f" [] [node (ALambda [node PWildcard] [node (ALiteral (LString "test"))])])])
 
 expressionMatchWithValueTest :: Spec
 expressionMatchWithValueTest = do
     testAST "f = match 0 with\n    0 -> 0\n    _ -> 1" "match expression"
-        (Program [node (FunDefinition "f" [] (node [node (AMatch (node [node (ALiteral (LInteger 0))]) [([node (PLiteral (LInteger 0))], node [node (ALiteral (LInteger 0))]), ([node PWildcard], node [node (ALiteral (LInteger 1))])])]))])
+        (Program [node (FunDefinition "f" [] [node (AMatch [node (ALiteral (LInteger 0))] [([node (PLiteral (LInteger 0))], [node (ALiteral (LInteger 0))]), ([node PWildcard], [node (ALiteral (LInteger 1))])])])])
 
 
 
@@ -216,7 +216,7 @@ toplevelFunctionDeclarationTest = do
 toplevelFunctionDefinitionTest :: Spec
 toplevelFunctionDefinitionTest = do
     testAST "f x = x" "function definition"
-        (Program [node (FunDefinition "f" [node (PId "x")] (node [node (AId "x")]))])
+        (Program [node (FunDefinition "f" [node (PId "x")] [node (AId "x")])])
 
 toplevelOperatorFixityDeclarationTest :: Spec
 toplevelOperatorFixityDeclarationTest = do
@@ -242,6 +242,7 @@ node = (`locate` NoSource)
 
 testAST :: Text.Text -> String -> Program -> Spec
 testAST code name expected = do
-    let (Right ast) = runParser code "test"
+    let (Right lex) = runLexer code "test"
+    let (Right ast) = runParser lex "test"
     it ("should return a well-formed " <> name) do
         ast `shouldBe` expected
