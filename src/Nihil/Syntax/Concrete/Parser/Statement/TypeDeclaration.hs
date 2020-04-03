@@ -17,6 +17,7 @@ import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import qualified Data.Map as Map
 import Prelude hiding (log)
+import Control.Applicative
 
 pADT :: Parser AStatement
 pADT = debug "pADT" $ withPosition do
@@ -27,11 +28,13 @@ pADT = debug "pADT" $ withPosition do
         tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` s)
 
         TypeDefinition name tvs <$> do
-            s *> pSymbol' "="
+            s *> pSymbol' "=" <* s
             withPosition do
-                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier' <* s) <*> (pAtom s `MP.sepBy` s)) MP.<?> "datatype constructor"
+                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier') <*> (pAtom s `sepBeginBy` s)) MP.<?> "datatype constructor"
                 ctors <- constructor `MP.sepBy1` (pSymbol' "|" <* s)
                 pure (SumType (Map.fromList ctors))
+  where sepBeginBy p sep =
+            (sep *> (p `MP.sepBy` sep)) <|> pure []
 
 pGADT :: Parser AStatement
 pGADT = debug "pGADT" $ withPosition do
