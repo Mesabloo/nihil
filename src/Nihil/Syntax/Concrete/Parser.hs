@@ -16,6 +16,8 @@ module Nihil.Syntax.Concrete.Parser
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
+import Nihil.Utils.Debug (log)
+import Nihil.Syntax.Concrete.Debug
 import Nihil.Syntax.Pretty()
 import qualified Nihil.Syntax.Concrete.Lexer as L
 import Nihil.Syntax.Concrete.Parser.Comment
@@ -28,6 +30,7 @@ import Text.PrettyPrint.ANSI.Leijen (prettyList)
 import qualified Data.List.NonEmpty as NonEmpty
 import Control.Lens ((^.))
 import Control.Applicative
+import Prelude hiding (log)
 
 -- | Gets the source position of the next token, unwrapping it from the 'Nihil.Utils.Source.Located' data type.
 getSourcePos :: Parser SourcePos
@@ -42,7 +45,7 @@ withPosition parse = do
 
 -- | See @'MPL.nonIndented'@.
 nonIndented :: Parser a -> Parser a
-nonIndented = MPL.nonIndented space
+nonIndented = MPL.nonIndented (MP.try space)
 
 -- | See @'MPL.indentLevel'@.
 indentLevel :: Parser MP.Pos
@@ -57,11 +60,14 @@ indentBlock p = do
 
 -- | See @'MPL.lineFold'@.
 lineFold :: (Parser () -> Parser a) -> Parser a
-lineFold = MPL.lineFold space
+lineFold = MPL.lineFold (MP.try space)
 
 space :: Parser ()
-space = MPL.space pEOL pLineComment pBlockComment
-  where pEOL = MP.skipSome $ MP.satisfy (\(annotated -> t) -> t == L.TkEOL)
+space = debug "space" $ do
+    MPL.space pEOL pLineComment pBlockComment
+    sp <- getSourcePos
+    log sp $ pure ()
+  where pEOL = () <$ MP.satisfy (\(annotated -> t) -> t == L.TkEOL)
 
 lexeme :: Parser a -> Parser a
 lexeme = MPL.lexeme (MP.try space)
