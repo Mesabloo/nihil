@@ -103,8 +103,8 @@ lexProgram = do
             , keywordOrLIdent
             , uIdent
             , comment
-            , symbolOrSpecial
             , literal
+            , symbolOrSpecial
             ]
 
 withSourceSpan :: Parser a -> Parser (Located a)
@@ -178,8 +178,8 @@ literal :: Parser InterToken
 literal = Just <$> MP.label "literal" do
     withSourceSpan do
         MP.choice
-            [ TkInt    <$> MP.choice [ binL, octL, hexL, MPL.decimal MP.<?> "decimal literal" ]
-            , TkFloat  <$> MPL.float MP.<?> "float literal"
+            [ TkFloat  <$> MP.try MPL.float MP.<?> "float literal"
+            , TkInt    <$> MP.choice [ binL, octL, hexL, MPL.decimal MP.<?> "decimal literal" ]
             , TkChar   <$> (MPC.char '\'' *> MPL.charLiteral <* MPC.char '\'') MP.<?> "character literal"
             , TkString <$> (MPC.char '"' *> MP.manyTill MPL.charLiteral (MPC.char '"')) MP.<?> "string literal"
             ]
