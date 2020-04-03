@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 {-| Common data types used throughout the parsing process. -}
 
@@ -65,25 +66,30 @@ instance MP.Stream [L.Token] where
         | null s        = Nothing
         | otherwise     = Just (splitAt n s)
     takeWhile_        = span
-    showTokens _      = show . prettyList . NonEmpty.toList
-    reachOffset o pst@MP.PosState{..}
-        | o <= 0        =
-        let line = show $ prettyList (takeWhile (\(annotated -> t) -> t /= L.TkEOL) $ drop pstateOffset pstateInput)
-        in (if null line then "<empty line>" else line, pst)
-            | otherwise     =
-            let (before, after) = splitAt pstateOffset pstateInput
-                
-                modifyPos initial NoSource = initial
-                modifyPos initial loc      = MP.SourcePos
-                    { MP.sourceName   = loc ^. sourceFile
-                    , MP.sourceLine   = MP.mkPos (unPos (loc ^. sourceLine))
-                    , MP.sourceColumn = MP.mkPos (unPos (loc ^. sourceColumn))
-                    }
-            in case after of
-                    []     -> MP.reachOffset (o - 1) pst
-                    t : ts -> MP.reachOffset (o - 1) pst{ MP.pstateInput      = ts
-                                                        , MP.pstateOffset     = pstateOffset + 1
-                                                        , MP.pstateSourcePos  = modifyPos pstateSourcePos (location t)
-                                                        , MP.pstateTabWidth   = pstateTabWidth
-                                                        , MP.pstateLinePrefix = pstateLinePrefix
-                                                        }
+    showTokens _      = show . NonEmpty.toList
+    reachOffset o MP.PosState{..} =
+        let (before, after) = splitAt (o - pstateOffset) pstateInput
+
+            actualisePos initial NoSource = initial
+            actualisePos _       Loc{..}  = MP.SourcePos
+                { MP.sourceName   = _sourceFile
+                , MP.sourceColumn = MP.mkPos (unPos _sourceColumn)
+                , MP.sourceLine   = MP.mkPos (unPos _sourceLine)
+                }
+
+            tokenPos = case after of
+                []    -> NoSource
+                t : _ -> location t
+
+            newPos = MP.PosState
+                { MP.pstateInput      = after
+                , MP.pstateOffset     = max pstateOffset o
+                , MP.pstateSourcePos  = actualisePos pstateSourcePos tokenPos
+                , MP.pstateTabWidth   = pstateTabWidth
+                , MP.pstateLinePrefix = pstateLinePrefix}
+
+            notEOL (annotated -> t) = t /= L.TkEOL
+
+            fetchedLine = show $ reverse (takeWhile notEOL (reverse before)) <> takeWhile notEOL after
+
+         in (fetchedLine, newPos)
