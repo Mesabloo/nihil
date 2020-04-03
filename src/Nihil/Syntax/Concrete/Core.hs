@@ -16,7 +16,7 @@ newtype Program = Program [AStatement]
 type AStatement = Located Statement
 data Statement
     = FunDeclaration String [AType]               -- ^ > { show :: Integer → String }
-    | FunDefinition String [APattern] AExpr       -- ^ > { fun x _ 4 = x - 9 }
+    | FunDefinition String [APattern] Expr        -- ^ > { fun x _ 4 = x - 9 }
     | OperatorFixity String AFixity               -- ^ > { infixl 4 + }
     | TypeDefinition String [String] ACustomType  -- ^ > { type Algebra f a = f a → a }
   deriving
@@ -31,15 +31,15 @@ data Atom
     = ALiteral Literal                      -- ^ > { 9 or "hello" }
     | AId String                            -- ^ > { w }
     | AOperator String                      -- ^ > { >=> or `show` }
-    | ATuple [AExpr]                        -- ^ > { (e₁, e₂) }
+    | ATuple [Expr]                         -- ^ > { (e₁, e₂) }
     | ATypeHole                             -- ^ > { _ }
-    | ALambda [APattern] AExpr              -- ^ > { λ x y → e }
-    | AMatch AExpr [([APattern], AExpr)]    -- ^ > { match e₁ with p → e₂ }
-    | AParens AExpr                         -- ^ > { (e) }
+    | ALambda [APattern] Expr               -- ^ > { λ x y → e }
+    | AMatch Expr [([APattern], Expr)]      -- ^ > { match e₁ with p → e₂ }
+    | AParens Expr                          -- ^ > { (e) }
     | AApplication [AAtom]                  -- ^ > { f x }
-    | ATypeAnnotated AExpr [AType]          -- ^ > { e : t }
-    | ALet [AStatement] AExpr               -- ^ > { let x = y in e }
-    | AWhere AExpr [AStatement]             -- ^ > { f = g where g = e }
+    | ATypeAnnotated Expr [AType]           -- ^ > { e : t }
+    | ALet [AStatement] Expr                -- ^ > { let x = y in e }
+    | AWhere Expr [AStatement]              -- ^ > { f = g where g = e }
   deriving
     ( -- | Use only for debugging
       Show

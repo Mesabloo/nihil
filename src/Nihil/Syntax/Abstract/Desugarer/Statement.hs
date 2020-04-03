@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Nihil.Syntax.Abstract.Desugarer.Statement
 ( desugarProgram ) where
@@ -56,16 +57,17 @@ desugarStatement s ss =
             pure (Just (AC.FunctionDefinition name e), ss)
         x@(CC.FunDefinition name ps ex) -> do
             let (es, rem) = first (locate x pos :) (span (isFun name . annotated) ss)
-            forM es \e ->
-                let (CC.FunDefinition _ p _) = annotated e
-                in when (length p /= length ps) do
-                    log (p, ps) (pure ())
-                    throwError (differentNumberOfArguments (locate name (location e)) (length ps) (length p))
+            recursiveCheckParamsLength es [pos]
+            --forM es \e ->
+            --    let (CC.FunDefinition _ p _) = annotated e
+            --    in when (length p /= length ps) do
+            --        log (p, ps) (pure ())
+            --        throwError (differentNumberOfArguments (locate name (location e)) (length ps) (length p))
             let branches = fold' . annotated <$> es
 
             let ids = snd (foldl generateID (0, []) ps)
 
-            (, rem) <$> desugarEPM name ids branches (location ex)
+            (, rem) <$> desugarEPM name ids branches (location (head ex))
           where isFun name (CC.FunDefinition n _ _)
                     | name == n = True
                 isFun _ _       = False
@@ -75,16 +77,25 @@ desugarStatement s ss =
 
                 generateID (supply :: Integer, acc) pat = (supply + 1, locate (CC.PId ("#" <> show supply)) (location pat):acc)
 
+                recursiveCheckParamsLength []     _    = pure ()
+                recursiveCheckParamsLength (e:es) pos' = do
+                    let (pos, CC.FunDefinition _ p _) = (location &&& annotated) e
+                    let len1 = length p
+                        len2 = length ps
+                    when (len1 /= len2) do
+                         throwError (differentNumberOfArguments name len2 pos' (locate len1 pos))
+                    recursiveCheckParamsLength es (pos:pos')
+
 -- | Desugaring helper for “Equational Pattern Matching”.
-desugarEPM :: String -> [CC.APattern] -> [([CC.APattern], CC.AExpr)] -> SourcePos -> Desugarer (Maybe AC.Statement')
+desugarEPM :: String -> [CC.APattern] -> [([CC.APattern], CC.Expr)] -> SourcePos -> Desugarer (Maybe AC.Statement')
 desugarEPM name ids branches pos = do
     let tuple = fold' (patToExpr <$> ids)
-    ex <- desugarExpression (locate [locate (CC.ALambda ids (locate [locate (CC.AMatch tuple branches) pos] pos)) pos] pos)
+    ex <- desugarExpression [locate (CC.ALambda ids ([locate (CC.AMatch tuple branches) pos])) pos]
     pure (Just (AC.FunctionDefinition name ex))
-  where fold' toTuple = locate [locate (CC.ATuple toTuple) pos] pos
+  where fold' toTuple = [locate (CC.ATuple toTuple) pos]
 
         patToExpr p = case annotated p of
-            CC.PId i -> locate [locate (CC.AId i) pos] pos
+            CC.PId i -> [locate (CC.AId i) pos]
             _        -> impossible "Generated identifiers for equational pattern matching are necessarily pattern identifiers."
 
 desugarCustomType :: String -> [String] -> CC.ACustomType -> Desugarer AC.CustomType

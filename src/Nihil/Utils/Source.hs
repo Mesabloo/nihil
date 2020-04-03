@@ -8,7 +8,7 @@
 
 module Nihil.Utils.Source
 ( -- * Getting positions in source files
-  Position(..), SourcePos(NoSource), sourceLine, sourceColumn, sourceFile, fromSourcePos, locate
+  Position(..), SourcePos(..), sourceLine, sourceColumn, sourceFile, fromSourcePos, locate
   -- * Attaching positions to values
 , Located, annotated, location ) where
 

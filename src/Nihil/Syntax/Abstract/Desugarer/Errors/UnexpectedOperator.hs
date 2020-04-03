@@ -1,9 +1,12 @@
 module Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator where
 
 import Nihil.Utils.Source
+import Nihil.Syntax.Concrete
+import Nihil.CommonError
 import Nihil.Utils.Debug
 import Prelude hiding (error)
 import Text.PrettyPrint.ANSI.Leijen
+import Data.Text (Text)
 
 {-| [Unexpected operator error]
 
@@ -26,6 +29,10 @@ import Text.PrettyPrint.ANSI.Leijen
 
     * Delete the erroneous token and try again.
 -}
-unexpected :: String -> SourcePos -> Doc
+unexpected :: String -> SourcePos -> Diagnostic Text
 unexpected operator pos =
-    error ("unexpected operator " <> operator <> " ; " <> show pos) (text "Unexpected operator" <+> squotes (text operator) <+> text "at" <+> text (show pos))
+    errorDiagnostic
+        `withMessage` "Infix operator used with one or less operands"
+        `andAddBatch` (newBatch `andAddLabel` (primaryLabel pos `withLabelMessage` ("Unexpected operator " <> operator <> " found here")))
+        `andAddNote`  "You can remove this operator"
+        `andAddNote`  "You can add missing operand(s)"

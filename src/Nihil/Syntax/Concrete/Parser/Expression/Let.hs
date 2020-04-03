@@ -18,8 +18,8 @@ pLet :: Parser () -> Parser Atom
 pLet s = debug "pLet" $ do
     pKeyword "let"
     stts <- indentBlock def
-    MP.try s *> pKeyword "in"
-    ALet stts <$> (MP.try s *> pExpression s)
+    s *> pKeyword "in"
+    ALet stts <$> (s *> pExpression s)
 
 def :: Parser AStatement
 def = MP.try pFunctionDeclaration <|> pFunctionDefinition

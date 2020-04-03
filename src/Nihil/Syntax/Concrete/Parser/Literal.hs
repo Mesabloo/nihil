@@ -7,8 +7,10 @@ module Nihil.Syntax.Concrete.Parser.Literal
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
+import Nihil.Utils.Impossible
 import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Core (Literal(..))
+import Nihil.Syntax.Concrete.Lexer
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Text.Megaparsec.Char.Lexer as MPL
@@ -26,12 +28,12 @@ import Control.Applicative ((<|>))
 -}
 pInteger :: Parser (Located Literal)
 pInteger = lexeme do
-    withPosition (LInteger <$> integer)
-  where integer = hex <|> bin <|> oct <|> int
-        hex     = (MPC.string "0x" <|> MPC.string "0X") *> MPL.hexadecimal
-        bin     = (MPC.string "0b" <|> MPC.string "0B") *> MPL.binary
-        oct     = (MPC.string "0o" <|> MPC.string "0O") *> MPL.octal
-        int     = MPL.decimal
+    withPosition (LInteger . extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkInt _) = True
+        f _         = False
+
+        extract (TkInt i) = i
+        extract t         = impossible ("Cannot extract integer from " <> show t)
 
 {-| A lexer for floating point numbers. It supports exponent notation.
 
@@ -41,7 +43,12 @@ pInteger = lexeme do
 -}
 pFloat :: Parser (Located Literal)
 pFloat = lexeme do
-    withPosition (LDouble <$> MPL.float)
+    withPosition (LDouble . extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkFloat _) = True
+        f _           = False
+
+        extract (TkFloat f) = f
+        extract t           = impossible ("Cannot extract float from " <> show t)
 
 {-| A parser for a char literal. It takes in account escape characters such as @\n@ or @\e@.
 
@@ -51,10 +58,12 @@ pFloat = lexeme do
 -}
 pCharacter :: Parser (Located Literal)
 pCharacter = lexeme do
-    withPosition (LCharacter <$> (MPC.char '\'' *> anyChar <* MPC.char '\''))
+    withPosition (LCharacter . extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkChar _) = True
+        f _          = False
 
-anyChar :: Parser Char
-anyChar = MPL.charLiteral
+        extract (TkChar c) = c
+        extract t          = impossible ("Cannot extract character from " <> show t)
 
 {-| A parser for a string literal. It takes in account escape characters just like 'pChar'.
 
@@ -64,4 +73,9 @@ anyChar = MPL.charLiteral
 -}
 pString :: Parser (Located Literal)
 pString = lexeme do
-    withPosition (LString <$> (MPC.char '"' *> MP.manyTill anyChar (MPC.char '"')))
+    withPosition (LString . extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkString _) = True
+        f _            = False
+
+        extract (TkString s) = s
+        extract t            = impossible ("Cannot extract string from " <> show t)

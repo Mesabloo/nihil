@@ -103,8 +103,8 @@ accumulateOnPattern = mapM_ (accumulateOnPattern' <<< annotated)
             accumulateOnPattern p
         accumulateOnPattern' _                     = pure ()
 
-accumulateOnExpression :: AExpr -> Desugarer ()
-accumulateOnExpression = mapM_ accumulateOnExpression' <<< annotated
+accumulateOnExpression :: Expr -> Desugarer ()
+accumulateOnExpression = mapM_ accumulateOnExpression'
   where accumulateOnExpression' :: AAtom -> Desugarer ()
         accumulateOnExpression' = annotated >>> \case
             AOperator name       ->

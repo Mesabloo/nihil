@@ -7,9 +7,10 @@ module Nihil.Syntax.Concrete.Parser.Identifier
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
+import Nihil.Utils.Impossible
 import Nihil.Syntax.Concrete.Debug
-import Nihil.Syntax.Concrete.Parser.Keyword (keywords)
 import Nihil.Syntax.Concrete.Parser
+import Nihil.Syntax.Concrete.Lexer
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
@@ -24,10 +25,12 @@ import Control.Monad (void)
 -}
 pIdentifier :: Parser (Located String)
 pIdentifier = debug "pIdentifier" $ lexeme do
-    withPosition (identifier MPC.lowerChar >>= check)
-  where check x | Text.pack x `elem` keywords =
-                    fail ("“" <> x <> "” is a keyword and thus cannot be used as an identifier")
-                | otherwise                   = pure x
+    withPosition (extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkLIdent _) = True
+        f _            = False
+
+        extract (TkLIdent i) = i
+        extract t            = impossible ("Cannot extract identifier from " <> show t)
 
 {-| A parser for identifiers beginning with a uppercased letter.
 
@@ -37,61 +40,44 @@ pIdentifier = debug "pIdentifier" $ lexeme do
 -}
 pIdentifier' :: Parser (Located String)
 pIdentifier' = debug "pIdentifier'" $ lexeme do
-    withPosition (identifier MPC.upperChar)
+    withPosition (extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkUIdent _) = True
+        f _            = False
 
-identifier :: Parser Char -> Parser String
-identifier front =
-    (:) <$> front <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'' <|> MPC.char '_')
+        extract (TkUIdent i) = i
+        extract t            = impossible ("Cannot extract identifier from " <> show t)
 
 -- | A parser for symbols. A symbol is any sequence of ASCII or Unicode non-letter characters.
 pSymbol :: Parser (Located String)
 pSymbol = debug "pSymbol" $ lexeme do
-    withPosition (unarySymbol <|> multiSymbol)
+    withPosition (extract . annotated <$> MP.satisfy (f . annotated))
+  where f (TkSym _) = True
+        f _         = False
+
+        extract (TkSym s) = s
+        extract t         = impossible ("Cannot extract symbol from " <> show t)
 
 -- | Tries to parse a given symbol.
 pSymbol' :: Text.Text -> Parser ()
 pSymbol' s = debug "pSymbol'" $ lexeme do
-    void (MPC.string s)
-
-unarySymbol :: Parser String
-unarySymbol =
-    (:[]) <$> MP.satisfy isUnarySymbol
-  where isUnarySymbol '('  = True
-        isUnarySymbol ')'  = True
-        isUnarySymbol '{'  = True
-        isUnarySymbol '}'  = True
-        isUnarySymbol ','  = True
-        isUnarySymbol ';'  = True
-        isUnarySymbol '\\' = True
-        isUnarySymbol 'λ'  = True
-        isUnarySymbol '→'  = True
-        isUnarySymbol '⇒'  = True
-        isUnarySymbol ':'  = True
-        isUnarySymbol '`'  = True
-        isUnarySymbol  _   = False
-
-multiSymbol :: Parser String
-multiSymbol =
-    MP.some (MPC.symbolChar <|> MP.satisfy isMultiSymbol)
-  where isMultiSymbol '!' = True
-        isMultiSymbol '$' = True
-        isMultiSymbol '%' = True
-        isMultiSymbol '&' = True
-        isMultiSymbol '.' = True
-        isMultiSymbol '<' = True
-        isMultiSymbol '=' = True
-        isMultiSymbol '>' = True
-        isMultiSymbol '?' = True
-        isMultiSymbol '^' = True
-        isMultiSymbol '~' = True
-        isMultiSymbol '|' = True
-        isMultiSymbol '@' = True
-        isMultiSymbol '*' = True
-        isMultiSymbol '/' = True
-        isMultiSymbol '-' = True
-        isMultiSymbol '+' = True
-        isMultiSymbol ':' = True
-        isMultiSymbol  _  = False
+    () <$ MP.satisfy (f s . annotated)
+  where f "="  TkEquals    = True
+        f ":"  TkColon     = True
+        f ";"  TkSemi      = True
+        f "\\" TkBackslash = True
+        f "->" TkArrow     = True
+        f "→"  TkArrow     = True
+        f "=>" TkImplies   = True
+        f "⇒"  TkImplies   = True
+        f "`"  TkBacktick  = True
+        f "λ"  TkLambda    = True
+        f "("  TkLParen    = True
+        f ")"  TkRParen    = True
+        f ","  TkComma     = True
+        f "|"  TkBar       = True
+        f s    (TkSym sy)  = Text.pack sy == s
+        f s    _           = False
+        f s    t           = impossible ("Cannot extract symbol " <> Text.unpack s <> " from " <> show t)
 
 {-| A parser for type holes or anonymous patterns.
 
@@ -100,16 +86,17 @@ multiSymbol =
 -}
 pUnderscore :: Parser (Located ())
 pUnderscore = lexeme do
-    withPosition (void (MP.some (MPC.char '_')))
+    withPosition (() <$ MP.satisfy (f . annotated))
+  where f = (== TkUnderscore)
 
 pAnySymbolᵉ :: Parser (Located String)
-pAnySymbolᵉ = debug "pAnySymbolᵉ" $ pSymbol >>= check
+pAnySymbolᵉ = debug "pAnySymbolᵉ" $ MP.try (pSymbol >>= check)
   where check l@(annotated -> s)
             | Text.pack s `elem` reservedExpressionOperators = fail "Cannot use reserved operator as an operator"
             | otherwise                                      = pure l
 
 pAnySymbolᵗ :: Parser (Located String)
-pAnySymbolᵗ = debug "pAnySymbolᵗ" $ pSymbol >>= check
+pAnySymbolᵗ = debug "pAnySymbolᵗ" $ MP.try (pSymbol >>= check)
   where check l@(annotated -> s)
             | Text.pack s `elem` reservedTypeOperators = fail "Cannot use reserved operator as an operator"
             | otherwise                                = pure l

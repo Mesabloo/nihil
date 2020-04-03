@@ -17,31 +17,36 @@ import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
 import qualified Data.Map as Map
 import Prelude hiding (log)
+import Control.Applicative
 
 pADT :: Parser AStatement
 pADT = debug "pADT" $ withPosition do
     lineFold \s -> lexeme do
         pKeyword "data"
-        name <- annotated <$> (MP.try s *> pIdentifier')
-        tvs <- fmap annotated <$> MP.many (MP.try (s *> pIdentifier))
+        s
+        name <- annotated <$> pIdentifier'
+        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` s)
 
         TypeDefinition name tvs <$> do
-            MP.try s *> pSymbol' "="
+            s *> pSymbol' "=" <* s
             withPosition do
-                let ~constructor = (,) <$> (annotated <$> pIdentifier') <*> MP.many (MP.try (s *> pAtom s))
-                ctors <- constructor `MP.sepBy1` (MP.try s *> pSymbol' "|" <* MP.try s)
+                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier') <*> (pAtom s `sepBeginBy` s)) MP.<?> "datatype constructor"
+                ctors <- constructor `MP.sepBy1` (pSymbol' "|" <* s)
                 pure (SumType (Map.fromList ctors))
+  where sepBeginBy p sep =
+            (sep *> (p `MP.sepBy` sep)) <|> pure []
 
 pGADT :: Parser AStatement
 pGADT = debug "pGADT" $ withPosition do
     lineFold \spaces -> lexeme do
         pKeyword "data"
-        name <- annotated <$> (MP.try spaces *> pIdentifier')
-        tvs <- fmap annotated <$> MP.many (MP.try (spaces *> pIdentifier))
-        MP.try spaces *> pKeyword "where"
+        spaces
+        name <- annotated <$> pIdentifier'
+        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` spaces)
+        spaces *> pKeyword "where"
 
-        let ~constructor = lineFold \s -> do
-                (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s))
+        let ~constructor = lineFold \s -> lexeme do
+                (,) <$> (annotated <$> pIdentifier') <*> ((s *> pSymbol' ":") *> (s *> pType s)) MP.<?> "GADT constructor"
 
         ctors <- indentBlock constructor
 
@@ -51,8 +56,10 @@ pTypeAlias :: Parser AStatement
 pTypeAlias = debug "pTypeAlias" $ withPosition do
     lineFold \s -> do
         pKeyword "type"
-        name <- annotated <$> (MP.try s *> pIdentifier')
-        tvs  <- fmap annotated <$> MP.many (MP.try s *> pIdentifier)
-        MP.try s *> pSymbol' "="
-        ty   <- withPosition (TypeAlias <$> (MP.try s *> pType s))
+        s
+        name <- annotated <$> pIdentifier'
+        s
+        tvs  <- fmap annotated <$> (pIdentifier `MP.endBy` s)
+        pSymbol' "="
+        ty   <- withPosition (TypeAlias <$> (s *> pType s))
         pure (TypeDefinition name tvs ty)

@@ -30,22 +30,24 @@ pAtom' s = MP.try (pApplication s) <|> pAtomNoApp s
 pAtomNoApp :: Parser () -> Parser AAtom
 pAtomNoApp s = withPosition (MP.choice atoms)
   where atoms =
-            [ pTypeHole
-            , pLambda s
-            , pMatch s
-            , MP.try (pTuple s)
-            , pLet s
+            [ pTypeHole MP.<?> "type hole"
+            , pLambda s MP.<?> "lambda expression"
+            , pMatch s MP.<?> "match expression"
+            , MP.try (pTuple s) MP.<?> "tuple"
+            , pLet s MP.<?> "let expression"
             , AId . annotated      <$> MP.choice
                 [ pIdentifier
+                , pIdentifier'
                 , MP.try (pParens pAnySymbolᵉ)
-                , pIdentifier' ] MP.<?> "identifier"
-            , ALiteral . annotated <$> MP.try pFloat
-            , ALiteral . annotated <$> pInteger
-            , ALiteral . annotated <$> pCharacter
-            , ALiteral . annotated <$> pString
-            , AParens              <$> pParens (pExpression s) ]
+                ] MP.<?> "identifier"
+            , ALiteral . annotated <$> MP.try pFloat MP.<?> "float literal"
+            , ALiteral . annotated <$> pInteger MP.<?> "integer literal"
+            , ALiteral . annotated <$> pCharacter MP.<?> "character literal"
+            , ALiteral . annotated <$> pString MP.<?> "string literal"
+            , AParens              <$> pParens (pExpression s) MP.<?> "parenthesized expression"
+            ]
 
 pApplication :: Parser () -> Parser AAtom
 pApplication s = lexeme do
     withPosition (AApplication <$> exprs)
-  where exprs = (:) <$> pAtomNoApp s <*> MP.some (MP.try (s *> pAtomNoApp s))
+  where exprs = (:) <$> (pAtomNoApp s <* s) <*> (pAtomNoApp s `MP.sepBy1` MP.try s)
