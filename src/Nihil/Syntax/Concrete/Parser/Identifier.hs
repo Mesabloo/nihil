@@ -60,10 +60,24 @@ pSymbol = debug "pSymbol" $ lexeme do
 -- | Tries to parse a given symbol.
 pSymbol' :: Text.Text -> Parser ()
 pSymbol' s = debug "pSymbol'" $ lexeme do
-    void (MP.satisfy (f s . annotated))
-  where f s (TkSym sy) = Text.pack sy == s
-        f s _          = False
-        f s t          = impossible ("Cannot extract symbol " <> Text.unpack s <> " from " <> show t)
+    () <$ MP.satisfy (f s . annotated)
+  where f "="  TkEquals    = True
+        f ":"  TkColon     = True
+        f ";"  TkSemi      = True
+        f "\\" TkBackslash = True
+        f "->" TkArrow     = True
+        f "→"  TkArrow     = True
+        f "=>" TkImplies   = True
+        f "⇒"  TkImplies   = True
+        f "`"  TkBacktick  = True
+        f "λ"  TkLambda    = True
+        f "("  TkLParen    = True
+        f ")"  TkRParen    = True
+        f ","  TkComma     = True
+        f "|"  TkBar       = True
+        f s    (TkSym sy)  = Text.pack sy == s
+        f s    _           = False
+        f s    t           = impossible ("Cannot extract symbol " <> Text.unpack s <> " from " <> show t)
 
 {-| A parser for type holes or anonymous patterns.
 
