@@ -22,28 +22,28 @@ pADT :: Parser AStatement
 pADT = debug "pADT" $ withPosition do
     lineFold \s -> lexeme do
         pKeyword "data"
-        MP.try s
+        s
         name <- annotated <$> pIdentifier'
-        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` MP.try s)
+        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` s)
 
         TypeDefinition name tvs <$> do
-            MP.try s *> pSymbol' "="
+            s *> pSymbol' "="
             withPosition do
-                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier' <* MP.try s) <*> (pAtom s `MP.sepBy` MP.try s)) MP.<?> "datatype constructor"
-                ctors <- constructor `MP.sepBy1` (pSymbol' "|" <* MP.try s)
+                let ~constructor = lexeme ((,) <$> (annotated <$> pIdentifier' <* s) <*> (pAtom s `MP.sepBy` s)) MP.<?> "datatype constructor"
+                ctors <- constructor `MP.sepBy1` (pSymbol' "|" <* s)
                 pure (SumType (Map.fromList ctors))
 
 pGADT :: Parser AStatement
 pGADT = debug "pGADT" $ withPosition do
     lineFold \spaces -> lexeme do
         pKeyword "data"
-        MP.try spaces
+        spaces
         name <- annotated <$> pIdentifier'
-        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` MP.try spaces)
-        MP.try spaces *> pKeyword "where"
+        tvs <- fmap annotated <$> (pIdentifier `MP.sepBy` spaces)
+        spaces *> pKeyword "where"
 
         let ~constructor = lineFold \s -> lexeme do
-                (,) <$> (annotated <$> pIdentifier') <*> ((MP.try s *> pSymbol' ":") *> (MP.try s *> pType s)) MP.<?> "GADT constructor"
+                (,) <$> (annotated <$> pIdentifier') <*> ((s *> pSymbol' ":") *> (s *> pType s)) MP.<?> "GADT constructor"
 
         ctors <- indentBlock constructor
 
@@ -53,10 +53,10 @@ pTypeAlias :: Parser AStatement
 pTypeAlias = debug "pTypeAlias" $ withPosition do
     lineFold \s -> do
         pKeyword "type"
-        MP.try s
+        s
         name <- annotated <$> pIdentifier'
-        tvs  <- fmap annotated <$> (pIdentifier `MP.sepBy` MP.try s)
-        MP.try s
+        s
+        tvs  <- fmap annotated <$> (pIdentifier `MP.endBy` s)
         pSymbol' "="
-        ty   <- withPosition (TypeAlias <$> (MP.try s *> pType s))
+        ty   <- withPosition (TypeAlias <$> (s *> pType s))
         pure (TypeDefinition name tvs ty)

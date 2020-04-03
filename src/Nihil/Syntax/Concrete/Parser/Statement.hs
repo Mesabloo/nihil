@@ -13,7 +13,7 @@ import Nihil.Syntax.Concrete.Parser.Statement.TypeDeclaration
 import qualified Text.Megaparsec as MP
 
 pProgram :: Parser Program
-pProgram = Program <$> (lexeme (pure ()) *> MP.many (lexeme pStatement) <* eof)
+pProgram = Program <$> MP.many (lexeme pStatement) <* eof
 
 pStatement :: Parser AStatement
 pStatement = nonIndented do

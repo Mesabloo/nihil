@@ -16,7 +16,7 @@ import qualified Text.Megaparsec as MP
 
 pExpression :: Parser () -> Parser Expr
 pExpression s = debug "pExpression" $ lexeme do
-    atoms <- lexeme (pAtom s `MP.sepBy1` MP.try s)
+    atoms <- lexeme (pAtom s `MP.sepBy1` s)
     typed <- MP.optional (typeAnnotation s)
     whereB <- MP.optional (lexeme (pWhere s))
 
@@ -24,4 +24,4 @@ pExpression s = debug "pExpression" $ lexeme do
     let expr = maybe atoms annotate typed
         where' ss = [locate (AWhere expr ss) NoSource]
     pure (maybe expr where' whereB)
-  where typeAnnotation sp = debug "pTypeAnnotation" $ lexeme (pSymbol' ":" *> MP.try sp *> pType sp)
+  where typeAnnotation sp = debug "pTypeAnnotation" $ lexeme (pSymbol' ":" *> sp *> pType sp)

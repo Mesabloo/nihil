@@ -49,4 +49,4 @@ pAtomNoApp s = withPosition (MP.choice atoms)
 pApplication :: Parser () -> Parser AAtom
 pApplication s = lexeme do
     withPosition (AApplication <$> exprs)
-  where exprs = (:) <$> (pAtomNoApp s <* MP.try s) <*> MP.some (pAtomNoApp s <* MP.try s)
+  where exprs = (:) <$> (pAtomNoApp s <* s) <*> (pAtomNoApp s `MP.sepBy1` MP.try s)

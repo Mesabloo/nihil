@@ -15,6 +15,7 @@ import qualified Text.Megaparsec as MP
 pLambda :: Parser () -> Parser Atom
 pLambda s = debug "pLambda" $ do
     pSymbol' "\\" <|> MP.hidden (pSymbol' "λ")
-    params <- MP.some (MP.try (s *> Pattern.pAtom))
-    MP.try s *> (pSymbol' "->" <|> MP.hidden (pSymbol' "→"))
-    ALambda params <$> (MP.try s *> pExpression s)
+    s
+    params <- Pattern.pAtom `MP.sepEndBy1` s
+    pSymbol' "->" <|> MP.hidden (pSymbol' "→")
+    ALambda params <$> (s *> pExpression s)

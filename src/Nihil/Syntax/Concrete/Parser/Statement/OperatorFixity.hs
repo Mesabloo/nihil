@@ -21,8 +21,8 @@ pOperatorFixity :: Parser AStatement
 pOperatorFixity = debug "pOperatorFixity" $ withPosition do
     lineFold \s -> do
         f             <- withPosition fixity
-        LInteger prec <- annotated <$> (MP.try s *> pInteger)
-        operator      <- annotated <$> (MP.try s *> (pParens op <|> op))
+        LInteger prec <- annotated <$> (s *> pInteger)
+        operator      <- annotated <$> (s *> (pParens op <|> op))
         pure (OperatorFixity operator (hoistAnnotated (first ($ prec)) f))
   where op     = pTicks pIdentifier <|> pAnySymbolᵉ <|> pAnySymbolᵗ
         fixity = Infix <$> MP.choice
