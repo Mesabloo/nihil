@@ -53,6 +53,13 @@ data TokenClass
     | TkRParen         -- ^ > )
     | TkComma          -- ^ > ,
     | TkBar            -- ^ > |
+    | TkPi             -- ^ > Π
+    | TkOTimes         -- ^ > ⊗
+    | TkOPlus          -- ^ > ⊕
+    | TkSigma          -- ^ > Σ
+    | TkTimes          -- ^ > ×
+    | TkRBrace         -- ^ > }
+    | TkLBrace         -- ^ > {
     | TkInlineComment String
                        -- ^ > -- comment
     | TkMultilineComment String
@@ -137,6 +144,8 @@ keywordOrLIdent = Just <$> MP.label "lower identifier" do
         f "infixl"  = TkInfixL
         f "infixr"  = TkInfixR
         f "λ"       = TkLambda
+        f "Π"       = TkPi
+        f "Σ"       = TkSigma
         f ident     = TkLIdent ident
 
 uIdent :: Parser InterToken
@@ -164,6 +173,8 @@ symbolOrSpecial = Just <$> withSourceSpan do
               , TkUnderscore <$ MP.some (MPC.char '_')
               , TkBackslash  <$ MPC.char '\\'
               , TkBacktick   <$ MPC.char '`'
+              , TkLBrace     <$ MPC.char '{'
+              , TkRBrace     <$ MPC.char '}'
               , f            <$> MP.some (MPC.symbolChar <|> MPC.punctuationChar)
               ]
   where f "|"     = TkBar
@@ -172,6 +183,9 @@ symbolOrSpecial = Just <$> withSourceSpan do
         f "→"     = TkArrow
         f "=>"    = TkImplies
         f "⇒"     = TkImplies
+        f "×"     = TkTimes
+        f "⊗"     = TkOTimes
+        f "⊕"     = TkOPlus
         f symbol  = TkSym symbol
 
 literal :: Parser InterToken

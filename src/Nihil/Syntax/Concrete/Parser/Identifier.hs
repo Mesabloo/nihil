@@ -75,6 +75,13 @@ pSymbol' s = debug "pSymbol'" $ lexeme do
         f ")"  TkRParen    = True
         f ","  TkComma     = True
         f "|"  TkBar       = True
+        f "Π"  TkPi        = True
+        f "Σ"  TkSigma     = True
+        f "×"  TkTimes     = True
+        f "{"  TkLBrace    = True
+        f "⊗"  TkOTimes    = True
+        f "⊕"  TkOPlus     = True
+        f "}"  TkRBrace    = True
         f s    (TkSym sy)  = Text.pack sy == s
         f s    _           = False
         f s    t           = impossible ("Cannot extract symbol " <> Text.unpack s <> " from " <> show t)
