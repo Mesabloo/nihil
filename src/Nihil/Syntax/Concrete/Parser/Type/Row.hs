@@ -16,11 +16,11 @@ import qualified Text.Megaparsec as MP
 pRow :: Parser () -> Parser Type
 pRow s = debug "pRow" $ do
     (fields, ext) <- pBraces do
-        MP.try s
-        fields <- (pFunctionDeclaration <* MP.try s) `MP.sepBy` (pSymbol' ";" <* MP.try s)
+        s
+        fields <- (pFunctionDeclaration <* s) `MP.sepBy` (pSymbol' ";" <* s)
         let pExt = do
                 pSymbol' "|"
-                TVar . annotated <$> pIdentifier <* MP.try s
+                TVar . annotated <$> pIdentifier <* s
         ext <- MP.optional (withPosition pExt)
         pure (fields, ext)
     pure (TRow fields ext)

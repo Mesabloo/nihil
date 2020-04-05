@@ -14,5 +14,5 @@ import qualified Text.Megaparsec as MP
 pRecord :: Parser () -> Parser Atom
 pRecord s = debug "p[Expr]Record" $ do
     ARecord <$> pBraces do
-        MP.try s
-        (pFunctionDefinition <* MP.try s) `MP.sepBy` (pSymbol' ";" <* MP.try s)
+        s
+        (pFunctionDefinition <* s) `MP.sepBy` (pSymbol' ";" <* s)
