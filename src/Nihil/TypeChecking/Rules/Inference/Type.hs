@@ -68,6 +68,7 @@ inferExpr e =
         AC.EMatch ex branches -> inferEMatch ex branches
         AC.ELet stts ex       -> inferELet stts ex
         AC.ERecord stts       -> inferRecord stts
+        AC.ERecordAccess ex n -> inferRecordAccess ex n
 
 -- | Infers the type of an expression 'AC.Literal'.
 inferELiteral :: AC.Literal -> SourcePos -> InferType Type
@@ -176,7 +177,7 @@ inferRecord funs pos = do
     let TVar name = tv
     rowTy <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> fresh "$" (location ex)) funs
-        <*> (pure (Just name))
+        <*> pure (Just name)
     inferedRow <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> inferExpr ex) funs
         <*> pure Nothing
@@ -184,6 +185,17 @@ inferRecord funs pos = do
         trec = locate rowTy pos
     tell [irec :>~ trec]
     pure (locate (TRecord irec) pos)
+
+inferRecordAccess :: AC.Expr -> Located String -> SourcePos -> InferType Type
+inferRecordAccess ex (annotated -> name) pos = do
+    t1  <- inferExpr ex
+    tv1 <- fresh "$" pos
+    tv2 <- fresh "r" pos
+    let (TVar tv2name) = annotated tv2
+    let ty = locate (TRecord (locate (TRow (Map.fromList [(name, tv1)]) (Just tv2name)) pos)) pos
+
+    tell [ty :>~ t1]
+    pure tv1
 
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
@@ -314,6 +326,8 @@ relax = hoistAnnotated (first f)
   where f (TApplication t1 t2) = TApplication (relax t1) (relax t2)
         f (TTuple ts)          = TTuple (relax <$> ts)
         f (TRigid v)           = TVar v
+        f (TRecord t)          = TRecord (relax t)
+        f (TRow ss r)          = TRow (relax <$> ss) r
         f t                    = t
 
 inEnvMany :: [(String, Scheme Type)] -> InferType a -> InferType a

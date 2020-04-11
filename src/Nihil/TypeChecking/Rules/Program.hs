@@ -43,6 +43,7 @@ import qualified Prelude (lookup)
 import Control.Arrow ((>>>))
 import qualified Data.Set as Set
 import Data.List (nub)
+import Text.PrettyPrint.ANSI.Leijen (pretty)
 
 -- | Type checks a whole 'AC.Program'.
 typecheck :: AC.Program -> TypeCheck ()
@@ -148,6 +149,8 @@ check name def = do
 
     funDefCtx %= (`extend` (name, closeOver funType))
     funDefCtx %= apply sub -- we apply the substitution to remove types such as %1 which are somewhat placeholders.
+
+    info (name <> " :: " <> show (pretty funType)) (pure ())
 
 extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
