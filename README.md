@@ -49,7 +49,7 @@ The ultimate goal is to provide these features:
   - [x] GADTs
   - [x] Equational pattern matching
   - [x] Type constraints
-  - [ ] Records
+  - [x] Records
   - [ ] Row polymorphism
   - [ ] Type classes and instances
   - [ ] Quantitive types
