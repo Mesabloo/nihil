@@ -8,6 +8,7 @@ module Nihil.Runtime.Interpreter
 
 import Nihil.Syntax
 import Nihil.Runtime.Core
+import Nihil.Runtime.Pretty()
 import Nihil.Utils.Source (annotated)
 import Nihil.Runtime.Errors.NonExhaustivePatternMatching
 import Nihil.Runtime.Errors.Developer
@@ -60,6 +61,9 @@ eval (ERecord ss)           = VRecord <$> traverse evaluate (toMap ss)
   where toMap []                    = mempty
         toMap ((annotated -> s):ss) = toMap' s ss
         toMap' (FunctionDefinition name ex) ss = Map.insert name ex (toMap ss)
+eval (ERecordAccess ex n)   = evaluate ex >>= \case
+    VRecord fields -> pure (fields Map.! annotated n)
+    v              -> developerError (show (pretty v) <> " is not a record and cannot be name-accessed.")
 
 -- | Evaluates a literal
 evalLiteral :: Literal -> Eval Value
