@@ -25,16 +25,17 @@ data Statement'
 
 type Expr = Located Expr'
 data Expr'
-    = EId String                        -- ^ > { x }
-    | ELiteral Literal                  -- ^ > { 0 or 'c' }
-    | ELambda Pattern Expr              -- ^ > { λ p → e }
-    | EApplication Expr Expr            -- ^ > { e₁ e₂ }
-    | ETuple [Expr]                     -- ^ > { (e₁, e₂) }
-    | EMatch Expr [(Pattern, Expr)]     -- ^ > { match e₁ with p₁ → e₂ }
-    | ETypeHole                         -- ^ > { _ }
-    | ETypeAnnotated Expr Type          -- ^ > { e : t }
-    | ELet [Statement] Expr             -- ^ > { let x = y in e }
-    | ERecord [Statement]               -- ^ > { { id x = x ; f = 0 } }
+    = EId String                          -- ^ > { x }
+    | ELiteral Literal                    -- ^ > { 0 or 'c' }
+    | ELambda Pattern Expr                -- ^ > { λ p → e }
+    | EApplication Expr Expr              -- ^ > { e₁ e₂ }
+    | ETuple [Expr]                       -- ^ > { (e₁, e₂) }
+    | EMatch Expr [(Pattern, Expr)]       -- ^ > { match e₁ with p₁ → e₂ }
+    | ETypeHole                           -- ^ > { _ }
+    | ETypeAnnotated Expr Type            -- ^ > { e : t }
+    | ELet [Statement] Expr               -- ^ > { let x = y in e }
+    | ERecord [Statement]                 -- ^ > { { id x = x ; f = 0 } }
+    | ERecordAccess Expr (Located String) -- ^ > { rec.field }
   deriving
     ( -- | use only for debugging
       Show

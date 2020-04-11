@@ -57,6 +57,7 @@ instance Pretty Expr' where
             f (pat, expr)  = pretty pat <+> text "->" <+> pretty expr
     pretty (ELet stts expr)       = text "let" <+> pretty (Program stts) </> text "in" <+> pretty expr
     pretty (ERecord ss)           = semiBraces (fmap pretty ss)
+    pretty (ERecordAccess ex n)   = pretty ex <> dot <> text (annotated n)
 
 instance Pretty Pattern' where
     pretty PWildcard               = text "_"

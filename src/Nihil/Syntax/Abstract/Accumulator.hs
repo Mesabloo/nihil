@@ -138,4 +138,6 @@ accumulateOnExpression = mapM_ accumulateOnExpression'
                 accumulateOnProgram (Program stts)
             ARecord stts         ->
                 accumulateOnProgram (Program stts)
+            ARecordAccess ex _   ->
+                accumulateOnExpression [ex]
             _                    -> pure ()

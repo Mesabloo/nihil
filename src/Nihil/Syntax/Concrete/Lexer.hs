@@ -60,6 +60,7 @@ data TokenClass
     | TkTimes          -- ^ > ×
     | TkRBrace         -- ^ > }
     | TkLBrace         -- ^ > {
+    | TkDot            -- ^ > .
     | TkInlineComment String
                        -- ^ > -- comment
     | TkMultilineComment String
@@ -186,6 +187,7 @@ symbolOrSpecial = Just <$> withSourceSpan do
         f "×"     = TkTimes
         f "⊗"     = TkOTimes
         f "⊕"     = TkOPlus
+        f "."     = TkDot
         f symbol  = TkSym symbol
 
 literal :: Parser InterToken

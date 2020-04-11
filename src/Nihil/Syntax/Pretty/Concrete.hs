@@ -62,6 +62,7 @@ instance Pretty TokenClass where
     pretty TkOTimes               = text "symbol '⊗'"
     pretty TkOPlus                = text "symbol '⊕'"
     pretty TkSigma                = text "symbol 'Σ'"
+    pretty TkDot                  = text "symbol '.'"
 
 instance Show TokenClass where
     show = show . pretty
@@ -136,6 +137,7 @@ instance Pretty Atom where
       where prettyBranches  = foldl1 ($$) . fmap f
             f (pat, ex)     = sep (fmap pretty pat) <+> text "->" <+> pretty ex
     pretty (ARecord stts)       = semiBraces (fmap pretty stts)
+    pretty (ARecordAccess e n)  = pretty e <> dot <> text (annotated n)
 
 instance Pretty Literal where
     pretty (LString s)    = text (show s)

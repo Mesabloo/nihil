@@ -41,6 +41,7 @@ data Atom
     | ALet [AStatement] Expr                -- ^ > { let x = y in e }
     | AWhere Expr [AStatement]              -- ^ > { f = g where g = e }
     | ARecord [AStatement]                  -- ^ > { { f x = x ; g = 0 } }
+    | ARecordAccess AAtom (Located String)  -- ^ > { rec.field }
   deriving
     ( -- | Use only for debugging
       Show
