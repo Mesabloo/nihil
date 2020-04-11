@@ -55,6 +55,13 @@ instance Pretty TokenClass where
     pretty (TkMultilineComment c) = text "{- " <> text c <> text "-}"
     pretty TkEOF                  = text "<EOF>"
     pretty TkEOL                  = text "<newline>"
+    pretty TkLBrace               = text "symbol '{'"
+    pretty TkRBrace               = text "symbol '}'"
+    pretty TkPi                   = text "symbol 'Π'"
+    pretty TkTimes                = text "symbol '×'"
+    pretty TkOTimes               = text "symbol '⊗'"
+    pretty TkOPlus                = text "symbol '⊕'"
+    pretty TkSigma                = text "symbol 'Σ'"
 
 instance Show TokenClass where
     show = show . pretty

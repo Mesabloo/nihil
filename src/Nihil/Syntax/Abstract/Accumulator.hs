@@ -85,11 +85,8 @@ accumulateOnType = mapM_ (accumulateOnType' <<< annotated)
             accumulateOnType t
         accumulateOnType' (TTuple ts)       =
             mapM_ accumulateOnType ts
-        accumulateOnType' (TRow stts Nothing) =
+        accumulateOnType' (TRow stts _)     =
             accumulateOnProgram (Program stts)
-        accumulateOnType' (TRow stts (Just r)) = do
-            accumulateOnType' (TRow stts Nothing)
-            accumulateOnType [r]
         accumulateOnType' (TRecord row)     =
             accumulateOnType [row]
         accumulateOnType' _                 = pure ()

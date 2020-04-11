@@ -94,7 +94,7 @@ data Type
     | TOperator String        -- ^ > { → }
     | TParens [AType]         -- ^ > { (t) }
     | TRecord AType           -- ^ > { Π{ x: Int ; y: Int | r } }
-    | TRow [AStatement] (Maybe AType)
+    | TRow [AStatement] (Maybe String)
                               -- ^ > { x: Int ; y: Int | r }
   deriving
     ( -- | Use only for debugging
