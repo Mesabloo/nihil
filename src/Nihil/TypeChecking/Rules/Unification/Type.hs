@@ -19,13 +19,15 @@ import Nihil.TypeChecking.Errors.Infinite (infiniteType)
 import Nihil.TypeChecking.Errors.Unification (unifyType)
 import Nihil.TypeChecking.Errors.TypeHole (typeHole)
 import Nihil.TypeChecking.Errors.RecordDomainSubset (cannotSubtypeRecordDomains)
+import Nihil.TypeChecking.Errors.MissingFieldsInRecord (missingFieldsInRecord)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Except (throwError)
 import Data.List (isPrefixOf)
-import Control.Monad (when)
+import Control.Monad (when, forM)
 import Control.Lens (views)
 import Prelude hiding (lookup)
+import qualified Data.List as List
 
 instance Unifiable Type GlobalEnv where
     unify t1 t2 = case (annotated t1, annotated t2) of
@@ -38,8 +40,24 @@ instance Unifiable Type GlobalEnv where
         (TApplication t1 t2, TApplication t3 t4) -> unifyMany [t1, t2] [t3, t4]
         (TApplication{}, _)                      -> unifyCustom t1 t2
         (_, TApplication{})                      -> unifyCustom t2 t1
-        (TRecord row1, TRecord row2)             -> undefined
+        (TRecord row1, TRecord row2)             -> unify row1 row2
+        (TRow f1 r1, TRow f2 r2)                 -> unifyRows (f1, r1) (f2, r2) (location t1)
         _                                        -> throwError (unifyType t1 t2)
+
+unifyRows :: (Map.Map String Type, Maybe String) -> (Map.Map String Type, Maybe String) -> SourcePos -> SolveType (Subst Type)
+unifyRows (f1, r1) (f2, r2) pos = do
+    let haveBothFields = Map.keys f1 `List.intersect` Map.keys f2
+    pSubs <- mconcat <$> forM haveBothFields \f -> unify (f1 Map.! f) (f2 Map.! f)
+    subsR <- computeExtension (Map.keys f1 List.\\ haveBothFields) r2
+    subsL <- computeExtension (Map.keys f2 List.\\ haveBothFields) r1
+    pure (pSubs <> subsR <> subsL)
+  where computeExtension :: [String] -> Maybe String -> SolveType (Subst Type)
+        computeExtension [] _ = pure mempty
+        computeExtension fs Nothing = throwError (missingFieldsInRecord fs pos)
+        computeExtension fs (Just name) = do
+            let fields = Map.fromList (((,) <*> (f1 Map.!)) <$> fs)
+                record = TRecord (locate (TRow fields (Just ("r" <> name))) pos)
+            pure (Subst (Map.singleton name record))
 
 -- | Unifies custom types and checks for well formed type applications.
 unifyCustom :: Type -> Type -> SolveType (Subst Type)

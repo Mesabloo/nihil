@@ -153,10 +153,12 @@ extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
     where tvs = fold ty
 
-          fold (annotated -> t) = case t of
+          fold ty@(annotated -> t) = case t of
               TRigid n -> [n]
               TApplication t1 t2 -> fold t1 <> fold t2
               TTuple ts -> concatMap fold ts
+              TRecord row -> fold row
+              TRow ts r -> concatMap fold ts <> maybe mempty (fold . (`locate` location ty) . TRigid) r
               _ -> []
 
 -------------------------------------------------------------------------------------------------------------------
@@ -195,4 +197,6 @@ normalize (Forall _ t) = Forall (snd <$> ord) (rigidify t)
           where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
                 f (TTuple ts)          = TTuple (rigidify <$> ts)
                 f (TVar x)             = TRigid (fromJust (Prelude.lookup x ord))
+                f (TRecord row)        = TRecord (rigidify row)
+                f (TRow ts ext)        = TRow (rigidify <$> ts) ext
                 f t                    = t

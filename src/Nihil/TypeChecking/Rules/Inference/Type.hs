@@ -96,7 +96,7 @@ inferEApplication e1 e2 pos = do
     ty1 <- inferExpr e1
     ty2 <- inferExpr e2
     tyv <- fresh "$" pos
-    tell [ty1 :>~ tFun ty2 tyv pos]
+    tell [tFun ty2 tyv pos :>~ ty1]
     pure tyv
 
 -- | Infers the type of a tuple.
@@ -172,9 +172,11 @@ inferELet stts ex pos = do
 
 inferRecord :: [AC.Statement] -> SourcePos -> InferType Type
 inferRecord funs pos = do
+    tv <- annotated <$> fresh "$" pos
+    let TVar name = tv
     rowTy <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> fresh "$" (location ex)) funs
-        <*> (Just <$> fresh "$" pos)
+        <*> (pure (Just name))
     inferedRow <- TRow . Map.fromList
         <$> traverse (\(annotated -> AC.FunctionDefinition name ex) -> (name,) <$> inferExpr ex) funs
         <*> pure Nothing
