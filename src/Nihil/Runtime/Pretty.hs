@@ -6,6 +6,7 @@ module Nihil.Runtime.Pretty
 import Nihil.Runtime.Core
 import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
+import qualified Data.Map as Map
 
 instance Pretty Value where
     pretty (VInteger i)           = integer i
@@ -17,4 +18,5 @@ instance Pretty Value where
       where prettyᵛ v@(VConstructor _ []) = pretty v
             prettyᵛ v@VConstructor{}      = parens (pretty v)
             prettyᵛ v                     = pretty v
+    pretty (VRecord keys)         = semiBraces (Map.elems (Map.mapWithKey (\k v -> text k <+> equals <+> pretty v) keys))
     pretty _                      = empty

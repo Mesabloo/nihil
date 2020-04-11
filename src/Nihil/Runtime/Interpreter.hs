@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.Runtime.Interpreter
 ( evaluate ) where
@@ -55,6 +56,10 @@ eval (EMatch ex cases)      = do
     expr <- evaluate ex
     foldr ((<|>) . uncurry (evalCase expr)) (throwError noMorePatterns) cases
 eval ETypeHole              = developerError "Remaining type hole."
+eval (ERecord ss)           = VRecord <$> traverse evaluate (toMap ss)
+  where toMap []                    = mempty
+        toMap ((annotated -> s):ss) = toMap' s ss
+        toMap' (FunctionDefinition name ex) ss = Map.insert name ex (toMap ss)
 
 -- | Evaluates a literal
 evalLiteral :: Literal -> Eval Value

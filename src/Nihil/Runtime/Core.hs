@@ -18,6 +18,7 @@ data Value
     | VId String                                  -- ^ > { f }
     | VLambda AC.Pattern AC.Expr (Scope Value)    -- ^ > { λ p → e }
     | VTuple [Value]                              -- ^ > { (e₁, e₂) }
+    | VRecord (Map.Map String Value)              -- ^ > { { x = e₁ ; y = e₂ } }
     | VPrim (Value -> Eval Value)                 -- ^ Primitive (built-in) functions
     | VConstructor String [Value]                 -- ^ > { Con e₁ e₂ }
     | VUnevaluated AC.Expr
