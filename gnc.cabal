@@ -1,0 +1,128 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7e0ee33a72198e24c317908fe8ab0c3a9b9bc74b940d8336d1a02db02551af09
+
+name:           gnc
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+homepage:       https://github.com/mesabloo/nihil#readme
+bug-reports:    https://github.com/mesabloo/nihil/issues
+author:         Ghilain Bergeron (Mesabloo)
+maintainer:     Ghilain Bergeron (Mesabloo)
+copyright:      2019 Ghilain Bergeron (Mesabloo)
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/mesabloo/nihil
+
+flag debug
+  description: Enable/disable compiler debugging features.
+  manual: True
+  default: False
+
+flag profile
+  description: Enable/disable compiler profiling.
+  manual: True
+  default: False
+
+library
+  exposed-modules:
+      Nihil
+  other-modules:
+      Paths_gnc
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3
+  build-depends:
+      base
+    , gnc-parser
+    , gnc-runtime
+    , gnc-typechecker
+    , gnc-utils
+  if flag(debug)
+    cpp-options: -DDEBUGGING
+  if flag(profile)
+    ghc-options: -prof -auto-all -with-rtsopts=-p,-s
+  default-language: Haskell2010
+
+executable nihilin
+  main-is: Main.hs
+  other-modules:
+      Paths_gnc
+  hs-source-dirs:
+      app/nihilin
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      ansi-wl-pprint
+    , base
+    , containers
+    , gnc
+    , gnc-parser
+    , gnc-runtime
+    , gnc-typechecker
+    , gnc-utils
+    , lens
+    , megaparsec
+    , mtl
+    , text
+  if flag(debug)
+    cpp-options: -DDEBUGGING
+  if flag(profile)
+    ghc-options: -prof -auto-all -with-rtsopts=-p,-s
+  default-language: Haskell2010
+
+test-suite compiler
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Nihil.B_ParserSpec
+      Nihil.C_DesugarerSpec
+      Paths_gnc
+  hs-source-dirs:
+      tests/compiler
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -O0 -optc-O0 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , gnc
+    , gnc-parser
+    , gnc-runtime
+    , gnc-typechecker
+    , gnc-utils
+    , hspec
+  if flag(debug)
+    cpp-options: -DDEBUGGING
+  if flag(profile)
+    ghc-options: -prof -auto-all -with-rtsopts=-p,-s
+  default-language: Haskell2010
+
+test-suite utils
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Nihil.UtilsSpec
+      Paths_gnc
+  hs-source-dirs:
+      tests/utils
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -O0 -optc-O0 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , gnc
+    , gnc-parser
+    , gnc-runtime
+    , gnc-typechecker
+    , gnc-utils
+    , hspec
+  if flag(debug)
+    cpp-options: -DDEBUGGING
+  if flag(profile)
+    ghc-options: -prof -auto-all -with-rtsopts=-p,-s
+  default-language: Haskell2010

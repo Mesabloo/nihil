@@ -28,53 +28,17 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 
 dependencies:
 - base
-- megaparsec >8
-- mtl
-- lens
-- ansi-wl-pprint
-- text
-- containers
-- free
-- comonad
-- semialign
-- these
-- insert-ordered-containers
-- hashable
+- gnc-utils
+- gnc-parser
+- gnc-typechecker
+- gnc-runtime
 
-# - containers
-# - MissingH
-# - these <= 0.7.6
-# - criterion-measurement
-# - bytestring
-# - extra
-# - keys
-#
-#
-
-name: nihil
+name: gnc
 version: 0.1.0.0
 extra-source-files:
 - README.md
-# .hs-boot files
-- src/**/*.hs-boot
 
 executables:
-  # Nihili:
-  #   source-dirs: app
-  #   main: Main.hs
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - nihil
-    # - optparse-applicative
-    # - process
-    # - conf
-    # - directory
-    # - haskeline
-    # - ansi-wl-pprint
-    # - filepath
   nihilin:
     source-dirs: app/nihilin
     main:        Main.hs
@@ -83,7 +47,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - nihil
+    - gnc
+    - containers
+    - lens
+    - megaparsec
+    - mtl
+    - ansi-wl-pprint
+    - text
 
 flags:
   debug:
@@ -106,7 +76,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - nihil
+    - gnc
     - hspec
   utils:
     main:        Spec.hs
@@ -118,5 +88,5 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - nihil
+    - gnc
     - hspec
