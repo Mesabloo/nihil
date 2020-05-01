@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7e0ee33a72198e24c317908fe8ab0c3a9b9bc74b940d8336d1a02db02551af09
+-- hash: 5106ba054dd41351d4139e3fb6f624b5288f598cb90576bcf1eb964a5b691a57
 
 name:           gnc
 version:        0.1.0.0
@@ -60,7 +60,7 @@ executable nihilin
       Paths_gnc
   hs-source-dirs:
       app/nihilin
-  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -threaded -rtsopts -with-rtsopts=-N -Wno-type-defaults
   build-depends:
       ansi-wl-pprint
     , base

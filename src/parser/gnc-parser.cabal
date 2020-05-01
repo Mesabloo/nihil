@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c1151d3aef533f9f2d4f07ce73923608dce62ffd4e10ec302994cb866189f899
+-- hash: 07a6714a7803b3ae8f38075438cd79c30ef8f7aec8606df6a613d54f4974483c
 
 name:           gnc-parser
 version:        0.1.0.0
@@ -74,7 +74,7 @@ library
       Paths_gnc_parser
   hs-source-dirs:
       ./.
-  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules -Wno-overlapping-patterns
   build-depends:
       ansi-wl-pprint
     , base
