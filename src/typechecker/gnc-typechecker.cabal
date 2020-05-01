@@ -1,0 +1,73 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7c0cdd445e8fd532a5af1ee71eb0ab722ecfd9f0fbbb3537d360d0f74e04069b
+
+name:           gnc-typechecker
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+homepage:       https://github.com/mesabloo/nihil#readme
+bug-reports:    https://github.com/mesabloo/nihil/issues
+author:         Ghilain Bergeron (Mesabloo)
+maintainer:     Ghilain Bergeron (Mesabloo)
+copyright:      2019 Ghilain Bergeron (Mesabloo)
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/mesabloo/nihil
+
+library
+  exposed-modules:
+      Data.Map.Unordered
+      Nihil.TypeChecking
+      Nihil.TypeChecking.Common
+      Nihil.TypeChecking.Constraint
+      Nihil.TypeChecking.Core
+      Nihil.TypeChecking.Environment
+      Nihil.TypeChecking.Errors.BindLack
+      Nihil.TypeChecking.Errors.GADTWrongReturnType
+      Nihil.TypeChecking.Errors.Infinite
+      Nihil.TypeChecking.Errors.MissingArgument
+      Nihil.TypeChecking.Errors.RedeclaredFunction
+      Nihil.TypeChecking.Errors.Redefined
+      Nihil.TypeChecking.Errors.TypeHole
+      Nihil.TypeChecking.Errors.UnboundName
+      Nihil.TypeChecking.Errors.UndefinedType
+      Nihil.TypeChecking.Errors.Unification
+      Nihil.TypeChecking.Pretty
+      Nihil.TypeChecking.Rules.Inference
+      Nihil.TypeChecking.Rules.Inference.Kind
+      Nihil.TypeChecking.Rules.Inference.Type
+      Nihil.TypeChecking.Rules.Program
+      Nihil.TypeChecking.Rules.Solving
+      Nihil.TypeChecking.Rules.Solving.Kind
+      Nihil.TypeChecking.Rules.Solving.Type
+      Nihil.TypeChecking.Rules.Unification.Kind
+      Nihil.TypeChecking.Rules.Unification.Type
+      Nihil.TypeChecking.Substitution
+      Nihil.TypeChecking.Translation.AbstractToCore
+      Nihil.TypeChecking.Unification
+  other-modules:
+      Paths_gnc_typechecker
+  hs-source-dirs:
+      ./.
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
+  build-depends:
+      ansi-wl-pprint
+    , base
+    , containers
+    , gnc-parser
+    , gnc-utils
+    , hashable
+    , insert-ordered-containers
+    , lens
+    , mtl
+    , semialign
+    , text
+    , these
+  default-language: Haskell2010
