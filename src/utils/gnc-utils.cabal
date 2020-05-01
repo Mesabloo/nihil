@@ -1,0 +1,45 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 4aea527f536b07801dfb673a683c9662fa059aecef8ad26e470324cdff9d8e32
+
+name:           gnc-utils
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+homepage:       https://github.com/mesabloo/nihil#readme
+bug-reports:    https://github.com/mesabloo/nihil/issues
+author:         Ghilain Bergeron (Mesabloo)
+maintainer:     Ghilain Bergeron (Mesabloo)
+copyright:      2019 Ghilain Bergeron (Mesabloo)
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/mesabloo/nihil
+
+library
+  exposed-modules:
+      Nihil.CommonError
+      Nihil.Utils.Annotation
+      Nihil.Utils.Debug
+      Nihil.Utils.Impossible
+      Nihil.Utils.Source
+  other-modules:
+      Paths_gnc_utils
+  hs-source-dirs:
+      ./.
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
+  build-depends:
+      ansi-wl-pprint
+    , base
+    , comonad
+    , containers
+    , free
+    , lens
+    , megaparsec
+    , text
+  default-language: Haskell2010
