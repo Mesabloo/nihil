@@ -22,13 +22,7 @@ import Nihil.Syntax.Pretty()
 import qualified Nihil.Syntax.Concrete.Lexer as L
 import Nihil.Syntax.Concrete.Parser.Comment
 import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MPC
 import qualified Text.Megaparsec.Char.Lexer as MPL
-import Control.Monad (void)
-import qualified Data.Char as Ch
-import Text.PrettyPrint.ANSI.Leijen (prettyList)
-import qualified Data.List.NonEmpty as NonEmpty
-import Control.Lens ((^.))
 import Control.Applicative
 import Prelude hiding (log)
 

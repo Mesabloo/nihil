@@ -1,7 +1,6 @@
 module Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers where
 
 import Nihil.Syntax.Pretty()
-import Nihil.Syntax.Concrete (Token)
 import Nihil.Utils.Source
 import Nihil.CommonError
 import Text.PrettyPrint.ANSI.Leijen

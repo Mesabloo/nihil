@@ -13,7 +13,6 @@ import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Parser.Pattern
 import Nihil.Syntax.Concrete.Parser.Identifier
 import Nihil.Syntax.Concrete.Debug
-import qualified Text.Megaparsec as MP
 import Control.Applicative ((<|>))
 
 pMatch :: Parser () -> Parser Atom

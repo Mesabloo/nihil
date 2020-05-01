@@ -12,10 +12,7 @@ import Nihil.Syntax.Concrete.Debug
 import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Lexer
 import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
-import Control.Applicative ((<|>))
-import Control.Monad (void)
 
 {-| A parser for identifiers beginning with a lowercased letter.
 

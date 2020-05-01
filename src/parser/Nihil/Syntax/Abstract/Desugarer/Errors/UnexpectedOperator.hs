@@ -1,11 +1,7 @@
 module Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator where
 
 import Nihil.Utils.Source
-import Nihil.Syntax.Concrete
 import Nihil.CommonError
-import Nihil.Utils.Debug
-import Prelude hiding (error)
-import Text.PrettyPrint.ANSI.Leijen
 import Data.Text (Text)
 
 {-| [Unexpected operator error]

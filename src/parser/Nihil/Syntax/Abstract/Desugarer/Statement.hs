@@ -11,7 +11,6 @@ import qualified Nihil.Syntax.Concrete.Core as CC
 import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Syntax.Common (Desugarer)
 import Nihil.Utils.Source
-import Nihil.Utils.Debug (log)
 import Nihil.Utils.Impossible
 import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
@@ -20,7 +19,7 @@ import Control.Arrow ((&&&))
 import qualified Data.Map as Map
 import Data.Bifunctor (first)
 import Data.Functor ((<&>))
-import Control.Monad (forM, when)
+import Control.Monad (when)
 import Control.Monad.Except (throwError)
 import Prelude hiding (log)
 

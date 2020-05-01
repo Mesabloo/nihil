@@ -9,12 +9,7 @@ import Nihil.Syntax.Concrete.Lexer
 import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Debug
 import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MPC
 import qualified Data.Text as Text
-import qualified Data.Char as Ch
-import Control.Arrow ((&&&), (<<<), (>>>))
-import Control.Monad (guard, void)
-import Control.Applicative ((<|>))
 
 -- | A lexer for any keyword (found in 'keywords').
 pKeyword :: Text.Text -> Parser ()

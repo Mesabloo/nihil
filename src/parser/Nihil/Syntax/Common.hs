@@ -29,11 +29,10 @@ import qualified Text.Megaparsec as MP
 import Data.Void (Void)
 import Control.Monad.State
 import Control.Monad.Except
-import Control.Lens (makeLenses, (^.))
+import Control.Lens (makeLenses)
 import qualified Data.Text as Text
 import qualified Data.Map as Map
 import qualified Data.List.NonEmpty as NonEmpty (toList)
-import Text.PrettyPrint.ANSI.Leijen (prettyList)
 
 type Parser = MP.Parsec Void [Token]
 
@@ -53,7 +52,7 @@ makeLenses ''DesugarerState
 instance MP.Stream [L.Token] where
     type Token [L.Token] = L.Token
     type Tokens [L.Token] = [L.Token]
-    
+
     tokenToChunk _    = pure
     tokensToChunk _   = id
     chunkToTokens _   = id

@@ -13,9 +13,8 @@ import Nihil.CommonError
 import Prelude hiding (log, error, lookup, (!!))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Text.PrettyPrint.ANSI.Leijen (Doc, text, red, putDoc, hardline)
+import Text.PrettyPrint.ANSI.Leijen (Doc, text, hardline)
 import qualified Text.PrettyPrint.ANSI.Leijen as PP (pretty)
-import qualified Text.Megaparsec as MP
 import System.Exit
 import Control.Monad.Except (ExceptT, runExceptT, liftEither, throwError)
 import Control.Lens ((%~), (^.))
@@ -24,7 +23,6 @@ import Control.Monad (when)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (isNothing)
-import Data.List.NonEmpty ((!!))
 
 main :: IO ()
 main = (runExceptT . workWith =<< T.getContents) >>= \case

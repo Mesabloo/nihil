@@ -12,9 +12,6 @@ import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Core (Literal(..))
 import Nihil.Syntax.Concrete.Lexer
 import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MPC
-import qualified Text.Megaparsec.Char.Lexer as MPL
-import Control.Applicative ((<|>))
 
 {-| A lexer for integral numbers. It supports binary, hexadecimal and even octal formatting.
 
