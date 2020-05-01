@@ -2,7 +2,7 @@ name: gnc-utils
 version: 0.1.0.0
 library:
   source-dirs: .
-  
+
 ghc-options:
 - -Wall
 - -Wno-unused-do-bind
@@ -10,6 +10,7 @@ ghc-options:
 - -Wno-name-shadowing
 - -Wno-unused-matches
 - -fenable-rewrite-rules
+- -Wno-incomplete-patterns
 
 author: Ghilain Bergeron (Mesabloo)
 github: mesabloo/nihil
@@ -26,6 +27,3 @@ dependencies:
 - lens
 - containers
 - text
-
-ghc-options:
-- -Wno-incomplete-patterns
