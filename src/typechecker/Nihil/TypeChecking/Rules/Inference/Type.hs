@@ -3,8 +3,8 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Nihil.TypeChecking.Rules.Inference.Type
-( inferExpr
-, inferFunctionDefinition
+( elabExpr
+, elabFunctionDefinition
 , fresh ) where
 
 import Nihil.TypeChecking.Core
@@ -14,7 +14,6 @@ import Nihil.TypeChecking.Common
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible
 import Nihil.Utils.Annotation
-import Nihil.Utils.Debug
 import Nihil.TypeChecking.Substitution
 import Nihil.TypeChecking.Translation.AbstractToCore (coerceType)
 import Nihil.TypeChecking.Errors.MissingArgument
@@ -25,7 +24,7 @@ import Nihil.TypeChecking.Rules.Inference
 import Control.Arrow ((&&&))
 import Control.Monad.Writer (tell)
 import Control.Monad.Except (throwError)
-import Control.Monad.Reader (local)
+import Control.Monad.Reader (local, asks)
 import Control.Lens (use, (+=), views, (%~), view)
 import Prelude hiding (lookup, log)
 import Control.Applicative ((<|>))
@@ -35,128 +34,127 @@ import Data.Function ((&))
 import Data.Bifunctor (first, bimap)
 import Data.Align (align)
 import Data.These
-import qualified Data.Map.Unordered as UMap
 import Data.List (partition)
+
+type ExprEnv = (AC.Expr, Type)
 
 -- | Infers the type of a function definition (has a form of @f = e@) given its initial position, its name,
 --   its value.
-inferFunctionDefinition :: SourcePos -> String -> AC.Expr -> InferType Type
-inferFunctionDefinition pos name ex = do
-    tv  <- fresh "$" pos
-    fty <- inEnvMany [(name, Forall [] tv)] (inferExpr ex)
+elabFunctionDefinition :: SourcePos -> String -> AC.Expr -> InferType ExprEnv
+elabFunctionDefinition pos name ex = do
+    tv            <- fresh "$" pos
+    (elabEx, fty) <- inEnvMany [(name, Forall [] tv)] (elabExpr ex)
     tell [fty :>~ tv]
 
     funDefCtx `views` lookup name >>= \case
         Nothing           -> impossible "All functions must have types"
         Just (Forall _ t) -> tell [t :>~ fty]
 
-    pure fty
+    pure (elabEx, fty)
 
 -- | Infers the 'Type' of an 'AC.Expr'ession.
-inferExpr :: AC.Expr -> InferType Type
-inferExpr e =
+elabExpr :: AC.Expr -> InferType ExprEnv
+elabExpr e =
     let (loc, ann) = (location &&& annotated) e
     in loc & case ann of
-        AC.ELiteral lit       -> inferELiteral lit
-        AC.ETypeHole          -> inferETypeHole
-        AC.EId i              -> inferEId i
-        AC.EApplication e1 e2 -> inferEApplication e1 e2
-        AC.ETuple es          -> inferETuple es
-        AC.ETypeAnnotated e t -> inferETypeAnnotated e t
-        AC.ELambda pat ex     -> inferELambda pat ex
-        AC.EMatch ex branches -> inferEMatch ex branches
-        AC.ELet stts ex       -> inferELet stts ex
+        AC.ELiteral lit       -> elabELiteral lit
+        AC.ETypeHole          -> elabETypeHole
+        AC.EId i              -> elabEId i
+        AC.EApplication e1 e2 -> elabEApplication e1 e2
+        AC.ETuple es          -> elabETuple es
+        AC.ETypeAnnotated e t -> elabETypeAnnotated e t
+        AC.ELambda pat ex     -> elabELambda pat ex
+        AC.EMatch ex branches -> elabEMatch ex branches
+        AC.ELet stts ex       -> elabELet stts ex
 
 -- | Infers the type of an expression 'AC.Literal'.
-inferELiteral :: AC.Literal -> SourcePos -> InferType Type
-inferELiteral (AC.LInteger _) pos   = pure (locate (TId "Integer") pos)
-inferELiteral (AC.LFloat _) pos     = pure (locate (TId "Double") pos)
-inferELiteral (AC.LCharacter _) pos = pure (locate (TId "Char") pos)
+elabELiteral :: AC.Literal -> SourcePos -> InferType ExprEnv
+elabELiteral l@(AC.LInteger _) pos   = pure (locate (AC.ELiteral l) pos, locate (TId "Integer") pos)
+elabELiteral l@(AC.LFloat _) pos     = pure (locate (AC.ELiteral l) pos, locate (TId "Double") pos)
+elabELiteral l@(AC.LCharacter _) pos = pure (locate (AC.ELiteral l) pos, locate (TId "Char") pos)
 
 -- | Generates a constraint for a type hole.
-inferETypeHole :: SourcePos -> InferType Type
-inferETypeHole pos = do
+elabETypeHole :: SourcePos -> InferType ExprEnv
+elabETypeHole pos = do
     hole <- fresh "_" pos
     ty   <- fresh "$" pos
     tell [hole :>~ ty]
-    pure hole
+    pure (locate AC.ETypeHole pos, hole)
 
 -- | Infers the type of an identifier.
-inferEId :: String -> SourcePos -> InferType Type
-inferEId n pos = do
+elabEId :: String -> SourcePos -> InferType ExprEnv
+elabEId n pos = do
     funEnv  <- funDefCtx `views` lookup n
     ctorEnv <- constructorCtx `views` lookup n
-    maybe (throwError (unboundName (locate n pos))) (instantiate pos) (funEnv <|> ctorEnv)
+    ty      <- maybe (throwError (unboundName (locate n pos))) (instantiate pos) (funEnv <|> ctorEnv)
+    pure (locate (AC.EId n) pos, ty)
 
 -- | Infers the type of an expression application.
-inferEApplication :: AC.Expr -> AC.Expr -> SourcePos -> InferType Type
-inferEApplication e1 e2 pos = do
-    ty1 <- inferExpr e1
-    ty2 <- inferExpr e2
-    tyv <- fresh "$" pos
+elabEApplication :: AC.Expr -> AC.Expr -> SourcePos -> InferType ExprEnv
+elabEApplication e1 e2 pos = do
+    (elabE1, ty1) <- elabExpr e1
+    (elabE2, ty2) <- elabExpr e2
+    tyv           <- fresh "$" pos
     tell [ty1 :>~ tFun ty2 tyv pos]
-    pure tyv
+    pure (locate (AC.EApplication elabE1 elabE2) pos, tyv)
 
 -- | Infers the type of a tuple.
-inferETuple :: [AC.Expr] -> SourcePos -> InferType Type
-inferETuple es pos = do
-    ts <- mapM inferExpr es
-    pure (locate (TTuple ts) pos)
+elabETuple :: [AC.Expr] -> SourcePos -> InferType ExprEnv
+elabETuple es pos = do
+    (elabs, ts) <- unzip <$> mapM elabExpr es
+    pure (locate (AC.ETuple elabs) pos, locate (TTuple ts) pos)
 
 -- | Infers the type of an expression and generates a constraint for its annotation.
-inferETypeAnnotated :: AC.Expr -> AC.Type -> SourcePos -> InferType Type
-inferETypeAnnotated expr ty pos = do
-    exTy <- inferExpr expr
+elabETypeAnnotated :: AC.Expr -> AC.Type -> SourcePos -> InferType ExprEnv
+elabETypeAnnotated expr ty pos = do
+    (elabE, exTy) <- elabExpr expr
     tell [exTy :>~ coerceType ty]
-    pure exTy
+    pure (elabE, exTy)
 
 -- | Infers the type of a lambda abstraction.
-inferELambda :: AC.Pattern -> AC.Expr -> SourcePos -> InferType Type
-inferELambda pat ex pos = do
-    (patTy, env) <- inferPattern pat
-    ty           <- inEnvMany (Map.toList env) (inferExpr ex)
-    pure (tFun patTy ty pos)
+elabELambda :: AC.Pattern -> AC.Expr -> SourcePos -> InferType ExprEnv
+elabELambda pat ex pos = do
+    ((elabP, patTy), env) <- elabPattern pat
+    (elabEx, ty)          <- inEnvMany (Map.toList env) (elabExpr ex)
+    pure (locate (AC.ELambda elabP elabEx) pos, tFun patTy ty pos)
 
 -- | Infers the type of a pattern matching expression.
-inferEMatch :: AC.Expr -> [(AC.Pattern, AC.Expr)] -> SourcePos -> InferType Type
-inferEMatch ex branches pos = do
-    ty     <- inferExpr ex
-    log "match expr type" (pure ())
-    log ty (pure ())
-    result <- unzip <$> forM branches \(pat, expr) -> do
-        (pTy, env) <- inferPattern pat
-        log "match pattern environment:" (pure ())
-        log env (pure ())
-        exTy       <- inEnvMany (Map.toList env) (inferExpr expr)
-        pure (exTy, pTy)
-    let (ret:xs, patsTy) = result
+elabEMatch :: AC.Expr -> [(AC.Pattern, AC.Expr)] -> SourcePos -> InferType ExprEnv
+elabEMatch ex branches pos = do
+    (elabEx, ty) <- elabExpr ex
+    (elabs, tys) <- unzip <$> forM branches \(pat, expr) -> do
+        ((elabP, pTy), env) <- elabPattern pat
+        (elabEx, exTy)      <- inEnvMany (Map.toList env) (elabExpr expr)
+        pure ((elabP, elabEx), (pTy, exTy))
+    let ((_, ret):xs) = tys
 
-    let constraints = (uncurry (:>~) <$> (zipFrom ret xs <> zipFrom ty patsTy))
-    log constraints (tell constraints)
-    pure ret
+    let constraints = (uncurry (:>~) <$> (zipFrom ret (snd <$> xs) <> zipFrom ty (fst <$> tys)))
+    tell constraints
+    pure (locate (AC.EMatch elabEx elabs) pos, ret)
   where zipFrom = zip . repeat
 
 -- | Infers the type of a @let@ expression.
-inferELet :: [AC.Statement] -> AC.Expr -> SourcePos -> InferType Type
-inferELet stts ex pos = do
-    env <- UMap.traverseWithKey inferStmt (uncurry align (sepStatements (annotated <$> stts)))
-    ty  <- inEnvMany (UMap.toList env) (inferExpr ex)
-    pure ty
-  where inferStmt name (That def)       = do
-            tv <- fresh "$" pos
-            ty <- inEnvMany [(name, Forall [] tv)] (inferExpr def)
-            tell [ty :>~ tv]
+elabELet :: [AC.Statement] -> AC.Expr -> SourcePos -> InferType ExprEnv
+elabELet stts ex pos = do
+    let allStts@(_, defs) = sepStatements (annotated <$> stts)
+    env          <- Map.toList <$> Map.traverseWithKey check (uncurry align allStts)
+    (stts, env)  <- inEnvMany env (traverseElabStatements (Map.toList defs))
+    (elabEx, ty) <- local (const env) (elabExpr ex)
+    pure (locate (AC.ELet (reconstructStt <$> stts) elabEx) pos, ty)
+  where traverseElabStatements []              = asks ([], )
+        traverseElabStatements ((name, ex):ss) = do
             env <- view funDefCtx
-            pure (generalize env ty)
-        inferStmt name (These decl def) = do
-            scheme@(Forall _ ty) <- inferStmt name (That def)
-            tell [ty :>~ coerceType decl]
-            pure scheme
-        inferStmt name (This _)         =
-            throwError (lacksBind (locate name pos))
+            (elabEx, ty) <- elabFunctionDefinition pos name ex
+            first ((name, elabEx) :) <$> inEnvMany [(name, generalize env ty)] (traverseElabStatements ss)
 
-        sepStatements = bimap (UMap.fromList . fmap toDecl)
-                              (UMap.fromList . fmap toDef) . partition f
+        check name (This _)     = throwError (lacksBind (locate name pos))
+        check name (That _)     = Forall [] <$> fresh "$" pos
+        check name (These ty _) = do
+            env <- view funDefCtx
+            pure (generalize env (coerceType ty))
+
+        sepStatements = bimap (Map.fromList . fmap toDecl)
+                              (Map.fromList . fmap toDef) . partition f
 
         f AC.FunctionDeclaration{} = True
         f AC.FunctionDefinition{}  = False
@@ -168,66 +166,68 @@ inferELet stts ex pos = do
         toDef  (AC.FunctionDefinition name def)   = (name, def)
         toDef  _ = impossible "Let expressions cannot contain type definitions."
 
+        reconstructStt (name, ex) = locate (AC.FunctionDefinition name ex) pos
+
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
   where tApp = TApplication (locate (TId "->") pos) t1
 
 ---------------------------------------------------------------------------------------------------
 
-type PatternEnv = (Type, Map.Map String (Scheme Type))
+type PatternEnv = ((AC.Pattern, Type), Map.Map String (Scheme Type))
 
 -- | Infers the type and environment of a pattern
-inferPattern :: AC.Pattern -> InferType PatternEnv
-inferPattern pat =
+elabPattern :: AC.Pattern -> InferType PatternEnv
+elabPattern pat =
     let (loc, ann) = (location &&& annotated) pat
     in loc & case ann of
-        AC.PWildcard          -> inferPWildcard
-        AC.PLiteral lit       -> inferPLiteral lit
-        AC.PId i              -> inferPId i
-        AC.PTuple ps          -> inferPTuple ps
-        AC.PTypeAnnotated p t -> inferPTypeAnnotated p t
-        AC.PConstructor n ps  -> inferPConstructor n ps
+        AC.PWildcard          -> elabPWildcard
+        AC.PLiteral lit       -> elabPLiteral lit
+        AC.PId i              -> elabPId i
+        AC.PTuple ps          -> elabPTuple ps
+        AC.PTypeAnnotated p t -> elabPTypeAnnotated p t
+        AC.PConstructor n ps  -> elabPConstructor n ps
 
 -- | Infers the type of a pattern wildcard.
-inferPWildcard :: SourcePos -> InferType PatternEnv
-inferPWildcard pos = (, mempty) <$> fresh "$" pos
+elabPWildcard :: SourcePos -> InferType PatternEnv
+elabPWildcard pos = (, mempty) . (locate AC.PWildcard pos, ) <$> fresh "$" pos
 
 -- | Infers the type of a pattern literal.
-inferPLiteral :: AC.Literal -> SourcePos -> InferType PatternEnv
-inferPLiteral lit pos = (, mempty) <$> inferELiteral lit pos
+elabPLiteral :: AC.Literal -> SourcePos -> InferType PatternEnv
+elabPLiteral lit pos = (, mempty) . (locate (AC.PLiteral lit) pos, ) . snd <$> elabELiteral lit pos
 
 -- | Infers the type of an identifier.
-inferPId :: String -> SourcePos -> InferType PatternEnv
-inferPId n pos = do
+elabPId :: String -> SourcePos -> InferType PatternEnv
+elabPId n pos = do
     ty <- fresh "$" pos
-    pure (ty, Map.singleton n (Forall [] ty))
+    pure ((locate (AC.PId n) pos, ty), Map.singleton n (Forall [] ty))
 
 -- | Infers the type of a pattern tuple
-inferPTuple :: [AC.Pattern] -> SourcePos -> InferType PatternEnv
-inferPTuple ps pos = do
-    (ts, envs) <- unzip <$> mapM inferPattern ps
-    pure (locate (TTuple ts) pos, mconcat envs)
+elabPTuple :: [AC.Pattern] -> SourcePos -> InferType PatternEnv
+elabPTuple ps pos = do
+    ((pats, ts), envs) <- first unzip . unzip <$> mapM elabPattern ps
+    pure ((locate (AC.PTuple pats) pos, locate (TTuple ts) pos), mconcat envs)
 
 -- | Infers the type of an expression and generates a contraint for its type.
-inferPTypeAnnotated :: AC.Pattern -> AC.Type -> SourcePos -> InferType PatternEnv
-inferPTypeAnnotated pat ty pos = do
-    (pty, env) <- inferPattern pat
+elabPTypeAnnotated :: AC.Pattern -> AC.Type -> SourcePos -> InferType PatternEnv
+elabPTypeAnnotated pat ty pos = do
+    ((pex, pty), env) <- elabPattern pat
     let ty' = coerceType ty
     tell [ty' :>~ pty]
-    pure (ty', env)
+    pure ((pex, ty'), env)
 
 -- | Infers the type of a pattern data constructor.
-inferPConstructor :: String -> [AC.Pattern] -> SourcePos -> InferType PatternEnv
-inferPConstructor n ps pos = do
+elabPConstructor :: String -> [AC.Pattern] -> SourcePos -> InferType PatternEnv
+elabPConstructor n ps pos = do
     constructor <- instantiate pos =<< lookupCtor n
     let (tys, ret) = foldParams constructor
 
     guard (length ps == length tys)
         <|> throwError (missingConstructorArgument (locate n pos) (length tys) (length ps))
 
-    (tys', env) <- fmap mconcat <$> mapAndUnzipM inferPattern ps
+    ((elabPs, tys'), env) <- first unzip . fmap mconcat <$> mapAndUnzipM elabPattern ps
     tell (uncurry (:>~) <$> zip tys tys')
-    pure (ret, env)
+    pure ((locate (AC.PConstructor n elabPs) pos, ret), env)
   where lookupCtor :: String -> InferType (Scheme Type)
         lookupCtor name = do
             env <- constructorCtx `views` lookup name

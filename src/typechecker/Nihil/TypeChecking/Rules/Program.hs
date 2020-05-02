@@ -26,7 +26,6 @@ import Nihil.TypeChecking.Errors.GADTWrongReturnType
 import Nihil.TypeChecking.Errors.BindLack
 import Nihil.TypeChecking.Rules.Inference.Type
 import Data.Align (align)
-import qualified Data.Map.Unordered as UMap
 import Data.Bifunctor (first)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
@@ -44,15 +43,16 @@ import qualified Data.Set as Set
 import Data.List (nub)
 
 -- | Type checks a whole 'AC.Program'.
-typecheck :: AC.Program -> TypeCheck ()
+typecheck :: AC.Program -> TypeCheck [AC.Statement']
 typecheck (AC.Program stts) = do
     defsAndDecls <- separateTypeDefs stts
     statements   <- organizeStatements defsAndDecls
 
     let toHandle = uncurry align statements
 
-    void (UMap.traverseWithKey prehandleStatement toHandle)
-    void (UMap.traverseWithKey handleStatement toHandle)
+    void (Map.traverseWithKey prehandleStatement toHandle)
+    stts <- Map.traverseWithKey handleStatement toHandle
+    pure (uncurry AC.FunctionDefinition <$> Map.toList stts)
 
 -- | Type checks a custom type definition.
 typecheckTypeDef :: String -> Scheme CustomType -> TypeCheck ()
@@ -95,29 +95,29 @@ separateTypeDefs (d:ss) = case annotated d of
     _                              ->
         (d :) <$> separateTypeDefs ss
 
-organizeStatements :: [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
+organizeStatements :: [AC.Statement] -> TypeCheck (Map.Map String AC.Expr, Map.Map String AC.Type)
 organizeStatements = go (mempty, mempty)
-  where go :: (UMap.Map String AC.Expr, UMap.Map String AC.Type) -> [AC.Statement] -> TypeCheck (UMap.Map String AC.Expr, UMap.Map String AC.Type)
+  where go :: (Map.Map String AC.Expr, Map.Map String AC.Type) -> [AC.Statement] -> TypeCheck (Map.Map String AC.Expr, Map.Map String AC.Type)
         go res []     = pure res
         go res (s:ss) = fun s res >>= flip go ss
 
         fun = annotated >>> \case
             AC.FunctionDeclaration name ty -> secondM (check name ty)
-                where check name ty umap = case UMap.lookup name umap of
-                        Nothing -> pure (UMap.insert name ty umap)
+                where check name ty umap = case Map.lookup name umap of
+                        Nothing -> pure (Map.insert name ty umap)
                         Just _  -> do
                             let loc = location ty
                             throwError (redeclaredFunction (locate name loc))
             AC.FunctionDefinition name ex  -> firstM (check name ex)
-                where check name ex umap = case UMap.lookup name umap of
-                        Nothing -> pure (UMap.insert name ex umap)
+                where check name ex umap = case Map.lookup name umap of
+                        Nothing -> pure (Map.insert name ex umap)
                         Just _  -> do
                             let loc = location ex
                             throwError (redefinedFunction (locate name loc))
             _                              ->
                 impossible "Type definitions are already filtered!"
 
-handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck ()
+handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck AC.Expr
 handleStatement name (That ty)        = throwError (lacksBind (locate name (location ty)))
 handleStatement name (This def)       = check name def
 handleStatement name (These def decl) = check name def
@@ -136,17 +136,19 @@ prehandleStatement name (These def decl) = do
     funDefCtx %= (`extend` (name, ty))
 
 -- | Type checks a function definition.
-check :: String -> AC.Expr -> TypeCheck ()
+check :: String -> AC.Expr -> TypeCheck AC.Expr
 check name def = do
     let pos = location def
     env      <- get
 
-    (ty, cs) <- liftEither (runInfer env (inferFunctionDefinition pos name def))
-    sub      <- liftEither (runTypeSolver env cs)
+    ((ex, ty), cs) <- liftEither (runInfer env (elabFunctionDefinition pos name def))
+    sub            <- liftEither (runTypeSolver env cs)
     let funType = apply sub ty
 
     funDefCtx %= (`extend` (name, closeOver funType))
     funDefCtx %= apply sub -- we apply the substitution to remove types such as %1 which are somewhat placeholders.
+
+    pure ex
 
 extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
