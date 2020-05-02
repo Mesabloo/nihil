@@ -88,6 +88,10 @@ log' x act   = debug doc act
 "warn/String"  warn  = warn'
 "log/String"   log   = log'
 #-}
+
+debuggingOn :: Bool
+debuggingOn = True
+
 #else
 -- | This debugging function is eliminated at compile time if the debugging
 --   flag has not been activated.
@@ -151,4 +155,8 @@ logWhen   _ = flip const
 "warnWhen/eliminate"  forall b x y. warnWhen b x y  = y
 "logWhen/eliminate"   forall b x y. logWhen b x y   = y
 #-}
+
+debuggingOn :: Bool
+debuggingOn = False
+
 #endif
