@@ -12,11 +12,11 @@ import Nihil.TypeChecking.Rules.Solving.Kind (runKindSolver)
 import Nihil.TypeChecking.Rules.Inference (runInfer)
 import Nihil.Utils.Source (locate, SourcePos(NoSource))
 import qualified Nihil.TypeChecking.Rules.Program as RP (typecheck)
-import qualified Nihil.Syntax.Abstract.Core as AC (Program)
+import qualified Nihil.Syntax.Abstract.Core as AC (Program, Statement')
 import Nihil.TypeChecking.Pretty
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.Except (runExcept)
-import Control.Monad.State (execStateT)
+import Control.Monad.State (runStateT)
 import qualified Data.Map as Map
 
 -- | Runs the kindchecker on a given 'Type', and returns the inferred type.
@@ -33,8 +33,8 @@ runKindChecker env ty = do
 --   to be @'GlobalEnv' 'mempty' 'mempty' 'mempty' 'mempty'@ if first run.
 --
 --   It returns the new 'GlobalEnv' issued after typechecking every definitions.
-runTypeChecker :: GlobalEnv -> AC.Program -> Either Doc GlobalEnv
-runTypeChecker env prog = runExcept (execStateT (RP.typecheck prog) env)
+runTypeChecker :: GlobalEnv -> AC.Program -> Either Doc ([AC.Statement'], GlobalEnv)
+runTypeChecker env prog = runExcept (runStateT (RP.typecheck prog) env)
 
 -- | The minimal default environment for typechecking (contains built-in types and functions).
 defaultGlobalEnv :: GlobalEnv
@@ -44,7 +44,7 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
         tFun t1 t2 = locate (TApplication (locate (TApplication (locate (TId "->") dummyPos) t1) dummyPos) t2) dummyPos
         kArr k1 k2 = KApplication (KApplication KArrow k1) k2
         infixr 1 `kArr`
-        
+
         defaultTypeCtx :: Map.Map String Kind
         defaultTypeCtx = Map.fromList
             [ ("Integer", KStar)
