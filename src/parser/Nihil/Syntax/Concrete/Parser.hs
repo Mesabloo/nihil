@@ -16,8 +16,6 @@ module Nihil.Syntax.Concrete.Parser
 
 import Nihil.Syntax.Common (Parser)
 import Nihil.Utils.Source
-import Nihil.Utils.Debug (log)
-import Nihil.Syntax.Concrete.Debug
 import Nihil.Syntax.Pretty()
 import qualified Nihil.Syntax.Concrete.Lexer as L
 import Nihil.Syntax.Concrete.Parser.Comment
@@ -57,10 +55,7 @@ lineFold :: (Parser () -> Parser a) -> Parser a
 lineFold = MPL.lineFold (MP.try space)
 
 space :: Parser ()
-space = debug "space" $ do
-    MPL.space pEOL pLineComment pBlockComment
-    sp <- getSourcePos
-    log sp $ pure ()
+space = MPL.space pEOL pLineComment pBlockComment
   where pEOL = () <$ MP.satisfy (\(annotated -> t) -> t == L.TkEOL)
 
 lexeme :: Parser a -> Parser a
