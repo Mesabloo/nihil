@@ -3,6 +3,11 @@ version: 0.1.0.0
 library:
   source-dirs: .
 
+when:
+- condition: flag(debug)
+  cpp-options:
+  - -DDEBUGGING
+
 ghc-options:
 - -Wall
 - -Wno-unused-do-bind
@@ -11,6 +16,12 @@ ghc-options:
 - -Wno-unused-matches
 - -fenable-rewrite-rules
 - -Wno-incomplete-patterns
+
+flags:
+  debug:
+    description: "Enable/disable compiler debugging features."
+    manual: true
+    default: false
 
 author: Ghilain Bergeron (Mesabloo)
 github: mesabloo/nihil

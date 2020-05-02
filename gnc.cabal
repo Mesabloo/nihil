@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5106ba054dd41351d4139e3fb6f624b5288f598cb90576bcf1eb964a5b691a57
+-- hash: 6a77aea12bc90582742dccd96c58334949eea44128b13ae5c1c874bc3d9bd2db
 
 name:           gnc
 version:        0.1.0.0
@@ -23,11 +23,6 @@ extra-source-files:
 source-repository head
   type: git
   location: https://github.com/mesabloo/nihil
-
-flag debug
-  description: Enable/disable compiler debugging features.
-  manual: True
-  default: False
 
 flag profile
   description: Enable/disable compiler profiling.
@@ -48,8 +43,6 @@ library
     , gnc-runtime
     , gnc-typechecker
     , gnc-utils
-  if flag(debug)
-    cpp-options: -DDEBUGGING
   if flag(profile)
     ghc-options: -prof -auto-all -with-rtsopts=-p,-s
   default-language: Haskell2010
@@ -74,8 +67,6 @@ executable nihilin
     , megaparsec
     , mtl
     , text
-  if flag(debug)
-    cpp-options: -DDEBUGGING
   if flag(profile)
     ghc-options: -prof -auto-all -with-rtsopts=-p,-s
   default-language: Haskell2010
@@ -98,8 +89,6 @@ test-suite compiler
     , gnc-typechecker
     , gnc-utils
     , hspec
-  if flag(debug)
-    cpp-options: -DDEBUGGING
   if flag(profile)
     ghc-options: -prof -auto-all -with-rtsopts=-p,-s
   default-language: Haskell2010
@@ -121,8 +110,6 @@ test-suite utils
     , gnc-typechecker
     , gnc-utils
     , hspec
-  if flag(debug)
-    cpp-options: -DDEBUGGING
   if flag(profile)
     ghc-options: -prof -auto-all -with-rtsopts=-p,-s
   default-language: Haskell2010

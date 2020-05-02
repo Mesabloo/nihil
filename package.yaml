@@ -2,9 +2,6 @@ library:
   source-dirs: src
 
 when:
-- condition: flag(debug)
-  cpp-options:
-  - -DDEBUGGING
 - condition: flag(profile)
   ghc-options:
   - -prof
@@ -57,10 +54,6 @@ executables:
     - text
 
 flags:
-  debug:
-    description: "Enable/disable compiler debugging features."
-    manual: true
-    default: false
   profile:
     description: "Enable/disable compiler profiling."
     manual: true

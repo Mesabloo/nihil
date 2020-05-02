@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 939b5cfab7c541a14f0060cae0fb61f25c6d8958b54f8299d792aa6fe919e191
+-- hash: e83cb2efda3b6f52fc1a1bffd2f7ca878f378f163db35df919df8541542f449d
 
 name:           gnc-utils
 version:        0.1.0.0
@@ -20,6 +20,11 @@ build-type:     Simple
 source-repository head
   type: git
   location: https://github.com/mesabloo/nihil
+
+flag debug
+  description: Enable/disable compiler debugging features.
+  manual: True
+  default: False
 
 library
   exposed-modules:
@@ -42,4 +47,6 @@ library
     , lens
     , megaparsec
     , text
+  if flag(debug)
+    cpp-options: -DDEBUGGING
   default-language: Haskell2010
