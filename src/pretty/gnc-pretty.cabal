@@ -4,9 +4,9 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0495f214c1bd7ff00665e301c7f690b0d3a7432b672dc77b8827fdeb61a28f4
+-- hash: d3bc20f51f191155244c7ab5389c514223f7ae1d6c440bc991182fedae01b65a
 
-name:           gnc-runtime
+name:           gnc-pretty
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 homepage:       https://github.com/mesabloo/nihil#readme
@@ -23,12 +23,13 @@ source-repository head
 
 library
   exposed-modules:
-      Nihil.Runtime
-      Nihil.Runtime.Errors.Developer
-      Nihil.Runtime.Errors.NonExhaustivePatternMatching
-      Nihil.Runtime.Interpreter
+      Nihil.Runtime.Pretty
+      Nihil.Syntax.Pretty
+      Nihil.Syntax.Pretty.Abstract
+      Nihil.Syntax.Pretty.Concrete
+      Nihil.TypeChecking.Pretty
   other-modules:
-      Paths_gnc_runtime
+      Paths_gnc_pretty
   hs-source-dirs:
       ./.
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
@@ -37,9 +38,7 @@ library
     , base
     , containers
     , gnc-core
-    , gnc-pretty
     , gnc-utils
     , lens
-    , mtl
     , text
   default-language: Haskell2010

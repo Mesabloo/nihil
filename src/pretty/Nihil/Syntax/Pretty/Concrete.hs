@@ -7,7 +7,6 @@ module Nihil.Syntax.Pretty.Concrete
 
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (annotated)
-import Nihil.Syntax.Concrete.Lexer (TokenClass(..))
 import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import Control.Arrow ((>>>))

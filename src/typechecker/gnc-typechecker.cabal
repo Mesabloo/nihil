@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bfb9347c98dd2bc035fe7bb2716e54f3d03b9a7973c7d553f86b8e1e018d1f11
+-- hash: 89a05c6454fd30c0f73a5877bbc9b070f838c449f4ac05cff3e595d900f7c01c
 
 name:           gnc-typechecker
 version:        0.1.0.0
@@ -38,7 +38,6 @@ library
       Nihil.TypeChecking.Errors.UnboundName
       Nihil.TypeChecking.Errors.UndefinedType
       Nihil.TypeChecking.Errors.Unification
-      Nihil.TypeChecking.Pretty
       Nihil.TypeChecking.Rules.Inference
       Nihil.TypeChecking.Rules.Inference.Kind
       Nihil.TypeChecking.Rules.Inference.Type
@@ -61,6 +60,7 @@ library
     , base
     , containers
     , gnc-core
+    , gnc-pretty
     , gnc-utils
     , hashable
     , insert-ordered-containers

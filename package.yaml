@@ -26,9 +26,11 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 dependencies:
 - base
 - gnc-utils
+- gnc-core
 - gnc-parser
 - gnc-typechecker
 - gnc-runtime
+- gnc-pretty
 
 name: gnc
 version: 0.1.0.0

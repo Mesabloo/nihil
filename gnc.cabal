@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6a77aea12bc90582742dccd96c58334949eea44128b13ae5c1c874bc3d9bd2db
+-- hash: 7cde6152da08406d7c387a7307072d4a59c65ff0cb38d4b089edb310c54010c2
 
 name:           gnc
 version:        0.1.0.0
@@ -39,7 +39,9 @@ library
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3
   build-depends:
       base
+    , gnc-core
     , gnc-parser
+    , gnc-pretty
     , gnc-runtime
     , gnc-typechecker
     , gnc-utils
@@ -59,7 +61,9 @@ executable nihilin
     , base
     , containers
     , gnc
+    , gnc-core
     , gnc-parser
+    , gnc-pretty
     , gnc-runtime
     , gnc-typechecker
     , gnc-utils
@@ -84,7 +88,9 @@ test-suite compiler
   build-depends:
       base
     , gnc
+    , gnc-core
     , gnc-parser
+    , gnc-pretty
     , gnc-runtime
     , gnc-typechecker
     , gnc-utils
@@ -105,7 +111,9 @@ test-suite utils
   build-depends:
       base
     , gnc
+    , gnc-core
     , gnc-parser
+    , gnc-pretty
     , gnc-runtime
     , gnc-typechecker
     , gnc-utils

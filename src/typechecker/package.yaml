@@ -21,6 +21,7 @@ dependencies:
 - base
 - gnc-utils
 - gnc-core
+- gnc-pretty
 - mtl
 - containers
 - insert-ordered-containers
