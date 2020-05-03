@@ -5,7 +5,6 @@ module Nihil.Syntax.Concrete.Parser.Statement where
 import Nihil.Syntax.Common (Parser)
 import Nihil.Syntax.Concrete.Core
 import Nihil.Syntax.Concrete.Parser
-import Nihil.Syntax.Concrete.Lexer
 import Nihil.Utils.Source
 import Nihil.Syntax.Concrete.Parser.Statement.FunctionDeclaration
 import Nihil.Syntax.Concrete.Parser.Statement.OperatorFixity

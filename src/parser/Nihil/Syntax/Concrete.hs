@@ -17,7 +17,7 @@ module Nihil.Syntax.Concrete
 ) where
 
 import Nihil.Syntax.Concrete.Core
-import Nihil.Syntax.Concrete.Lexer (Token, TokenClass(..))
+import Nihil.Syntax.Concrete.Lexer (Token)
 import Nihil.Syntax.Concrete.Parser.Statement (pProgram)
 
 {- $grammar
