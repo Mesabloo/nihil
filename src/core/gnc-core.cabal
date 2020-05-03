@@ -4,9 +4,9 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d1666a45691705a6d05409f7a68e38ac99050468650ee1b5080fbc7252755cdc
+-- hash: fa10674b40cd3616a4b655866778190dd0df778d6790b40f1e92e6d69e13c6eb
 
-name:           gnc-runtime
+name:           gnc-core
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 homepage:       https://github.com/mesabloo/nihil#readme
@@ -23,13 +23,13 @@ source-repository head
 
 library
   exposed-modules:
-      Nihil.Runtime
-      Nihil.Runtime.Errors.Developer
-      Nihil.Runtime.Errors.NonExhaustivePatternMatching
-      Nihil.Runtime.Interpreter
-      Nihil.Runtime.Pretty
+      Nihil.Runtime.Core
+      Nihil.Syntax.Abstract.Core
+      Nihil.Syntax.Concrete.Core
+      Nihil.Syntax.Core
+      Nihil.TypeChecking.Core
   other-modules:
-      Paths_gnc_runtime
+      Paths_gnc_core
   hs-source-dirs:
       ./.
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
@@ -37,7 +37,6 @@ library
       ansi-wl-pprint
     , base
     , containers
-    , gnc-core
     , gnc-utils
     , lens
     , mtl

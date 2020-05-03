@@ -2,7 +2,7 @@ name: gnc-typechecker
 version: 0.1.0.0
 library:
   source-dirs: .
-  
+
 ghc-options:
 - -Wall
 - -Wno-unused-do-bind
@@ -20,7 +20,7 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 dependencies:
 - base
 - gnc-utils
-- gnc-parser
+- gnc-core
 - mtl
 - containers
 - insert-ordered-containers

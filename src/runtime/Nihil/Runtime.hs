@@ -13,7 +13,7 @@ import Nihil.Runtime.Core
 import Nihil.Runtime.Pretty
 import qualified Nihil.Runtime.Interpreter as I
 import Nihil.Runtime.Errors.Developer
-import Nihil.Syntax (Expr)
+import Nihil.Syntax.Abstract.Core (Expr)
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (runReaderT)

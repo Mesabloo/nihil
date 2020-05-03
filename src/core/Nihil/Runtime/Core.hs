@@ -3,7 +3,7 @@
 
 module Nihil.Runtime.Core where
 
-import qualified Nihil.Syntax as AC
+import qualified Nihil.Syntax.Abstract.Core as AC
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Control.Monad.Reader (ReaderT)

@@ -34,6 +34,7 @@ resolver: lts-15.4
 #  - wai
 packages:
 - src/utils
+- src/core
 - src/parser
 - src/typechecker
 - src/runtime

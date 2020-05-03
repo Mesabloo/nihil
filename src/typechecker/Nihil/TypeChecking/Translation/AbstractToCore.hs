@@ -1,6 +1,6 @@
 module Nihil.TypeChecking.Translation.AbstractToCore where
 
-import qualified Nihil.Syntax.Abstract as AC
+import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.TypeChecking.Core
 import Nihil.Utils.Annotation (hoistAnnotated)
 import Data.Bifunctor (first)

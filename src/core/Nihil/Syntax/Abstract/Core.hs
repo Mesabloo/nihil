@@ -4,8 +4,8 @@
 
 module Nihil.Syntax.Abstract.Core where
 
-import Nihil.Utils.Source
-import qualified Data.Map as Map
+import Nihil.Utils.Source (Located)
+import Data.Map (Map)
 
 newtype Program = Program [Statement]
   deriving
@@ -74,7 +74,7 @@ data Literal
 
 type CustomType = Located CustomType'
 data CustomType'
-    = SumType (Map.Map String Scheme)   -- ^ > data X a where { X : a → X a }
+    = SumType (Map String Scheme)       -- ^ > data X a where { X : a → X a }
     | TypeAlias Type                    -- ^ > type T a = { List a }
   deriving
     ( -- | use only for debugging

@@ -7,10 +7,12 @@ module Nihil.TypeChecking.Substitution where
 
 import Nihil.Utils.Source
 import Nihil.Utils.Annotation
+import Nihil.TypeChecking.Core
 import qualified Data.Set as Set
 import Control.Arrow ((>>^))
 import Data.Bifunctor (first)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 
 newtype Subst' a = Subst (Map.Map String a)
   deriving
@@ -44,3 +46,37 @@ instance Substitutable a => Substitutable (Located a) where
 
     free = annotated >>^ free
     apply s = hoistAnnotated (first (apply s))
+
+-------------------------------------------------------------------------
+
+instance Substitutable Kind where
+    type Subst Kind = Subst' Kind
+
+    free (KVar v)             = Set.singleton v
+    free (KApplication k1 k2) = mconcat (free <$> [k1, k2])
+    free _                    = mempty
+
+    apply (Subst sub) kv@(KVar v) = fromMaybe kv (Map.lookup v sub)
+    apply s (KApplication k1 k2)  = KApplication (apply s k1) (apply s k2)
+    apply _ k                     = k
+
+instance Substitutable Type' where
+    type Subst Type' = Subst' Type'
+
+    free (TVar v)             = Set.singleton v
+    free (TTuple ts)          = free ts
+    free (TApplication t1 t2) = free [t1, t2]
+    free _                    = mempty
+
+    apply (Subst sub) tv@(TVar v) = fromMaybe tv (Map.lookup v sub)
+    apply s (TTuple ts)           = TTuple (apply s ts)
+    apply s (TApplication t1 t2)  = TApplication (apply s t1) (apply s t2)
+    apply _ t                     = t
+
+instance (Substitutable a, Subst a ~ Subst' b) => Substitutable (Scheme a) where
+    type Subst (Scheme a) = Subst a
+
+    free (Forall v t) = free t Set.\\ Set.fromList v
+
+    apply (Subst s) (Forall v t) = Forall v (apply newSubst t)
+      where newSubst = Subst (Map.withoutKeys s (Set.fromList v))

@@ -1,4 +1,4 @@
-name: gnc-parser
+name: gnc-core
 version: 0.1.0.0
 library:
   source-dirs: .
@@ -10,7 +10,6 @@ ghc-options:
 - -Wno-name-shadowing
 - -Wno-unused-matches
 - -fenable-rewrite-rules
-- -Wno-overlapping-patterns
 
 author: Ghilain Bergeron (Mesabloo)
 github: mesabloo/nihil
@@ -21,10 +20,8 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 dependencies:
 - base
 - gnc-utils
-- gnc-core
-- megaparsec
-- text
 - mtl
 - containers
+- text
 - ansi-wl-pprint
 - lens

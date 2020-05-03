@@ -5,7 +5,7 @@
 module Nihil.Runtime.Interpreter
 ( evaluate ) where
 
-import Nihil.Syntax
+import Nihil.Syntax.Abstract.Core
 import Nihil.Runtime.Core
 import Nihil.Utils.Source (annotated)
 import Nihil.Runtime.Errors.NonExhaustivePatternMatching

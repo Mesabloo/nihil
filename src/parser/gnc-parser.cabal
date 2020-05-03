@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 07a6714a7803b3ae8f38075438cd79c30ef8f7aec8606df6a613d54f4974483c
+-- hash: a0e6200dae08b787d3f50b0556c77088e68f44d4ab58d716f1086dcfb1eecbc7
 
 name:           gnc-parser
 version:        0.1.0.0
@@ -26,7 +26,6 @@ library
       Nihil.Syntax
       Nihil.Syntax.Abstract
       Nihil.Syntax.Abstract.Accumulator
-      Nihil.Syntax.Abstract.Core
       Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
       Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator
       Nihil.Syntax.Abstract.Desugarer.Expression
@@ -36,7 +35,6 @@ library
       Nihil.Syntax.Abstract.Desugarer.Type
       Nihil.Syntax.Common
       Nihil.Syntax.Concrete
-      Nihil.Syntax.Concrete.Core
       Nihil.Syntax.Concrete.Debug
       Nihil.Syntax.Concrete.Lexer
       Nihil.Syntax.Concrete.Parser
@@ -79,6 +77,7 @@ library
       ansi-wl-pprint
     , base
     , containers
+    , gnc-core
     , gnc-utils
     , lens
     , megaparsec

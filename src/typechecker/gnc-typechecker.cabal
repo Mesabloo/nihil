@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7c0cdd445e8fd532a5af1ee71eb0ab722ecfd9f0fbbb3537d360d0f74e04069b
+-- hash: bfb9347c98dd2bc035fe7bb2716e54f3d03b9a7973c7d553f86b8e1e018d1f11
 
 name:           gnc-typechecker
 version:        0.1.0.0
@@ -27,7 +27,6 @@ library
       Nihil.TypeChecking
       Nihil.TypeChecking.Common
       Nihil.TypeChecking.Constraint
-      Nihil.TypeChecking.Core
       Nihil.TypeChecking.Environment
       Nihil.TypeChecking.Errors.BindLack
       Nihil.TypeChecking.Errors.GADTWrongReturnType
@@ -61,7 +60,7 @@ library
       ansi-wl-pprint
     , base
     , containers
-    , gnc-parser
+    , gnc-core
     , gnc-utils
     , hashable
     , insert-ordered-containers
