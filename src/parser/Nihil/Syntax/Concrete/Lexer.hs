@@ -11,6 +11,7 @@ module Nihil.Syntax.Concrete.Lexer
 
 import Nihil.Utils.Source
 import Nihil.CommonError
+import Nihil.Syntax.Concrete.Core
 import qualified Text.Megaparsec as MP
 import qualified Text.Megaparsec.Char as MPC
 import qualified Text.Megaparsec.Char.Lexer as MPL
@@ -22,44 +23,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Data.Char (GeneralCategory(LineSeparator))
 import Control.Applicative ((<|>))
 
-
-data TokenClass
-    = TkMatch          -- ^ > match
-    | TkWith           -- ^ > with
-    | TkData           -- ^ > data
-    | TkType           -- ^ > type
-    | TkLet            -- ^ > let
-    | TkIn             -- ^ > in
-    | TkWhere          -- ^ > where
-    | TkInfixL         -- ^ > infixl
-    | TkInfixR         -- ^ > infixr
-    | TkEquals         -- ^ > =
-    | TkColon          -- ^ > :
-    | TkSemi           -- ^ > ;
-    | TkBackslash      -- ^ > \
-    | TkArrow          -- ^ > -> or →
-    | TkImplies        -- ^ > => or ⇒
-    | TkBacktick       -- ^ > `
-    | TkLambda         -- ^ > λ
-    | TkUnderscore     -- ^ > _
-    | TkInt Integer    -- ^ > 0123456789
-    | TkFloat Double   -- ^ >  0.2363e6
-    | TkString String  -- ^ > "hello"
-    | TkChar Char      -- ^ > 'h'
-    | TkLIdent String  -- ^ > f
-    | TkUIdent String  -- ^ > F
-    | TkSym String     -- ^ Any symbol really
-    | TkLParen         -- ^ > (
-    | TkRParen         -- ^ > )
-    | TkComma          -- ^ > ,
-    | TkBar            -- ^ > |
-    | TkInlineComment String
-                       -- ^ > -- comment
-    | TkMultilineComment String
-                       -- ^ > {- comment -}
-    | TkEOF            -- ^ End of File
-    | TkEOL            -- ^ End of Line
-  deriving (Eq, Ord)
 
 type Token = Located TokenClass
 type InterToken = Maybe Token

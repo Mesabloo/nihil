@@ -7,6 +7,44 @@ module Nihil.Syntax.Concrete.Core where
 import qualified Data.Map as Map
 import Nihil.Utils.Source (Located)
 
+data TokenClass
+    = TkMatch          -- ^ > match
+    | TkWith           -- ^ > with
+    | TkData           -- ^ > data
+    | TkType           -- ^ > type
+    | TkLet            -- ^ > let
+    | TkIn             -- ^ > in
+    | TkWhere          -- ^ > where
+    | TkInfixL         -- ^ > infixl
+    | TkInfixR         -- ^ > infixr
+    | TkEquals         -- ^ > =
+    | TkColon          -- ^ > :
+    | TkSemi           -- ^ > ;
+    | TkBackslash      -- ^ > \
+    | TkArrow          -- ^ > -> or →
+    | TkImplies        -- ^ > => or ⇒
+    | TkBacktick       -- ^ > `
+    | TkLambda         -- ^ > λ
+    | TkUnderscore     -- ^ > _
+    | TkInt Integer    -- ^ > 0123456789
+    | TkFloat Double   -- ^ >  0.2363e6
+    | TkString String  -- ^ > "hello"
+    | TkChar Char      -- ^ > 'h'
+    | TkLIdent String  -- ^ > f
+    | TkUIdent String  -- ^ > F
+    | TkSym String     -- ^ Any symbol really
+    | TkLParen         -- ^ > (
+    | TkRParen         -- ^ > )
+    | TkComma          -- ^ > ,
+    | TkBar            -- ^ > |
+    | TkInlineComment String
+                       -- ^ > -- comment
+    | TkMultilineComment String
+                       -- ^ > {- comment -}
+    | TkEOF            -- ^ End of File
+    | TkEOL            -- ^ End of Line
+  deriving (Eq, Ord)
+
 newtype Program = Program [AStatement]
   deriving
     ( -- | Use only for debugging
