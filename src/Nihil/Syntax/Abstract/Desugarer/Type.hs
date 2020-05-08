@@ -8,8 +8,10 @@ import Nihil.Syntax.Common (Desugarer, typeLevelOperators)
 import Nihil.Utils.Debug
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
+import Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator
 import Control.Arrow ((&&&))
 import Control.Lens (use)
+import Control.Monad.Except (throwError)
 
 {-| Desugars a type.
 
@@ -26,8 +28,8 @@ desugarType :: [CC.AType] -> Desugarer AC.Type
 desugarType ty = shuntingYard ty [] []
 
 shuntingYard :: [CC.AType] -> OperatorStack -> ValueStack AC.Type -> Desugarer AC.Type
-shuntingYard [] ops []     = impossible "empty output stack"
-shuntingYard [] ops out    = addOperators ops out mkApp
+shuntingYard [] ((o,p):_) [] = throwError (unexpected o p)
+shuntingYard [] ops out      = addOperators ops out mkApp
 shuntingYard (t:ts) ops out = do
     (ops', out') <- uncurry (desugarAtom ops out) ((annotated &&& location) t)
     shuntingYard ts ops' out'

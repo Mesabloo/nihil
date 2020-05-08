@@ -8,8 +8,10 @@ import Nihil.Syntax.Common (Desugarer, patternLevelOperators)
 import Nihil.Utils.Impossible (impossible)
 import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
+import Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator
 import Control.Arrow ((&&&))
 import Control.Lens (use)
+import Control.Monad.Except (throwError)
 
 {-| Desugars a pattern (used when pattern matching).
 
@@ -27,8 +29,8 @@ desugarPattern :: [CC.APattern] -> Desugarer AC.Pattern
 desugarPattern pat = shuntingYard pat [] []
 
 shuntingYard :: [CC.APattern] -> OperatorStack -> ValueStack AC.Pattern -> Desugarer AC.Pattern
-shuntingYard [] ops []     = impossible "incomplete output stack"
-shuntingYard [] ops out    = addOperators ops out mkApp
+shuntingYard [] ((o,p):_) [] = throwError (unexpected o p)
+shuntingYard [] ops out      = addOperators ops out mkApp
 shuntingYard (p:ps) ops out = do
     (ops', out') <- uncurry (desugarAtom ops out) ((annotated &&& location) p)
     shuntingYard ps ops' out'
