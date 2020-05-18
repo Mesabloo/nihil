@@ -16,10 +16,9 @@ type ValueStack = []
 
 addOperators :: OperatorStack -> ValueStack a -> (String -> SourcePos -> a -> a -> a) -> Desugarer a
 addOperators [] [] _                        = impossible "empty output stack"
-addOperators (_:_) [] _                     = impossible "empty output stack"
 addOperators [] (x:_) _                     = pure x
-addOperators ((o,p):_) [_] _                = throwError (unexpected o p)
 addOperators ((o, pos):os) (e1:e2:es) mkApp = addOperators os (mkApp o pos e1 e2 : es) mkApp
+addOperators ((o, p):os) _ _                = throwError (unexpected o p)
 
 handleOperator :: String -> SourcePos -> OperatorStack -> ValueStack a -> OperatorTable -> (String -> SourcePos -> a -> a -> a) -> Desugarer (OperatorStack, ValueStack a)
 handleOperator o pos [] out _ _                    = pure ([(o, pos)], out)

@@ -13,8 +13,10 @@ import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.Pattern (desugarPattern)
 import Nihil.Syntax.Abstract.Desugarer.Statement (desugarProgram)
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
+import Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator
 import Control.Arrow ((&&&))
 import Control.Lens (use)
+import Control.Monad.Except (throwError)
 
 {-| Desugars an expression.
 
@@ -38,9 +40,9 @@ desugarExpression :: CC.Expr -> Desugarer AC.Expr
 desugarExpression expr = shuntingYard expr [] []
 
 shuntingYard :: [CC.AAtom] -> OperatorStack -> ValueStack AC.Expr -> Desugarer AC.Expr
-shuntingYard [] ops []     = impossible "incomplete output stack"
-shuntingYard [] ops out    = addOperators ops out mkApp
-shuntingYard (e:es) ops out = do
+shuntingYard [] ((o,p):_) [] = throwError (unexpected o p)
+shuntingYard [] ops out      = addOperators ops out mkApp
+shuntingYard (e:es) ops out  = do
     (ops', out') <- uncurry (desugarAtom ops out) ((annotated &&& location) e)
     shuntingYard es ops' out'
 
