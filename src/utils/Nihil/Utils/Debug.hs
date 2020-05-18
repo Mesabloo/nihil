@@ -93,6 +93,8 @@ debuggingOn :: Bool
 debuggingOn = True
 
 #else
+import Prelude (Bool(False))
+
 -- | This debugging function is eliminated at compile time if the debugging
 --   flag has not been activated.
 --
