@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-14.20
+resolver: lts-15.4
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -33,6 +33,12 @@ resolver: lts-14.20
 #  - auto-update
 #  - wai
 packages:
+- src/utils
+- src/core
+- src/parser
+- src/typechecker
+- src/runtime
+- src/pretty
 - .
 
 # Dependency packages to be pulled from upstream that are not in the resolver

@@ -1,0 +1,52 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: e83cb2efda3b6f52fc1a1bffd2f7ca878f378f163db35df919df8541542f449d
+
+name:           gnc-utils
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+homepage:       https://github.com/mesabloo/nihil#readme
+bug-reports:    https://github.com/mesabloo/nihil/issues
+author:         Ghilain Bergeron (Mesabloo)
+maintainer:     Ghilain Bergeron (Mesabloo)
+copyright:      2019 Ghilain Bergeron (Mesabloo)
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/mesabloo/nihil
+
+flag debug
+  description: Enable/disable compiler debugging features.
+  manual: True
+  default: False
+
+library
+  exposed-modules:
+      Nihil.CommonError
+      Nihil.Utils.Annotation
+      Nihil.Utils.Debug
+      Nihil.Utils.Impossible
+      Nihil.Utils.Source
+  other-modules:
+      Paths_gnc_utils
+  hs-source-dirs:
+      ./.
+  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules -Wno-incomplete-patterns
+  build-depends:
+      ansi-wl-pprint
+    , base
+    , comonad
+    , containers
+    , free
+    , lens
+    , megaparsec
+    , text
+  if flag(debug)
+    cpp-options: -DDEBUGGING
+  default-language: Haskell2010

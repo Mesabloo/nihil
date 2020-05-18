@@ -2,9 +2,11 @@ library:
   source-dirs: src
 
 when:
-- condition: flag(debug)
-  cpp-options:
-  - -DDEBUGGING
+- condition: flag(profile)
+  ghc-options:
+  - -prof
+  - -auto-all
+  - -with-rtsopts=-p,-s
 
 ghc-options:
 - -Wall
@@ -15,62 +17,27 @@ ghc-options:
 - -O2
 - -optc-O3
 
-copyright: 2019 Mesabloo
+author: Ghilain Bergeron (Mesabloo)
+github: mesabloo/nihil
+license: BSD3
+copyright: 2019 Ghilain Bergeron (Mesabloo)
 description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 
 dependencies:
 - base
-- megaparsec
-- mtl
-- lens
-- ansi-wl-pprint
-- text
-- containers
-- free
-- comonad
-- semialign
-- these
-- insert-ordered-containers
-- hashable
+- gnc-utils
+- gnc-core
+- gnc-parser
+- gnc-typechecker
+- gnc-runtime
+- gnc-pretty
 
-# - containers
-# - MissingH
-# - these <= 0.7.6
-# - criterion-measurement
-# - bytestring
-# - extra
-# - keys
-#
-#
-
-name: nihil
+name: gnc
 version: 0.1.0.0
 extra-source-files:
 - README.md
-# .hs-boot files
-- src/**/*.hs-boot
-
-author: Mesabloo
-github: mesabloo/nihil
-license: GPL-3.0
 
 executables:
-  # Nihili:
-  #   source-dirs: app
-  #   main: Main.hs
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - nihil
-    # - optparse-applicative
-    # - process
-    # - conf
-    # - directory
-    # - haskeline
-    # - ansi-wl-pprint
-    # - filepath
   nihilin:
     source-dirs: app/nihilin
     main:        Main.hs
@@ -78,12 +45,19 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wno-type-defaults
     dependencies:
-    - nihil
+    - gnc
+    - containers
+    - lens
+    - megaparsec
+    - mtl
+    - ansi-wl-pprint
+    - text
 
 flags:
-  debug:
-    description: "Enable/disable compiler debugging features."
+  profile:
+    description: "Enable/disable compiler profiling."
     manual: true
     default: false
 
@@ -98,7 +72,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - nihil
+    - gnc
     - hspec
   utils:
     main:        Spec.hs
@@ -110,5 +84,5 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - nihil
+    - gnc
     - hspec
