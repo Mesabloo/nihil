@@ -33,6 +33,12 @@ resolver: lts-15.4
 #  - auto-update
 #  - wai
 packages:
+- src/utils
+- src/core
+- src/parser
+- src/typechecker
+- src/runtime
+- src/pretty
 - .
 
 # Dependency packages to be pulled from upstream that are not in the resolver
