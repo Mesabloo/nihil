@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0495f214c1bd7ff00665e301c7f690b0d3a7432b672dc77b8827fdeb61a28f4
+-- hash: 1449bff30628ddd268e9d35f94080593e9cacb5ab8474a32a21aa0b19902e1fa
 
 name:           gnc-runtime
 version:        0.1.0.0
@@ -32,6 +32,8 @@ library
   hs-source-dirs:
       ./.
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
+  extra-libraries:
+      runtime
   build-depends:
       ansi-wl-pprint
     , base
