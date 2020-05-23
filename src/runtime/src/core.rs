@@ -1,23 +1,30 @@
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-// ^^^^^^^^^^^^^^^^^^^^^
-// Because our naming conventions in C are not necessarily
-// the same as in Rust.
-// For our binding, it should be ok.
-
-#![allow(dead_code)]
-// ^^^^^^^^^^^^^^^^
-// This one is needed because there are a few type aliases
-// unused in the generated code.
-
 pub use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter, Error};
 
-include!(concat!(env!("OUT_DIR"), "/gnc-core.rs"));
+#[derive(Clone)]
+pub enum VPattern<'a> {
+    PInteger(i64),
+    PDouble(f64),
+    PCharacter(char),
+    PId(&'a str),
+    PWildcard,
+    PTuple(Vec<VPattern<'a>>),
+    PConstructor(&'a str, Vec<VPattern<'a>>),
+}
 
-pub type VExpr = VExpr_s;
-pub type VPattern = VPattern_s;
+#[derive(Clone)]
+pub enum VExpr<'a> {
+    EInteger(i64),
+    EDouble(f64),
+    ECharacter(char),
+    EId(&'a str),
+    ELambda(VPattern<'a>, Box<VExpr<'a>>),
+    EApplication(Box<VExpr<'a>>, Box<VExpr<'a>>),
+    ETuple(Vec<VExpr<'a>>),
+    ETypeHole,
+    EMatch(Box<VExpr<'a>>, Vec<(VPattern<'a>, VExpr<'a>)>),
+    ELet(Vec<(&'a str, VExpr<'a>)>, Box<VExpr<'a>>),
+}
 
 #[derive(Clone)]
 pub struct Environment<'a> {
@@ -54,11 +61,11 @@ pub enum Value<'a> {
     VInteger(i64),
     VDouble(f64),
     VCharacter(char),
-    VLambda(VPattern, VExpr, Environment<'a>),
+    VLambda(VPattern<'a>, VExpr<'a>, Environment<'a>),
     VTuple(Vec<Value<'a>>),
-    VPrim(fn(Value<'a>, &mut Environment<'a>) -> Value<'a>),
+    VPrim(fn(Value<'a>, &mut Environment<'a>) -> Result<Value<'a>, RuntimeError<'a>>),
     VConstructor(&'a str, Vec<Value<'a>>),
-    VUnevaluated(VExpr),
+    VUnevaluated(VExpr<'a>),
 }
 
 impl <'a> Display for Value<'a> {
@@ -96,21 +103,24 @@ impl <'a> Display for Value<'a> {
     }
 }
 
-pub const EId: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrEId;
-pub const EInteger: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrEInteger;
-pub const EDouble: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrEDouble;
-pub const ECharacter: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrECharacter;
-pub const ELambda: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrELambda;
-pub const EApplication: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrEApplication;
-pub const ETuple: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrETuple;
-pub const ETypeHole: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrETypeHole;
-pub const EMatch: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrEMatch;
-pub const ELet: VExpr_s_VExpr_Cons = VExpr_s_VExpr_Cons_CrELet;
+pub enum RuntimeError<'a> {
+    UnboundName(&'a str),
+    NonExhaustivePatternsInMatch,
+    NonExhaustivePatternsInLambda,
+    IncorrectFunction,
+    InvalidTypeHole,
+}
 
-pub const PInteger: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPInteger;
-pub const PDouble: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPDouble;
-pub const PCharacter: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPCharacter;
-pub const PId: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPId;
-pub const PWildcard: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPWildcard;
-pub const PTuple: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPTuple;
-pub const PConstructor: VPattern_s_VPattern_Cons = VPattern_s_VPattern_Cons_CrPConstructor;
+impl<'a> Display for RuntimeError<'a> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        use RuntimeError::*;
+
+        match self {
+            UnboundName(name) => write!(f, "Name '{}' is unbound", name),
+            NonExhaustivePatternsInMatch => write!(f, "Non exhaustive patterns in pattern matching"),
+            NonExhaustivePatternsInLambda => write!(f, "Non exhaustive pattern in lambda function"),
+            IncorrectFunction => write!(f, "Only a function or a constructor can be applied to arguments"),
+            InvalidTypeHole => write!(f, "Uncaught typed hole"),
+        }
+    }
+}
