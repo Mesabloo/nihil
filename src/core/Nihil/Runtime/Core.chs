@@ -398,35 +398,3 @@ freeExpr ptr = do
 
 
 
-
-
--- data Value
---     = VInteger Integer                                  -- ^ > { 0 }
---     | VDouble Double                                    -- ^ > { 0.0 }
---     | VCharacter Char                                   -- ^ > { 'c' }
---     | VId String                                        -- ^ > { f }
---     | VLambda AC.Pattern AC.Expr (Map.Map String Value) -- ^ > { λ p → e }
---     | VTuple [Value]                                    -- ^ > { (e₁, e₂) }
---     | VPrim (Value -> Eval Value)                       -- ^ Primitive (built-in) functions
---     | VConstructor String [Value]                       -- ^ > { Con e₁ e₂ }
---     | VUnevaluated AC.Expr
-
-
-
--- newtype Scope e = Scope { unwrap :: Map.Map String e }
---   deriving (Monoid, Semigroup)
-
--- type Eval a = ReaderT EvalState (ExceptT Doc IO) a
-
--- data EvalState
---     = EState
---     { _vals :: Scope Value
---     , _cons :: Set.Set String }
--- makeLenses ''EvalState
-
--- -- | Looks up an entry in a 'Scope' knowing its name.
--- lookup :: String -> Scope e -> Maybe e
--- lookup k = Map.lookup k . unwrap
-
--- insert :: (String, e) -> Scope e -> Scope e
--- insert (k, v) = Scope . Map.insert k v . unwrap
