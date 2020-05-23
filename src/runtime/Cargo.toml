@@ -12,7 +12,6 @@ name = "runtime"
 crate-type = ["staticlib"]
 
 [dependencies]
-# gnc-runtime = "^0.1.0"
 libc = "0.2.0"
 
 [build-dependencies]
