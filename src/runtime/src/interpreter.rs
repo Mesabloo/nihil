@@ -85,17 +85,20 @@ fn evaluate_case<'a>(
     branch: VExpr<'a>,
     env: &mut Environment<'a>,
 ) -> Result<Value<'a>, RuntimeError<'a>> {
-    unpack_pattern(expr, pat)
+    unpack_pattern(expr, &pat)
         .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         .and_then(move |new_env| {
             env.with_bindings(&new_env, move |e| evaluate_inner(branch.clone(), e))
         })
 }
 
-fn unpack_pattern<'a>(expr: &Value<'a>, pat: VPattern<'a>) -> Option<BTreeMap<&'a str, Value<'a>>> {
+fn unpack_pattern<'a>(
+    expr: &Value<'a>,
+    pat: &VPattern<'a>,
+) -> Option<BTreeMap<&'a str, Value<'a>>> {
     let mut env: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
 
-    match (expr.clone(), pat) {
+    match (expr, pat) {
         (_, VPattern::PWildcard) => Some(env),
         (Value::VInteger(i), VPattern::PInteger(j)) if i == j => Some(env),
         (Value::VDouble(d), VPattern::PDouble(e)) if d == e => Some(env),
