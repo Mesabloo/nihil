@@ -36,18 +36,18 @@ workWith input = do
 
     let !res = log "Lexing code..."          $ runLexer input filename
     !lex       <- case res of
-        Left err  -> throwError (pretty (err `withCode` inputLines))
+        Left err  -> throwError (PP.pretty (err `withCode` inputLines))
         Right lex -> info (PP.pretty lex)    $ pure lex
     let !res = log "Parsing code..."         $ runParser lex filename
     !ast       <- case res of
-        Left err  -> throwError (pretty (err `withCode` inputLines))
+        Left err  -> throwError (PP.pretty (err `withCode` inputLines))
         Right ast -> info (PP.pretty ast)    $ pure ast
     let !res = log "Desugaring AST..."       $ runDesugarer ast
     !dast      <- case res of
-        Left err   -> throwError (pretty (err `withCode` inputLines))
+        Left err   -> throwError (PP.pretty (err `withCode` inputLines))
         Right dast -> info (PP.pretty dast)  $ pure dast
     (!bindings, _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
 
     -- There is no current way of passing environments for now. Will deal with that later.
-    val      <- log "Evaluating code..."   $ liftEither =<< liftIO (eval (EId "main"))
+    val      <- log "Evaluating code..."   $ liftIO (eval (EId "main"))
     info (PP.pretty val) (pure ())
