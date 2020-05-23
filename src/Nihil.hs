@@ -1,8 +1,12 @@
 module Nihil
 ( -- * Re-exports
-  module Nihil.Syntax
+  runLexer
+, runParser
+, runDesugarer
 , module Nihil.TypeChecking
+, module Nihil.Runtime
 ) where
 
-import Nihil.Syntax
+import Nihil.Syntax (runLexer, runParser, runDesugarer)
 import Nihil.TypeChecking
+import Nihil.Runtime
