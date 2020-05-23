@@ -50,13 +50,10 @@ fn evaluate_inner<'a>(ex: VExpr<'a>, env: &mut Environment<'a>) -> Result<Value<
         VExpr::EMatch(box expr, branches) => {
             let expr = evaluate_inner(expr, env)?;
 
-            let mut result: Option<Value<'a>> = None;
-            let mut branch_iterator = branches.into_iter();
-            while let (None, Some((pattern, branch))) = (&result, branch_iterator.next()) {
-                result = evaluate_case(&expr, pattern, branch, env).ok();
-            }
-
-            result.ok_or(RuntimeError::NonExhaustivePatternsInMatch)
+            branches.into_iter()
+                .filter_map(|(pattern, branch)| evaluate_case(&expr, pattern, branch, env).ok())
+                .next()
+                .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         },
         VExpr::ELet(decls, box expr) => {
             let mut new_decls: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
