@@ -4,8 +4,12 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 fn main() {
+    let gnc_core_dir = "../core";
+    //                 ^^^^^^^^^
+    //  Modify this if you ever change the path of the runtime Haskell core.
+
     let path = Path::new(env!("PWD"))
-        .join(env!("GNC_CORE_DIR"))
+        .join(gnc_core_dir)
         .join("Nihil/Runtime/core.h");
     let path = path.to_str().unwrap();
 
