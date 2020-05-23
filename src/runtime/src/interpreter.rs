@@ -1,171 +1,99 @@
 #![allow(non_upper_case_globals)]
 
 use crate::core::*;
-
-use std::ffi::{CStr};
+use crate::unsafe_layer::{VExpr_s, coerce_to_vexpr};
 
 #[no_mangle]
-pub extern "C" fn evaluate(ex: *const VExpr) -> () {
+pub extern "C" fn evaluate(ex: *const VExpr_s) -> () {
     let mut default_env = Environment::new();
 
-    let result = evaluate_inner(unsafe { *ex }, &mut default_env);
-    println!("{}", result);
+    let _ = evaluate_inner(coerce_to_vexpr(ex), &mut default_env)
+        .map_err(|err| println!("{}", err));
 }
 
-fn evaluate_inner<'a>(ex: VExpr, env: &mut Environment<'a>) -> Value<'a> {
-    match ex.ctor {
-        EId => {
-            let name = unsafe { CStr::from_ptr(ex.value.eId.v_name) }
-                .to_str()
-                .expect("Cannot parse UTF8 string");
-            match env.values.get(name) {
+fn evaluate_inner<'a>(ex: VExpr<'a>, env: &mut Environment<'a>) -> Result<Value<'a>, RuntimeError<'a>> {
+    match ex {
+        VExpr::EId(name) => {
+            match env.values.get(name).as_deref() {
                 None => {
-                    if let None = env.cons.get(name) {
-                        panic!(format!("Name '{}' unbound!", name))
-                    }
-                    Value::VConstructor(name, vec!())
+                    env.cons.get(name).ok_or_else(|| RuntimeError::UnboundName(name))?;
+                    Ok(Value::VConstructor(name, vec![]))
                 },
-                Some(Value::VUnevaluated(ex)) => evaluate_inner(*ex, env),
-                Some(e)                       => e.clone()
+                Some(Value::VUnevaluated(ex)) => evaluate_inner(ex.clone(), env),
+                Some(e)                       => Ok(e.clone())
             }
         },
-        EInteger => Value::VInteger(unsafe { ex.value.eInteger.v_i }),
-        EDouble => Value::VDouble(unsafe { ex.value.eDouble.v_d }),
-        ECharacter => Value::VCharacter(unsafe { ex.value.eCharacter.v_c } as u8 as char),
-                                    //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                    // This seems somewhat disgusting.
-        ELambda => Value::VLambda(unsafe { *ex.value.eLambda.v_arg }, unsafe { *ex.value.eLambda.v_ex }, env.clone()),
-        EApplication => {
-            let fun = unsafe { *ex.value.eApplication.v_fun };
-            let arg = evaluate_inner(unsafe { *ex.value.eApplication.v_x }, env);
+        VExpr::EInteger(i) => Ok(Value::VInteger(i)),
+        VExpr::EDouble(d) => Ok(Value::VDouble(d)),
+        VExpr::ECharacter(c) => Ok(Value::VCharacter(c)),
+        VExpr::ELambda(arg, box body) => Ok(Value::VLambda(arg, body, env.clone())),
+        VExpr::EApplication(box fun, box arg) => {
+            let arg = evaluate_inner(arg, env)?;
+            let fun = evaluate_inner(fun, env)?;
 
-            let fun = evaluate_inner(fun, env);
             match fun {
                 Value::VPrim(f) => f(arg, env),
                 Value::VConstructor(name, mut es) => {
                     es.push(arg);
-                    Value::VConstructor(name, es)
+                    Ok(Value::VConstructor(name, es))
                 },
-                Value::VLambda(pat, ex, ctx) => env.with_bindings(&ctx.values, |e|
-                    evaluate_case(&arg, pat, ex, e).expect("Non exhaustive patterns in lambda.")),
+                Value::VLambda(pat, ex, ctx) => env.with_bindings(&ctx.values, move |e|
+                    evaluate_case(&arg, pat.clone(), ex.clone(), e)).map_err(|_| RuntimeError::NonExhaustivePatternsInLambda),
 
-                _ => panic!("First argument of applications must be a function."),
+                _ => Err(RuntimeError::IncorrectFunction),
             }
         },
-        ETuple => {
-            let mut values: Vec<Value> = vec![];
-            let vec_size = unsafe { ex.value.eTuple.n } as usize;
-            values.reserve_exact(vec_size);
-            for idx in 0..vec_size {
-                values.insert(idx, Value::VUnevaluated(unsafe { **ex.value.eTuple.v_vals.add(idx) }));
-            }
-            Value::VTuple(values)
+        VExpr::ETuple(exprs) => {
+            let values = exprs.into_iter().try_fold(vec![], |mut acc, e| evaluate_inner(e, env).map(|v| { acc.push(v); acc }))?;
+            Ok(Value::VTuple(values))
         },
-        EMatch => {
-            let expr = evaluate_inner(unsafe { *ex.value.eMatch.v_expr }, env);
-
-            let mut branches: Vec<(VPattern, VExpr)> = vec![];
-            let branches_size = unsafe { ex.value.eMatch.n } as usize;
-            branches.reserve_exact(branches_size);
-            for idx in 0..branches_size {
-                let branch = unsafe {
-                    let branch = **ex.value.eMatch.v_branches.add(idx);
-                    (*branch.b_pattern, *branch.b_expr)
-                };
-                branches.insert(idx, branch);
-            }
+        VExpr::EMatch(box expr, branches) => {
+            let expr = evaluate_inner(expr, env)?;
 
             let mut result: Option<Value<'a>> = None;
             let mut branch_iterator = branches.into_iter();
-            while result.is_none() {
-                match branch_iterator.next() {
-                    Some((pattern, branch)) => {
-                        result = evaluate_case(&expr, pattern, branch, env);
-                    },
-                    None => break,
-                }
+            while let (None, Some((pattern, branch))) = (&result, branch_iterator.next()) {
+                result = evaluate_case(&expr, pattern, branch, env).ok();
             }
 
-            result.expect("Unexhaustive patterns in pattern matching")
+            result.ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         },
-        ELet => {
-            let expr = unsafe { *ex.value.eLet.v_expr };
-            let mut decls: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
-            let decls_number = unsafe { ex.value.eLet.n } as usize;
-            for idx in 0..decls_number {
-                let (name, def) = unsafe {
-                    let decl = **ex.value.eLet.v_decls.add(idx);
-                    (CStr::from_ptr(decl.d_name)
-                        .to_str()
-                        .expect("Unable to decode UTF8 string"), *decl.d_val)
-                };
-                decls.insert(name, Value::VUnevaluated(def));
-            }
+        VExpr::ELet(decls, box expr) => {
+            let mut new_decls: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
+            decls.into_iter()
+                 .for_each(|(name, bind)| { new_decls.insert(name, Value::VUnevaluated(bind)); });
 
-            env.with_bindings(&decls, move |e| evaluate_inner(expr, e))
+            env.with_bindings(&new_decls, move |e| evaluate_inner(expr.clone(), e))
         },
-        ETypeHole => panic!("Unhandled type hole."),
-
-        _ => unreachable!(),
+        VExpr::ETypeHole => Err(RuntimeError::InvalidTypeHole),
     }
 }
 
-fn evaluate_case<'a>(expr: &Value<'a>, pat: VPattern, branch: VExpr, env: &mut Environment<'a>) -> Option<Value<'a>> {
-    unpack_pattern(expr, pat).map(move |new_env| env.with_bindings(&new_env, move |e| evaluate_inner(branch, e)))
+fn evaluate_case<'a>(expr: &Value<'a>, pat: VPattern<'a>, branch: VExpr<'a>, env: &mut Environment<'a>) -> Result<Value<'a>, RuntimeError<'a>> {
+    unpack_pattern(expr, pat).ok_or(RuntimeError::NonExhaustivePatternsInMatch)
+                             .and_then(move |new_env| env.with_bindings(&new_env, move |e| evaluate_inner(branch.clone(), e)))
 }
 
-fn unpack_pattern<'a>(expr: &Value<'a>, pat: VPattern) -> Option<BTreeMap<&'a str, Value<'a>>> {
+fn unpack_pattern<'a>(expr: &Value<'a>, pat: VPattern<'a>) -> Option<BTreeMap<&'a str, Value<'a>>> {
     let mut env: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
 
-    match (expr, pat.ctor) {
-        (_, PWildcard) => Some(env),
-        (Value::VInteger(i), PInteger)
-            if *i == unsafe { pat.value.pInteger.p_i } => Some(env),
-        (Value::VDouble(d), PDouble)
-            if *d == unsafe { pat.value.pDouble.p_d } => Some(env),
-        (v, PId) => {
-            let name = unsafe { CStr::from_ptr(pat.value.pId.p_name) }
-                .to_str()
-                .expect("Cannot decode UTF8 string");
+    match (expr.clone(), pat) {
+        (_, VPattern::PWildcard) => Some(env),
+        (Value::VInteger(i), VPattern::PInteger(j)) if i == j => Some(env),
+        (Value::VDouble(d), VPattern::PDouble(e)) if d == e => Some(env),
+        (v, VPattern::PId(name)) => {
             env.insert(name, v.clone());
             Some(env)
         },
-        (Value::VConstructor(name, args), PConstructor)
-            if *name == unsafe { CStr::from_ptr(pat.value.pConstructor.p_name) }
-                .to_str()
-                .expect("Cannot decode UTF8 string") => {
-            let mut p_args: Vec<VPattern> = vec![];
-            let args_size = unsafe { pat.value.pConstructor.n } as usize;
-            p_args.reserve_exact(args_size);
-            for idx in 0..args_size {
-                p_args.insert(idx, unsafe { **pat.value.pConstructor.p_args.add(idx) });
-            }
-
-            for (v, p) in args.into_iter().zip(p_args.into_iter()) {
-                match unpack_pattern(v, p) {
-                    Some(mut new_env) => env.append(&mut new_env),
-                    None => return None
-                }
-            }
-
-            Some(env)
+        (Value::VConstructor(name, args), VPattern::PConstructor(namf, argt)) if name == namf => {
+            args.into_iter()
+                .zip(argt.into_iter())
+                .try_fold(env, |mut new_env, (v, p)| { new_env.append(&mut unpack_pattern(&v, p)?); Some(new_env) })
         }
-        (Value::VTuple(vals), PTuple) => {
-            let mut p_args: Vec<VPattern> = vec![];
-            let args_size = unsafe { pat.value.pTuple.n } as usize;
-            p_args.reserve_exact(args_size);
-            for idx in 0..args_size {
-                p_args.insert(idx, unsafe { **pat.value.pTuple.p_patterns.add(idx) });
-            }
-
-            for (v, p) in vals.into_iter().zip(p_args.into_iter()) {
-                match unpack_pattern(v, p) {
-                    Some(mut new_env) => env.append(&mut new_env),
-                    None => return None
-                }
-            }
-
-            Some(env)
+        (Value::VTuple(vals), VPattern::PTuple(pats)) => {
+            vals.into_iter()
+                .zip(pats.into_iter())
+                .try_fold(env, |mut new_env, (v, p)| { new_env.append(&mut unpack_pattern(&v, p)?); Some(new_env) })
         },
         (Value::VUnevaluated(_), _) => unreachable!(),
         //                             ^^^^^^^^^^^^^^
