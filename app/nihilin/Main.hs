@@ -46,23 +46,8 @@ workWith input = do
     !dast      <- case res of
         Left err   -> throwError (pretty (err `withCode` inputLines))
         Right dast -> info (PP.pretty dast)  $ pure dast
-    (!east, _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
-    let !env = addToEnv defaultEvalEnv east
+    (!bindings, _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
 
-    when (isNothing (lookup "main" (env ^. vals))) do
-        throwError (text "Function \"main\" not found.")
-
-    val      <- log "Evaluating code..."   $ liftEither =<< liftIO (evaluate (dummyPos'ed (EId "main")) env)
+    -- There is no current way of passing environments for now. Will deal with that later.
+    val      <- log "Evaluating code..."   $ liftEither =<< liftIO (eval (EId "main"))
     info (PP.pretty val) (pure ())
-  where addToEnv :: EvalState -> [Statement'] -> EvalState
-        addToEnv env []     = env
-        addToEnv env (s:ss) = case s of
-            FunctionDefinition name ex -> addToEnv ((vals %~ insert (name, VUnevaluated ex)) env) ss
-            TypeDefinition _ _ cty     -> case annotated cty of
-                SumType ctors -> do
-                    let newEnv = Set.fromList (Map.keys ctors)
-                    addToEnv ((cons %~ (<>) newEnv) env) ss
-                _             -> addToEnv env ss
-            _                          -> addToEnv env ss
-
-        dummyPos'ed = (`locate` NoSource)
