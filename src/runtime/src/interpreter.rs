@@ -16,7 +16,7 @@ fn evaluate_inner<'a>(
     env: &mut Environment<'a>,
 ) -> Result<Value<'a>, RuntimeError<'a>> {
     match ex {
-        VExpr::EId(name) => match env.values.get(name).as_deref() {
+        VExpr::EId(name) => match env.values.get(name) {
             None => {
                 env.cons
                     .get(name)
