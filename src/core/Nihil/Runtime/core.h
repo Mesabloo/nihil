@@ -28,8 +28,8 @@ struct VPattern_s
         struct { double p_d; } pDouble;
         struct { char p_c; } pCharacter;
         struct { const char *p_name; } pId;
-        struct { unsigned long n; struct VPattern_s **p_patterns; } pTuple;
-        struct { const char *p_name; unsigned long n; struct VPattern_s **p_args; } pConstructor;
+        struct { unsigned long n; const const struct VPattern_s **p_patterns; } pTuple;
+        struct { const char *p_name; unsigned long n; const const struct VPattern_s **p_args; } pConstructor;
     } value;
 } VPattern;
 
@@ -55,24 +55,24 @@ struct VExpr_s
         struct { long v_i; } eInteger;
         struct { double v_d; } eDouble;
         struct { char v_c; } eCharacter;
-        struct { struct VPattern_s *v_arg; struct VExpr_s *v_ex; } eLambda;
-        struct { struct VExpr_s *v_fun; struct VExpr_s *v_x; } eApplication;
-        struct { unsigned long n; struct VExpr_s **v_vals; } eTuple;
-        struct { struct VExpr_s *v_expr; unsigned long n; struct VBranch_s **v_branches; } eMatch;
-        struct { unsigned long n; struct VDecl_s **v_decls; struct VExpr_s *v_expr; } eLet;
+        struct { const struct VPattern_s *v_arg; const struct VExpr_s *v_ex; } eLambda;
+        struct { const struct VExpr_s *v_fun; const struct VExpr_s *v_x; } eApplication;
+        struct { unsigned long n; const const struct VExpr_s **v_vals; } eTuple;
+        struct { const struct VExpr_s *v_expr; unsigned long n; const const struct VBranch_s **v_branches; } eMatch;
+        struct { unsigned long n; const const struct VDecl_s **v_decls; const struct VExpr_s *v_expr; } eLet;
     } value;
 };
 
 struct VBranch_s
 {
-    struct VPattern_s *b_pattern;
-    struct VExpr_s *b_expr;
+    const struct VPattern_s *b_pattern;
+    const struct VExpr_s *b_expr;
 };
 
 struct VDecl_s
 {
     const char *d_name;
-    struct VExpr_s *d_val;
+    const struct VExpr_s *d_val;
 };
 
 #endif
