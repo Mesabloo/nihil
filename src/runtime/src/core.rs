@@ -1,5 +1,5 @@
 pub use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Display, Formatter, Error};
+use std::fmt::{Display, Error, Formatter};
 
 #[derive(Clone)]
 pub enum VPattern<'a> {
@@ -34,15 +34,21 @@ pub struct Environment<'a> {
 
 impl<'a> Environment<'a> {
     pub fn new() -> Environment<'a> {
-        Environment { values: BTreeMap::new(), cons: BTreeSet::new() }
+        Environment {
+            values: BTreeMap::new(),
+            cons: BTreeSet::new(),
+        }
     }
 
     pub fn with_bindings<T, F>(&mut self, new_vals: &BTreeMap<&'a str, Value<'a>>, action: F) -> T
-      where F: Fn(&mut Environment<'a>) -> T {
+    where
+        F: Fn(&mut Environment<'a>) -> T,
+    {
         let mut dups: BTreeMap<&str, Value> = BTreeMap::new();
-        for (name, val) in new_vals.into_iter()  {
-            self.values.insert(name, val.clone())
-                       .map(|v| dups.insert(name, v));
+        for (name, val) in new_vals.into_iter() {
+            self.values
+                .insert(name, val.clone())
+                .map(|v| dups.insert(name, v));
         }
 
         let result = action(self);
@@ -68,7 +74,7 @@ pub enum Value<'a> {
     VUnevaluated(VExpr<'a>),
 }
 
-impl <'a> Display for Value<'a> {
+impl<'a> Display for Value<'a> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Value::VInteger(i) => write!(f, "{}", i),
@@ -76,28 +82,28 @@ impl <'a> Display for Value<'a> {
             Value::VCharacter(c) => write!(f, "{}", c),
             Value::VTuple(vs) => {
                 let mut comma_separated = String::new();
-                for value in vs.into_iter()
-                               .take(vs.len() - 1) {
+                for value in vs.into_iter().take(vs.len() - 1) {
                     comma_separated += format!("{}, ", value).as_str();
                 }
-                vs.into_iter()
-                  .last()
-                  .map(|v| { comma_separated += format!("{}", v).as_str(); });
+                vs.into_iter().last().map(|v| {
+                    comma_separated += format!("{}", v).as_str();
+                });
 
                 write!(f, "({})", comma_separated)
-            },
+            }
             Value::VConstructor(name, vals) => {
                 let mut pprint = name.to_string();
                 vals.into_iter()
                     .map(|v| match v {
-                        Value::VConstructor(_, vals)
-                            if vals.len() > 0 => format!("({}) ", v),
+                        Value::VConstructor(_, vals) if vals.len() > 0 => format!("({}) ", v),
                         _ => format!("{} ", v),
                     })
-                    .for_each(|pretty_val| { pprint += pretty_val.as_str(); });
+                    .for_each(|pretty_val| {
+                        pprint += pretty_val.as_str();
+                    });
 
                 write!(f, "{}", pprint)
-            },
+            }
             _ => Err(Error),
         }
     }
@@ -117,9 +123,14 @@ impl<'a> Display for RuntimeError<'a> {
 
         match self {
             UnboundName(name) => write!(f, "Name '{}' is unbound", name),
-            NonExhaustivePatternsInMatch => write!(f, "Non exhaustive patterns in pattern matching"),
+            NonExhaustivePatternsInMatch => {
+                write!(f, "Non exhaustive patterns in pattern matching")
+            }
             NonExhaustivePatternsInLambda => write!(f, "Non exhaustive pattern in lambda function"),
-            IncorrectFunction => write!(f, "Only a function or a constructor can be applied to arguments"),
+            IncorrectFunction => write!(
+                f,
+                "Only a function or a constructor can be applied to arguments"
+            ),
             InvalidTypeHole => write!(f, "Uncaught typed hole"),
         }
     }
