@@ -8,9 +8,7 @@ fn main() {
     //                 ^^^^^^^^^
     //  Modify this if you ever change the path of the runtime Haskell core.
 
-    let path = Path::new(env!("PWD"))
-        .join(gnc_core_dir)
-        .join("Nihil/Runtime/core.h");
+    let path = Path::new(gnc_core_dir).join("Nihil/Runtime/core.h");
     let path = path.to_str().unwrap();
 
     println!("cargo:rerun-if-changed={}", path);
