@@ -95,20 +95,16 @@ pub fn coerce_bindings<'a>(
         let (name, bind) = unsafe {
             let ptr = **defs.add(idx);
 
-            let name = CStr::from_ptr(ptr.b_name)
-                .to_str()
-                .expect("Cannot decode UTF8 string");
+            let name = CStr::from_ptr(ptr.b_name);
             let bind = coerce_to_vexpr(ptr.b_val);
             (name, Value::VUnevaluated(bind))
         };
-        new_defs.insert(name, bind);
+        new_defs.insert(name.to_str().expect("Cannot decode UTF8 string"), bind);
     }
     for idx in 0..nb_cons {
-        let name = unsafe {
-            CStr::from_ptr(*cons.add(idx))
-                .to_str()
-                .expect("Cannot decode UTF8 string")
-        };
+        let name = unsafe { CStr::from_ptr(*cons.add(idx)) }
+            .to_str()
+            .expect("Cannot decode UTF8 string");
         new_cons.insert(name);
     }
 
