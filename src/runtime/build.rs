@@ -22,6 +22,7 @@ fn main() {
         .expect("Unable to generate bindings for GNC's core");
 
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings.write_to_file(out.join("gnc-core.rs"))
-            .expect("Unable to write bidings to file");
+    bindings
+        .write_to_file(out.join("gnc-core.rs"))
+        .expect("Unable to write bidings to file");
 }
