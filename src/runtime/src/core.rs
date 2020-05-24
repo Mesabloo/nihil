@@ -96,8 +96,8 @@ impl Display for Value {
                 let mut pprint = name.to_string();
                 vals.into_iter()
                     .map(|v| match v {
-                        Value::VConstructor(_, vals) if vals.len() > 0 => format!("({}) ", v),
-                        _ => format!("{} ", v),
+                        Value::VConstructor(_, vals) if vals.len() > 0 => format!("({})", v),
+                        _ => format!("{}", v),
                     })
                     .for_each(|pretty_val| {
                         pprint += format!(" {}", pretty_val).as_str();
