@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 
+use crate::builtins;
 use crate::core::*;
 use crate::unsafe_layer::{coerce_bindings, coerce_to_vexpr, Binding_s, VExpr_s};
 
@@ -12,6 +13,11 @@ pub extern "C" fn evaluate(
     cons: *const *const i8,
 ) {
     let mut default_env = Environment::new();
+    default_env.values.append(&mut builtins::default_bindings());
+    default_env
+        .cons
+        .append(&mut builtins::default_constructors());
+
     let (mut defs, mut cons) = coerce_bindings(nb_defs as usize, defs, nb_cons as usize, cons);
     default_env.values.append(&mut defs);
     default_env.cons.append(&mut cons);
