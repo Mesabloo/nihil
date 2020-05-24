@@ -75,4 +75,10 @@ struct VDecl_s
     const struct VExpr_s *d_val;
 };
 
+struct Binding_s
+{
+    const char *b_name;
+    const struct VExpr_s *b_val;
+};
+
 #endif
