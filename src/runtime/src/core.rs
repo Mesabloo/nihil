@@ -115,6 +115,7 @@ pub enum RuntimeError<'a> {
     NonExhaustivePatternsInLambda,
     IncorrectFunction,
     InvalidTypeHole,
+    IncorrectArguments,
 }
 
 impl<'a> Display for RuntimeError<'a> {
@@ -132,6 +133,7 @@ impl<'a> Display for RuntimeError<'a> {
                 "Only a function or a constructor can be applied to arguments"
             ),
             InvalidTypeHole => write!(f, "Uncaught typed hole"),
+            IncorrectArguments => write!(f, "Incorrectly typed arguments given to primitive function"),
         }
     }
 }
