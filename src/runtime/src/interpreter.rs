@@ -10,14 +10,15 @@ pub extern "C" fn evaluate(
     nb_cons: u64,
     defs: *const *const Binding_s,
     cons: *const *const i8,
-) -> () {
+) {
     let mut default_env = Environment::new();
     let (mut defs, mut cons) = coerce_bindings(nb_defs as usize, defs, nb_cons as usize, cons);
     default_env.values.append(&mut defs);
     default_env.cons.append(&mut cons);
 
-    let _ =
-        evaluate_inner(coerce_to_vexpr(ex), &mut default_env).map_err(|err| println!("{}", err));
+    let _ = evaluate_inner(coerce_to_vexpr(ex), &mut default_env)
+        .map_err(|err| println!("[!] {}", err))
+        .map(|res| println!("==> {}", res));
 }
 
 fn evaluate_inner<'a>(
