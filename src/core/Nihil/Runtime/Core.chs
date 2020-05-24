@@ -386,15 +386,36 @@ freeExpr ptr = do
             freeExpr (castPtr ex)
             free ptr
 
+data C_Binding
+    = C_Binding CString (Ptr C_VExpr)
 
+instance Storable C_Binding where
+    sizeOf _ = {#sizeof Binding_s#}
+    alignment _ = {#alignof Binding_s#}
+    peek ptr = C_Binding
+        <$> {#get struct Binding_s->b_name#} ptr
+        <*> (castPtr <$> {#get struct Binding_s->b_val#} ptr)
+    poke ptr (C_Binding name ex) = do
+        {#set struct Binding_s->b_name#} ptr name
+        {#set struct Binding_s->b_val#} ptr (castPtr ex)
 
+newBinding :: (String, VExpr) -> IO (Ptr C_Binding)
+newBinding (name, def) = do
+    p <- malloc
+    poke p =<<
+        C_Binding <$> newCString name
+                  <*> (castPtr <$> newExpr def)
+    pure (castPtr p)
 
+peekBinding :: Ptr C_Binding -> IO (String, VExpr)
+peekBinding ptr = do
+    C_Binding name ex <- peek ptr
+    (,) <$> peekCString name
+        <*> peekExpr (castPtr ex)
 
-
-
-
-
-
-
-
-
+freeBinding :: Ptr C_Binding -> IO ()
+freeBinding ptr = do
+    C_Binding name ex <- peek ptr
+    free name
+    freeExpr (castPtr ex)
+    free ptr
