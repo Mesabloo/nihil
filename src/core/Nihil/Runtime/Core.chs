@@ -409,13 +409,13 @@ newBinding (name, def) = do
 
 peekBinding :: Ptr C_Binding -> IO (String, VExpr)
 peekBinding ptr = do
-    C_Binding name ex <- peek ptr
+    C_Binding name ex <- peek (castPtr ptr)
     (,) <$> peekCString name
         <*> peekExpr (castPtr ex)
 
 freeBinding :: Ptr C_Binding -> IO ()
 freeBinding ptr = do
-    C_Binding name ex <- peek ptr
+    C_Binding name ex <- peek (castPtr ptr)
     free name
     freeExpr (castPtr ex)
     free ptr
