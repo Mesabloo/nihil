@@ -21,18 +21,14 @@ pub extern "C" fn evaluate(
         .map(|res| println!("==> {}", res));
 }
 
-fn evaluate_inner<'a>(
-    ex: VExpr<'a>,
-    env: &mut Environment<'a>,
-) -> Result<Value<'a>, RuntimeError<'a>> {
+fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeError> {
     match ex {
-        VExpr::EId(name) => match env.values.get(name) {
-            None => {
-                env.cons
-                    .get(name)
-                    .ok_or_else(|| RuntimeError::UnboundName(name))?;
-                Ok(Value::VConstructor(name, vec![]))
-            }
+        VExpr::EId(ref name) => match env.values.get(name) {
+            None => env
+                .cons
+                .get(name)
+                .ok_or_else(|| RuntimeError::UnboundName(name.clone()))
+                .map(|_| Value::VConstructor(name.clone(), vec![])),
             Some(Value::VUnevaluated(ex)) => evaluate_inner(ex.clone(), env),
             Some(e) => Ok(e.clone()),
         },
@@ -51,7 +47,7 @@ fn evaluate_inner<'a>(
                     Ok(Value::VConstructor(name, es))
                 }
                 Value::VLambda(pat, ex, ctx) => env
-                    .with_bindings(&ctx.values, move |e| {
+                    .with_bindings(ctx.values, move |e| {
                         evaluate_case(&arg, pat.clone(), ex.clone(), e)
                     })
                     .map_err(|_| RuntimeError::NonExhaustivePatternsInLambda),
@@ -78,42 +74,39 @@ fn evaluate_inner<'a>(
                 .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         }
         VExpr::ELet(decls, box expr) => {
-            let mut new_decls: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
+            let mut new_decls: BTreeMap<String, Value> = BTreeMap::new();
             decls.into_iter().for_each(|(name, bind)| {
                 new_decls.insert(name, Value::VUnevaluated(bind));
             });
 
-            env.with_bindings(&new_decls, move |e| evaluate_inner(expr.clone(), e))
+            env.with_bindings(new_decls, move |e| evaluate_inner(expr.clone(), e))
         }
         VExpr::ETypeHole => Err(RuntimeError::InvalidTypeHole),
     }
 }
 
-fn evaluate_case<'a>(
-    expr: &Value<'a>,
-    pat: VPattern<'a>,
-    branch: VExpr<'a>,
-    env: &mut Environment<'a>,
-) -> Result<Value<'a>, RuntimeError<'a>> {
+fn evaluate_case(
+    expr: &Value,
+    pat: VPattern,
+    branch: VExpr,
+    env: &mut Environment,
+) -> Result<Value, RuntimeError> {
     unpack_pattern(expr, &pat)
         .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         .and_then(move |new_env| {
-            env.with_bindings(&new_env, move |e| evaluate_inner(branch.clone(), e))
+            env.with_bindings(new_env, move |e| evaluate_inner(branch.clone(), e))
         })
 }
 
-fn unpack_pattern<'a>(
-    expr: &Value<'a>,
-    pat: &VPattern<'a>,
-) -> Option<BTreeMap<&'a str, Value<'a>>> {
-    let mut env: BTreeMap<&'a str, Value<'a>> = BTreeMap::new();
+fn unpack_pattern(expr: &Value, pat: &VPattern) -> Option<BTreeMap<String, Value>> {
+    let mut env: BTreeMap<String, Value> = BTreeMap::new();
 
     match (expr, pat) {
         (_, VPattern::PWildcard) => Some(env),
         (Value::VInteger(i), VPattern::PInteger(j)) if i == j => Some(env),
         (Value::VDouble(d), VPattern::PDouble(e)) if d == e => Some(env),
         (v, VPattern::PId(name)) => {
-            env.insert(name, v.clone());
+            env.insert(name.to_string(), v.clone());
             Some(env)
         }
         (Value::VConstructor(name, args), VPattern::PConstructor(namf, argt)) if name == namf => {

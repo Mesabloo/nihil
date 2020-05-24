@@ -1,54 +1,55 @@
 pub use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Error, Formatter};
+use std::rc::Rc;
 
 #[derive(Clone)]
-pub enum VPattern<'a> {
+pub enum VPattern {
     PInteger(i64),
     PDouble(f64),
     PCharacter(char),
-    PId(&'a str),
+    PId(String),
     PWildcard,
-    PTuple(Vec<VPattern<'a>>),
-    PConstructor(&'a str, Vec<VPattern<'a>>),
+    PTuple(Vec<VPattern>),
+    PConstructor(String, Vec<VPattern>),
 }
 
 #[derive(Clone)]
-pub enum VExpr<'a> {
+pub enum VExpr {
     EInteger(i64),
     EDouble(f64),
     ECharacter(char),
-    EId(&'a str),
-    ELambda(VPattern<'a>, Box<VExpr<'a>>),
-    EApplication(Box<VExpr<'a>>, Box<VExpr<'a>>),
-    ETuple(Vec<VExpr<'a>>),
+    EId(String),
+    ELambda(VPattern, Box<VExpr>),
+    EApplication(Box<VExpr>, Box<VExpr>),
+    ETuple(Vec<VExpr>),
     ETypeHole,
-    EMatch(Box<VExpr<'a>>, Vec<(VPattern<'a>, VExpr<'a>)>),
-    ELet(Vec<(&'a str, VExpr<'a>)>, Box<VExpr<'a>>),
+    EMatch(Box<VExpr>, Vec<(VPattern, VExpr)>),
+    ELet(Vec<(String, VExpr)>, Box<VExpr>),
 }
 
 #[derive(Clone)]
-pub struct Environment<'a> {
-    pub values: BTreeMap<&'a str, Value<'a>>,
-    pub cons: BTreeSet<&'a str>,
+pub struct Environment {
+    pub values: BTreeMap<String, Value>,
+    pub cons: BTreeSet<String>,
 }
 
-impl<'a> Environment<'a> {
-    pub fn new() -> Environment<'a> {
+impl Environment {
+    pub fn new() -> Environment {
         Environment {
             values: BTreeMap::new(),
             cons: BTreeSet::new(),
         }
     }
 
-    pub fn with_bindings<T, F>(&mut self, new_vals: &BTreeMap<&'a str, Value<'a>>, action: F) -> T
+    pub fn with_bindings<T, F>(&mut self, new_vals: BTreeMap<String, Value>, action: F) -> T
     where
-        F: Fn(&mut Environment<'a>) -> T,
+        F: Fn(&mut Environment) -> T,
     {
-        let mut dups: BTreeMap<&str, Value> = BTreeMap::new();
-        for (name, val) in new_vals.into_iter() {
+        let mut dups: BTreeMap<String, Value> = BTreeMap::new();
+        for (name, val) in new_vals.iter() {
             self.values
-                .insert(name, val.clone())
-                .map(|v| dups.insert(name, v));
+                .insert(name.to_string(), val.clone())
+                .map(|v| dups.insert(name.to_string(), v));
         }
 
         let result = action(self);
@@ -63,18 +64,18 @@ impl<'a> Environment<'a> {
 }
 
 #[derive(Clone)]
-pub enum Value<'a> {
+pub enum Value {
     VInteger(i64),
     VDouble(f64),
     VCharacter(char),
-    VLambda(VPattern<'a>, VExpr<'a>, Environment<'a>),
-    VTuple(Vec<Value<'a>>),
-    VPrim(fn(Value<'a>, &mut Environment<'a>) -> Result<Value<'a>, RuntimeError<'a>>),
-    VConstructor(&'a str, Vec<Value<'a>>),
-    VUnevaluated(VExpr<'a>),
+    VLambda(VPattern, VExpr, Environment),
+    VTuple(Vec<Value>),
+    VPrim(Rc<dyn Fn(Value, &mut Environment) -> Result<Value, RuntimeError>>),
+    VConstructor(String, Vec<Value>),
+    VUnevaluated(VExpr),
 }
 
-impl<'a> Display for Value<'a> {
+impl Display for Value {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Value::VInteger(i) => write!(f, "{}", i),
@@ -109,8 +110,9 @@ impl<'a> Display for Value<'a> {
     }
 }
 
-pub enum RuntimeError<'a> {
-    UnboundName(&'a str),
+#[derive(Clone)]
+pub enum RuntimeError {
+    UnboundName(String),
     NonExhaustivePatternsInMatch,
     NonExhaustivePatternsInLambda,
     IncorrectFunction,
@@ -118,7 +120,7 @@ pub enum RuntimeError<'a> {
     IncorrectArguments,
 }
 
-impl<'a> Display for RuntimeError<'a> {
+impl Display for RuntimeError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         use RuntimeError::*;
 
@@ -133,7 +135,9 @@ impl<'a> Display for RuntimeError<'a> {
                 "Only a function or a constructor can be applied to arguments"
             ),
             InvalidTypeHole => write!(f, "Uncaught typed hole"),
-            IncorrectArguments => write!(f, "Incorrectly typed arguments given to primitive function"),
+            IncorrectArguments => {
+                write!(f, "Incorrectly typed arguments given to primitive function")
+            }
         }
     }
 }

@@ -21,7 +21,7 @@ use core_bindings::*;
 use crate::core::{BTreeMap, BTreeSet, VExpr, VPattern, Value};
 
 #[allow(non_upper_case_globals)]
-pub fn coerce_to_vexpr<'a>(ex: *const VExpr_s) -> VExpr<'a> {
+pub fn coerce_to_vexpr(ex: *const VExpr_s) -> VExpr {
     let ex = unsafe { *ex };
 
     match ex.ctor {
@@ -33,7 +33,8 @@ pub fn coerce_to_vexpr<'a>(ex: *const VExpr_s) -> VExpr<'a> {
         VExpr_s_VExpr_Cons_CrEId => {
             let name = unsafe { CStr::from_ptr(ex.value.eId.v_name) }
                 .to_str()
-                .expect("Cannot decode UTF8 string");
+                .expect("Cannot decode UTF8 string")
+                .to_owned();
             VExpr::EId(name)
         }
         VExpr_s_VExpr_Cons_CrELambda => {
@@ -82,12 +83,12 @@ pub fn coerce_to_vexpr<'a>(ex: *const VExpr_s) -> VExpr<'a> {
     }
 }
 
-pub fn coerce_bindings<'a>(
+pub fn coerce_bindings(
     nb_defs: usize,
     defs: *const *const Binding_s,
     nb_cons: usize,
     cons: *const *const i8,
-) -> (BTreeMap<&'a str, Value<'a>>, BTreeSet<&'a str>) {
+) -> (BTreeMap<String, Value>, BTreeSet<String>) {
     let mut new_defs = BTreeMap::new();
     let mut new_cons = BTreeSet::new();
 
@@ -99,12 +100,16 @@ pub fn coerce_bindings<'a>(
             let bind = coerce_to_vexpr(ptr.b_val);
             (name, Value::VUnevaluated(bind))
         };
-        new_defs.insert(name.to_str().expect("Cannot decode UTF8 string"), bind);
+        new_defs.insert(
+            name.to_str().expect("Cannot decode UTF8 string").to_owned(),
+            bind,
+        );
     }
     for idx in 0..nb_cons {
         let name = unsafe { CStr::from_ptr(*cons.add(idx)) }
             .to_str()
-            .expect("Cannot decode UTF8 string");
+            .expect("Cannot decode UTF8 string")
+            .to_owned();
         new_cons.insert(name);
     }
 
@@ -112,7 +117,7 @@ pub fn coerce_bindings<'a>(
 }
 
 #[allow(non_upper_case_globals)]
-fn coerce_to_vpattern<'a>(pat: *const VPattern_s) -> VPattern<'a> {
+fn coerce_to_vpattern(pat: *const VPattern_s) -> VPattern {
     let pat = unsafe { *pat };
 
     match pat.ctor {
@@ -126,7 +131,8 @@ fn coerce_to_vpattern<'a>(pat: *const VPattern_s) -> VPattern<'a> {
         VPattern_s_VPattern_Cons_CrPId => {
             let name = unsafe { CStr::from_ptr(pat.value.pId.p_name) }
                 .to_str()
-                .expect("Cannot decode UTF8 string");
+                .expect("Cannot decode UTF8 string")
+                .to_owned();
             VPattern::PId(name)
         }
         VPattern_s_VPattern_Cons_CrPTuple => {
@@ -143,7 +149,8 @@ fn coerce_to_vpattern<'a>(pat: *const VPattern_s) -> VPattern<'a> {
         VPattern_s_VPattern_Cons_CrPConstructor => {
             let name = unsafe { CStr::from_ptr(pat.value.pConstructor.p_name) }
                 .to_str()
-                .expect("Cannot decode UTF8 string");
+                .expect("Cannot decode UTF8 string")
+                .to_owned();
             let args = vec_from_ptr(unsafe { pat.value.pConstructor.p_args }, unsafe {
                 pat.value.pConstructor.n
             }
@@ -158,15 +165,15 @@ fn coerce_to_vpattern<'a>(pat: *const VPattern_s) -> VPattern<'a> {
     }
 }
 
-fn coerce_to_vbranch<'a>(ptr: *const VBranch_s) -> (VPattern<'a>, VExpr<'a>) {
+fn coerce_to_vbranch(ptr: *const VBranch_s) -> (VPattern, VExpr) {
     let (pat, ex) = unsafe { ((*ptr).b_pattern, (*ptr).b_expr) };
     (coerce_to_vpattern(pat), coerce_to_vexpr(ex))
 }
 
-fn coerce_to_vdecl<'a>(ptr: *const VDecl_s) -> (&'a str, VExpr<'a>) {
+fn coerce_to_vdecl(ptr: *const VDecl_s) -> (String, VExpr) {
     let (name, ex) = unsafe { (CStr::from_ptr((*ptr).d_name), (*ptr).d_val) };
     (
-        name.to_str().expect("Cannot decode UTF8 string"),
+        name.to_str().expect("Cannot decode UTF8 string").to_owned(),
         coerce_to_vexpr(ex),
     )
 }
