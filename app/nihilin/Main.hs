@@ -40,9 +40,9 @@ workWith input = do
     !dast      <- case res of
         Left err   -> throwError (PP.pretty (err `withCode` inputLines))
         Right dast -> info (PP.pretty dast)  $ pure dast
-    (!bindings, _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
+    (!(binds, cons), _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
 
     -- We do not give anything for now because bindings will be generated later
     -- by the elaboration process in the typechecker.
-    val      <- log "Evaluating code..."   $ liftIO (eval (EId "main") [("main", EInteger 0)] [])
+    val      <- log "Evaluating code..."   $ liftIO (eval (EId "main") binds cons)
     info (PP.pretty val) (pure ())
