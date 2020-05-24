@@ -42,6 +42,7 @@ workWith input = do
         Right dast -> info (PP.pretty dast)  $ pure dast
     (!bindings, _) <- log "Typechecking code..." $ liftEither (runTypeChecker defaultGlobalEnv dast)
 
-    -- There is no current way of passing environments for now. Will deal with that later.
-    val      <- log "Evaluating code..."   $ liftIO (eval (EId "main"))
+    -- We do not give anything for now because bindings will be generated later
+    -- by the elaboration process in the typechecker.
+    val      <- log "Evaluating code..."   $ liftIO (eval (EId "main") [("main", EInteger 0)] [])
     info (PP.pretty val) (pure ())
