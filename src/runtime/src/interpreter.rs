@@ -54,7 +54,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
                 }
                 Value::VLambda(pat, ex, ctx) => env
                     .with_bindings(ctx.values, move |e| {
-                        evaluate_case(&arg, pat.clone(), ex.clone(), e)
+                        evaluate_case(&arg, &pat, &ex, e)
                     })
                     .map_err(|_| RuntimeError::NonExhaustivePatternsInLambda),
 
@@ -75,7 +75,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
 
             branches
                 .into_iter()
-                .filter_map(|(pattern, branch)| evaluate_case(&expr, pattern, branch, env).ok())
+                .filter_map(|(pattern, branch)| evaluate_case(&expr, &pattern, &branch, env).ok())
                 .next()
                 .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         }
@@ -93,11 +93,11 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
 
 fn evaluate_case(
     expr: &Value,
-    pat: VPattern,
-    branch: VExpr,
+    pat: &VPattern,
+    branch: &VExpr,
     env: &mut Environment,
 ) -> Result<Value, RuntimeError> {
-    unpack_pattern(expr, &pat)
+    unpack_pattern(expr, pat)
         .ok_or(RuntimeError::NonExhaustivePatternsInMatch)
         .and_then(move |new_env| {
             env.with_bindings(new_env, move |e| evaluate_inner(branch.clone(), e))
