@@ -10,7 +10,7 @@ import Foreign.Marshal.Array
 import Foreign.Marshal.Alloc (free)
 
 foreign import ccall unsafe "runtime evaluate"
-    evaluate :: Ptr VExpr -> CInt -> Ptr (Ptr C_Binding) -> CInt -> Ptr CString -> IO ()
+    evaluate :: Ptr VExpr -> CInt -> CInt -> Ptr (Ptr C_Binding) -> Ptr CString -> IO ()
 
 eval :: VExpr -> [(String, VExpr)] -> [String] -> IO ()
 eval expr binds cons = do
@@ -21,7 +21,7 @@ eval expr binds cons = do
     bs  <- newBindings binds
     cs  <- newCons cons
 
-    evaluate ptr (fromIntegral nb_binds) bs (fromIntegral nb_cons) cs
+    evaluate ptr (fromIntegral nb_binds) (fromIntegral nb_cons) bs cs
 
     freeCons cs nb_cons
     freeBindings bs nb_binds
