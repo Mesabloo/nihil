@@ -14,10 +14,11 @@ use std::ffi::CStr;
 mod core_bindings {
     include!(concat!(env!("OUT_DIR"), "/gnc-core.rs"));
 }
+pub use core_bindings::Binding_s;
 pub use core_bindings::VExpr_s;
 use core_bindings::*;
 
-use crate::core::{VExpr, VPattern};
+use crate::core::{BTreeMap, BTreeSet, VExpr, VPattern, Value};
 
 #[allow(non_upper_case_globals)]
 pub fn coerce_to_vexpr<'a>(ex: *const VExpr_s) -> VExpr<'a> {
@@ -79,6 +80,39 @@ pub fn coerce_to_vexpr<'a>(ex: *const VExpr_s) -> VExpr<'a> {
         VExpr_s_VExpr_Cons_CrETypeHole => VExpr::ETypeHole,
         _ => unreachable!(),
     }
+}
+
+pub fn coerce_bindings<'a>(
+    nb_defs: usize,
+    defs: *const *const Binding_s,
+    nb_cons: usize,
+    cons: *const *const i8,
+) -> (BTreeMap<&'a str, Value<'a>>, BTreeSet<&'a str>) {
+    let mut new_defs = BTreeMap::new();
+    let mut new_cons = BTreeSet::new();
+
+    for idx in 0..nb_defs {
+        let (name, bind) = unsafe {
+            let ptr = **defs.add(idx);
+
+            let name = CStr::from_ptr(ptr.b_name)
+                .to_str()
+                .expect("Cannot decode UTF8 string");
+            let bind = coerce_to_vexpr(ptr.b_val);
+            (name, Value::VUnevaluated(bind))
+        };
+        new_defs.insert(name, bind);
+    }
+    for idx in 0..nb_cons {
+        let name = unsafe {
+            CStr::from_ptr(*cons.add(idx))
+                .to_str()
+                .expect("Cannot decode UTF8 string")
+        };
+        new_cons.insert(name);
+    }
+
+    (new_defs, new_cons)
 }
 
 #[allow(non_upper_case_globals)]
