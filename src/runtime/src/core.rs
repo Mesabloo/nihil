@@ -99,7 +99,7 @@ impl<'a> Display for Value<'a> {
                         _ => format!("{} ", v),
                     })
                     .for_each(|pretty_val| {
-                        pprint += pretty_val.as_str();
+                        pprint += format!(" {}", pretty_val).as_str();
                     });
 
                 write!(f, "{}", pprint)
