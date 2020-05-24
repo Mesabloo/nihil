@@ -1,11 +1,20 @@
 #![allow(non_upper_case_globals)]
 
 use crate::core::*;
-use crate::unsafe_layer::{coerce_to_vexpr, VExpr_s};
+use crate::unsafe_layer::{coerce_bindings, coerce_to_vexpr, Binding_s, VExpr_s};
 
 #[no_mangle]
-pub extern "C" fn evaluate(ex: *const VExpr_s) -> () {
+pub extern "C" fn evaluate(
+    ex: *const VExpr_s,
+    nb_defs: u64,
+    nb_cons: u64,
+    defs: *const *const Binding_s,
+    cons: *const *const i8,
+) -> () {
     let mut default_env = Environment::new();
+    let (mut defs, mut cons) = coerce_bindings(nb_defs as usize, defs, nb_cons as usize, cons);
+    default_env.values.append(&mut defs);
+    default_env.cons.append(&mut cons);
 
     let _ =
         evaluate_inner(coerce_to_vexpr(ex), &mut default_env).map_err(|err| println!("{}", err));
