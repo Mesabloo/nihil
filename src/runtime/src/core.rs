@@ -43,7 +43,7 @@ impl Environment {
 
     pub fn with_bindings<T, F>(&mut self, new_vals: BTreeMap<String, Value>, action: F) -> T
     where
-        F: Fn(&mut Environment) -> T,
+        F: FnOnce(&mut Environment) -> T,
     {
         let mut dups: BTreeMap<String, Value> = BTreeMap::new();
         for (name, val) in new_vals.iter() {
