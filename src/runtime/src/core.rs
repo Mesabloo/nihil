@@ -83,20 +83,20 @@ impl Display for Value {
             Value::VCharacter(c) => write!(f, "{}", c),
             Value::VTuple(vs) => {
                 let mut comma_separated = String::new();
-                for value in vs.into_iter().take(vs.len() - 1) {
+                for value in vs.iter().take(vs.len() - 1) {
                     comma_separated += format!("{}, ", value).as_str();
                 }
-                vs.into_iter().last().map(|v| {
+                if let Some(v) = vs.iter().last() {
                     comma_separated += format!("{}", v).as_str();
-                });
+                }
 
                 write!(f, "({})", comma_separated)
             }
             Value::VConstructor(name, vals) => {
                 let mut pprint = name.to_string();
-                vals.into_iter()
+                vals.iter()
                     .map(|v| match v {
-                        Value::VConstructor(_, vals) if vals.len() > 0 => format!("({})", v),
+                        Value::VConstructor(_, vals) if !vals.is_empty() => format!("({})", v),
                         _ => format!("{}", v),
                     })
                     .for_each(|pretty_val| {

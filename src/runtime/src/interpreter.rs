@@ -29,10 +29,10 @@ pub extern "C" fn evaluate(
 
 fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeError> {
     match ex {
-        VExpr::EId(ref name) => match env.values.get(name) {
+        VExpr::EId(name) => match env.values.get(&name).as_deref() {
             None => env
                 .cons
-                .get(name)
+                .get(&name)
                 .ok_or_else(|| RuntimeError::UnboundName(name.clone()))
                 .map(|_| Value::VConstructor(name.clone(), vec![])),
             Some(Value::VUnevaluated(ex)) => evaluate_inner(ex.clone(), env),
@@ -53,9 +53,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
                     Ok(Value::VConstructor(name, es))
                 }
                 Value::VLambda(pat, ex, ctx) => env
-                    .with_bindings(ctx.values, move |e| {
-                        evaluate_case(&arg, &pat, &ex, e)
-                    })
+                    .with_bindings(ctx.values, move |e| evaluate_case(&arg, &pat, &ex, e))
                     .map_err(|_| RuntimeError::NonExhaustivePatternsInLambda),
 
                 _ => Err(RuntimeError::IncorrectFunction),
@@ -116,16 +114,16 @@ fn unpack_pattern(expr: &Value, pat: &VPattern) -> Option<BTreeMap<String, Value
             Some(env)
         }
         (Value::VConstructor(name, args), VPattern::PConstructor(namf, argt)) if name == namf => {
-            args.into_iter()
-                .zip(argt.into_iter())
+            args.iter()
+                .zip(argt.iter())
                 .try_fold(env, |mut new_env, (v, p)| {
                     new_env.append(&mut unpack_pattern(&v, p)?);
                     Some(new_env)
                 })
         }
         (Value::VTuple(vals), VPattern::PTuple(pats)) => vals
-            .into_iter()
-            .zip(pats.into_iter())
+            .iter()
+            .zip(pats.iter())
             .try_fold(env, |mut new_env, (v, p)| {
                 new_env.append(&mut unpack_pattern(&v, p)?);
                 Some(new_env)
