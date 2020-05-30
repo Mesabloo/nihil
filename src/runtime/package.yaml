@@ -17,6 +17,9 @@ license: BSD3
 copyright: 2019 Ghilain Bergeron (Mesabloo)
 description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
 
+extra-libraries:
+- runtime
+
 dependencies:
 - base
 - gnc-utils
