@@ -70,7 +70,7 @@ pub enum Value {
     VInteger(i64),
     VDouble(f64),
     VCharacter(char),
-    VLambda(VPattern, VExpr, Environment),
+    VLambda(VPattern, VExpr, BTreeMap<String, Value>),
     VTuple(Vec<Value>),
     VPrim(Rc<dyn Fn(Value, &mut Environment) -> Result<Value, RuntimeError>>),
     VConstructor(String, Vec<Value>),
