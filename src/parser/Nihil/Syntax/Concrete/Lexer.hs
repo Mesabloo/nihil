@@ -129,7 +129,7 @@ symbolOrSpecial = Just <$> withSourceSpan do
               , TkBacktick   <$ MPC.char '`'
               , TkProd       <$ MPC.char '∏'
               , TkSum        <$ MPC.char '∑'
-              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfy unusable)
+              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfies (not . unusable))
               ]
   where f "|"     = TkBar
         f "="     = TkEquals
@@ -139,6 +139,10 @@ symbolOrSpecial = Just <$> withSourceSpan do
         f "⇒"     = TkImplies
         f "."     = TkDot
         f symbol  = TkSym symbol
+
+        satisfies f c
+            | f c       = pure c
+            | otherwise = fail ("Predicate not held for character " <> show c)
 
         unusable '(' = True
         unusable ')' = True
