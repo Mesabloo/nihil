@@ -108,7 +108,7 @@ fn unpack_pattern(expr: &Value, pat: &VPattern) -> Option<BTreeMap<String, Value
     match (expr, pat) {
         (_, VPattern::PWildcard) => Some(env),
         (Value::VInteger(i), VPattern::PInteger(j)) if i == j => Some(env),
-        (Value::VDouble(d), VPattern::PDouble(e)) if d == e => Some(env),
+        (Value::VDouble(d), VPattern::PDouble(e)) if (d - e).abs() < 0.000000001 => Some(env),
         (v, VPattern::PId(name)) => {
             env.insert(name.to_string(), v.clone());
             Some(env)
@@ -121,13 +121,14 @@ fn unpack_pattern(expr: &Value, pat: &VPattern) -> Option<BTreeMap<String, Value
                     Some(new_env)
                 })
         }
-        (Value::VTuple(vals), VPattern::PTuple(pats)) => vals
-            .iter()
-            .zip(pats.iter())
-            .try_fold(env, |mut new_env, (v, p)| {
-                new_env.append(&mut unpack_pattern(&v, p)?);
-                Some(new_env)
-            }),
+        (Value::VTuple(vals), VPattern::PTuple(pats)) => {
+            vals.iter()
+                .zip(pats.iter())
+                .try_fold(env, |mut new_env, (v, p)| {
+                    new_env.append(&mut unpack_pattern(&v, p)?);
+                    Some(new_env)
+                })
+        }
         (Value::VUnevaluated(_), _) => unreachable!(),
         //                             ^^^^^^^^^^^^^^
         //     This should never happen as our `evaluate_innter` function takes
