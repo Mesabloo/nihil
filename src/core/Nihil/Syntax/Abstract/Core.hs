@@ -62,7 +62,7 @@ data Type'
     | TApplication Type Type    -- ^ > { t₁ t₂ }
     | TRow [Statement] (Maybe String)
                                 -- ^ > { { f: Integer | r } }
-    | TRecord Type              -- ^ > { Π{ f: Integer | r } }
+    | TRecord Type              -- ^ > { ∏{ f: Integer | r } }
   deriving
     ( -- | use only for debugging
       Show

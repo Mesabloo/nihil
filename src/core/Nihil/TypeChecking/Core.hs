@@ -17,6 +17,7 @@ data Kind
     | KVar String             -- ^ > { k }
     | KApplication Kind Kind  -- ^ > { k₁ k₂ }
     | KArrow                  -- ^ > { -> } or { → }
+    | KRow                    -- ^ > { Row }
   deriving
     ( -- | Use only for debugging
       Show
@@ -30,6 +31,9 @@ data Type'
     | TTuple [Type]           -- ^ > { (a, b, c) }
     | TApplication Type Type  -- ^ > { t₁ t₂ }
     | TPrim String
+    | TRow (Map.Map String Type) (Maybe Type)
+                              -- ^ > { { f : t1 ; g : t2 | rest } }
+    | TRecord Type            -- ^ > { ∏{ f : t1 ; g : t2 | rest } }
   deriving
     ( -- | Use only for debugging
       Show
