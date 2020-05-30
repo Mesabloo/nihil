@@ -12,7 +12,7 @@ import qualified Nihil.Syntax.Abstract.Core as AC
 import Nihil.Syntax.Common (Desugarer)
 import Nihil.Utils.Source
 import Nihil.Utils.Impossible
-import Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
+import {-# SOURCE #-} Nihil.Syntax.Abstract.Desugarer.Type (desugarType)
 import Nihil.Syntax.Abstract.Desugarer.Errors.DifferentArgumentNumbers
 import {-# SOURCE #-} Nihil.Syntax.Abstract.Desugarer.Expression (desugarExpression)
 import Control.Arrow ((&&&))

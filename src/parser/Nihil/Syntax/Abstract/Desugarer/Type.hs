@@ -7,6 +7,7 @@ import Nihil.Utils.Source
 import Nihil.Syntax.Common (Desugarer, typeLevelOperators)
 import Nihil.Utils.Debug
 import Nihil.Utils.Impossible (impossible)
+import Nihil.Syntax.Abstract.Desugarer.Statement
 import Nihil.Syntax.Abstract.Desugarer.ShuntingYard
 import Nihil.Syntax.Abstract.Desugarer.Errors.UnexpectedOperator
 import Control.Arrow ((&&&))
