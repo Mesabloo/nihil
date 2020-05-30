@@ -37,6 +37,11 @@ data TokenClass
     | TkRParen         -- ^ > )
     | TkComma          -- ^ > ,
     | TkBar            -- ^ > |
+    | TkProd           -- ^ > ∏
+    | TkSum            -- ^ > ∑
+    | TkRBrace         -- ^ > }
+    | TkLBrace         -- ^ > {
+    | TkDot            -- ^ > .
     | TkInlineComment String
                        -- ^ > -- comment
     | TkMultilineComment String

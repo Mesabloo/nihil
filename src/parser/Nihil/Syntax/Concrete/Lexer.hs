@@ -127,7 +127,9 @@ symbolOrSpecial = Just <$> withSourceSpan do
               , TkUnderscore <$ MP.some (MPC.char '_')
               , TkBackslash  <$ MPC.char '\\'
               , TkBacktick   <$ MPC.char '`'
-              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfy notUnusable)
+              , TkProd       <$ MPC.char '∏'
+              , TkSum        <$ MPC.char '∑'
+              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfy unusable)
               ]
   where f "|"     = TkBar
         f "="     = TkEquals
@@ -135,14 +137,17 @@ symbolOrSpecial = Just <$> withSourceSpan do
         f "→"     = TkArrow
         f "=>"    = TkImplies
         f "⇒"     = TkImplies
+        f "."     = TkDot
         f symbol  = TkSym symbol
 
-        notUnusable '(' = True
-        notUnusable ')' = True
-        notUnusable ';' = True
-        notUnusable ':' = True
-        notUnusable '`' = True
-        notUnusable _   = False
+        unusable '(' = True
+        unusable ')' = True
+        unusable ';' = True
+        unusable ':' = True
+        unusable '`' = True
+        unusable '{' = True
+        unusable '}' = True
+        unusable _   = False
 
 literal :: Parser InterToken
 literal = Just <$> MP.label "literal" do

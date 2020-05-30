@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7cde6152da08406d7c387a7307072d4a59c65ff0cb38d4b089edb310c54010c2
+-- hash: 31dee9e3512b7f44e55a72946978a4ac5c2ad7892fbc60b22701c5d24893cbe1
 
 name:           gnc
 version:        0.1.0.0
@@ -32,6 +32,12 @@ flag profile
 library
   exposed-modules:
       Nihil
+      Nihil.Syntax.Concrete.Lexer
+      Nihil.Syntax.Concrete.Parser.Expression.Record
+      Nihil.Syntax.Concrete.Parser.Type.Record
+      Nihil.Syntax.Concrete.Parser.Type.Row
+      Nihil.TypeChecking.Errors.MissingFieldsInRecord
+      Nihil.TypeChecking.Errors.RecordDomainSubset
   other-modules:
       Paths_gnc
   hs-source-dirs:

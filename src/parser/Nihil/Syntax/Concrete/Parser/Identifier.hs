@@ -72,12 +72,9 @@ pSymbol' s = debug "pSymbol'" $ lexeme do
         f ")"  TkRParen    = True
         f ","  TkComma     = True
         f "|"  TkBar       = True
-        f "Π"  TkPi        = True
-        f "Σ"  TkSigma     = True
-        f "×"  TkTimes     = True
+        f "∏"  TkProd      = True
+        f "∑"  TkSum       = True
         f "{"  TkLBrace    = True
-        f "⊗"  TkOTimes    = True
-        f "⊕"  TkOPlus     = True
         f "}"  TkRBrace    = True
         f "."  TkDot       = True
         f s    (TkSym sy)  = Text.pack sy == s
@@ -110,4 +107,4 @@ reservedExpressionOperators :: [Text.Text]
 reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}", "." ]
 
 reservedTypeOperators :: [Text.Text]
-reservedTypeOperators = [ ":", "|", ",", "(", ")", ";", "{", "}", "×", "Π", "=>", "⇒" ]
+reservedTypeOperators = [ ":", "|", ",", "(", ")", ";", "{", "}", "∏", "∑", "=>", "⇒" ]
