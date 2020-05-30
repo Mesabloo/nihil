@@ -1,0 +1,40 @@
+name: gnc-utils
+version: 0.1.0.0
+library:
+  source-dirs: .
+
+when:
+- condition: flag(debug)
+  cpp-options:
+  - -DDEBUGGING
+
+ghc-options:
+- -Wall
+- -Wno-unused-do-bind
+- -Wno-orphans
+- -Wno-name-shadowing
+- -Wno-unused-matches
+- -fenable-rewrite-rules
+- -Wno-incomplete-patterns
+
+flags:
+  debug:
+    description: "Enable/disable compiler debugging features."
+    manual: true
+    default: false
+
+author: Ghilain Bergeron (Mesabloo)
+github: mesabloo/nihil
+license: BSD3
+copyright: 2019 Ghilain Bergeron (Mesabloo)
+description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+
+dependencies:
+- base
+- ansi-wl-pprint
+- comonad
+- free
+- megaparsec
+- lens
+- containers
+- text
