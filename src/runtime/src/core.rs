@@ -46,15 +46,17 @@ impl Environment {
         F: FnOnce(&mut Environment) -> T,
     {
         let mut dups: BTreeMap<String, Value> = BTreeMap::new();
-        for (name, val) in new_vals.iter() {
+        let mut old_keys: Vec<String> = vec![];
+        for (name, val) in new_vals.into_iter() {
+            old_keys.push(name.to_string());
             self.values
-                .insert(name.to_string(), val.clone())
+                .insert(name.to_string(), val)
                 .map(|v| dups.insert(name.to_string(), v));
         }
 
         let result = action(self);
 
-        for name in new_vals.keys().into_iter() {
+        for name in old_keys.iter() {
             self.values.remove(name);
         }
         self.values.append(&mut dups);
