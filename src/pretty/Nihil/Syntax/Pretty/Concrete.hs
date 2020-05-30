@@ -7,7 +7,7 @@ module Nihil.Syntax.Pretty.Concrete
 
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (annotated)
-import Nihil.Syntax.Concrete.Lexer (TokenClass(..))
+import Nihil.Syntax.Concrete.Core (TokenClass(..))
 import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import Control.Arrow ((>>>))
@@ -57,11 +57,8 @@ instance Pretty TokenClass where
     pretty TkEOL                  = text "<newline>"
     pretty TkLBrace               = text "symbol '{'"
     pretty TkRBrace               = text "symbol '}'"
-    pretty TkPi                   = text "symbol 'Π'"
-    pretty TkTimes                = text "symbol '×'"
-    pretty TkOTimes               = text "symbol '⊗'"
-    pretty TkOPlus                = text "symbol '⊕'"
-    pretty TkSigma                = text "symbol 'Σ'"
+    pretty TkProd                 = text "symbol '∏'"
+    pretty TkSum                  = text "symbol '∑'"
     pretty TkDot                  = text "symbol '.'"
 
 instance Show TokenClass where
