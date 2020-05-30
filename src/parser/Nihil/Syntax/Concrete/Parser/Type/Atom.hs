@@ -23,5 +23,6 @@ atoms s =
     , TId . annotated  <$> pIdentifier' MP.<?> "type identifier"
     , MP.try (pTuple s) MP.<?> "tuple"
     , pRecord s MP.<?> "record"
+    , pRow s MP.<?> "row"
     , TParens          <$> pParens (pType s) MP.<?> "parenthesized type"
     ]
