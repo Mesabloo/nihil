@@ -47,8 +47,8 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
                 None => env
                     .cons
                     .get(&name)
-                    .ok_or_else(|| RuntimeError::UnboundName(name.clone()))
-                    .map(|_| Value::VConstructor(name.clone(), vec![])),
+                    .ok_or_else(move || RuntimeError::UnboundName(name))
+                    .map(|name| Value::VConstructor(name.to_string(), vec![])),
                 Some(Value::VUnevaluated(ex)) => evaluate_inner(ex.clone(), env),
                 Some(e) => Ok(e.clone()),
             }
@@ -56,7 +56,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
         VExpr::EInteger(i) => Ok(Value::VInteger(i)),
         VExpr::EDouble(d) => Ok(Value::VDouble(d)),
         VExpr::ECharacter(c) => Ok(Value::VCharacter(c)),
-        VExpr::ELambda(arg, box body) => Ok(Value::VLambda(arg, body, env.clone())),
+        VExpr::ELambda(arg, box body) => Ok(Value::VLambda(arg, body, env.values.clone())),
         VExpr::EApplication(box fun, box arg) => {
             let arg = evaluate_inner(arg, env)?;
             let fun = evaluate_inner(fun, env)?;
@@ -69,7 +69,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
                     Ok(Value::VConstructor(name, es))
                 }
                 Value::VLambda(pat, ex, ctx) => env
-                    .with_bindings(ctx.values, move |e| evaluate_case(&arg, &pat, ex, e))
+                    .with_bindings(ctx, move |e| evaluate_case(&arg, &pat, ex, e))
                     .map_err(|_| RuntimeError::NonExhaustivePatternsInLambda),
 
                 _ => Err(RuntimeError::IncorrectFunction),
