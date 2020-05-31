@@ -53,7 +53,7 @@ inferKind = annotated >>> f
             pure KRow
         f (TRow stts (Just r)) = do
             row <- f (TRow stts Nothing)
-            r <- f (TVar r)
+            r <- inferKind r
             row <$ tell [KRow :*~ r]
 
 -- | Infers the kind of a generalized 'Type'.
