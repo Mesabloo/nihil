@@ -20,7 +20,8 @@ pRow s = debug "pRow" $ do
         fields <- (pFunctionDeclaration <* s) `MP.sepBy` (pSymbol' ";" <* s)
         let pExt = do
                 pSymbol' "|"
-                annotated <$> pIdentifier <* s
+                withPosition do
+                    (TVar . annotated <$> pIdentifier MP.<?> "type variable") <* s
         ext <- MP.optional pExt
         pure (fields, ext)
     pure (TRow fields ext)

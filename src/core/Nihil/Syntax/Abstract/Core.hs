@@ -60,7 +60,7 @@ data Type'
     | TTuple [Type]             -- ^ > { (t₁, t₂) }
     | TVar String               -- ^ > { a }
     | TApplication Type Type    -- ^ > { t₁ t₂ }
-    | TRow [Statement] (Maybe String)
+    | TRow [Statement] (Maybe Type)
                                 -- ^ > { { f: Integer | r } }
     | TRecord Type              -- ^ > { ∏{ f: Integer | r } }
   deriving

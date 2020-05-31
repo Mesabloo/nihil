@@ -63,4 +63,5 @@ desugarAtom ops out (CC.TRecord row) pos      = do
     pure (ops, locate record pos : out)
 desugarAtom ops out (CC.TRow stts rest) pos          = do
     AC.Program ss <- desugarProgram (CC.Program stts)
+    rest <- traverse (\ r -> desugarType [r]) rest
     pure (ops, locate (AC.TRow ss rest) pos : out)
