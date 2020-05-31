@@ -44,20 +44,16 @@ instance Unifiable Type GlobalEnv where
         (TRow f1 r1, TRow f2 r2)                 -> unifyRows (f1, r1) (f2, r2) (location t1)
         _                                        -> throwError (unifyType t1 t2)
 
-unifyRows :: (Map.Map String Type, Maybe String) -> (Map.Map String Type, Maybe String) -> SourcePos -> SolveType (Subst Type)
-unifyRows (f1, r1) (f2, r2) pos = do
-    let haveBothFields = Map.keys f1 `List.intersect` Map.keys f2
-    pSubs <- mconcat <$> forM haveBothFields \f -> unify (f1 Map.! f) (f2 Map.! f)
-    subsR <- computeExtension (Map.keys f1 List.\\ haveBothFields) r2
-    subsL <- computeExtension (Map.keys f2 List.\\ haveBothFields) r1
-    pure (pSubs <> subsR <> subsL)
-  where computeExtension :: [String] -> Maybe String -> SolveType (Subst Type)
-        computeExtension [] _ = pure mempty
-        computeExtension fs Nothing = throwError (missingFieldsInRecord fs pos)
-        computeExtension fs (Just name) = do
-            let fields = Map.fromList (((,) <*> (f1 Map.!)) <$> fs)
-                record = TRecord (locate (TRow fields (Just ("r" <> name))) pos)
-            pure (Subst (Map.singleton name record))
+unifyRows :: (Map.Map String Type, Maybe Type) -> (Map.Map String Type, Maybe Type) -> SourcePos -> SolveType (Subst Type)
+unifyRows (f1, ext1) (f2, ext2) pos = do
+    let dom1 = Map.keys f1
+        dom2 = Map.keys f2
+        commonFields = dom1 `List.intersect` dom2
+        otherFields1 = dom1 List.\\ commonFields
+        otherFields2 = dom2 List.\\ commonFields
+    fieldSubst <- mconcat <$> forM commonFields \ k -> unify (f1 Map.! k) (f2 Map.! k)
+
+    pure fieldSubst
 
 -- | Unifies custom types and checks for well formed type applications.
 unifyCustom :: Type -> Type -> SolveType (Subst Type)

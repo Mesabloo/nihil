@@ -163,7 +163,7 @@ extractRigids ty = Forall tvs ty
               TApplication t1 t2 -> fold t1 <> fold t2
               TTuple ts -> concatMap fold ts
               TRecord row -> fold row
-              TRow ts r -> concatMap fold ts <> maybe mempty (fold . (`locate` location ty) . TRigid) r
+              TRow ts r -> concatMap fold ts <> maybe mempty fold r
               _ -> []
 
 -------------------------------------------------------------------------------------------------------------------

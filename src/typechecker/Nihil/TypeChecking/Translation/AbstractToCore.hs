@@ -20,7 +20,7 @@ coerceType = hoistAnnotated f
     g (AC.TApplication t1 t2) = TApplication (coerceType t1) (coerceType t2)
     g (AC.TTuple ts         ) = TTuple (coerceType <$> ts)
     g (AC.TRecord row)        = TRecord (coerceType row)
-    g (AC.TRow stts rest)     = TRow (Map.fromList (coerceStatement <$> stts)) rest
+    g (AC.TRow stts rest)     = TRow (Map.fromList (coerceStatement <$> stts)) (coerceType <$> rest)
       where coerceStatement (annotated -> AC.FunctionDeclaration name ty) = (name, coerceType ty)
             coerceStatement _ = impossible "Records can't hold any statement other than function declarations!"
 
