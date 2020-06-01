@@ -69,6 +69,7 @@ elabExpr e =
         AC.EMatch ex branches -> elabEMatch ex branches
         AC.ELet stts ex       -> elabELet stts ex
         AC.ERecord fields     -> elabERecord fields
+        AC.ERecordAccess r f  -> elabERecordAccess r f
 
 -- | Infers the type of an expression 'AC.Literal'.
 elabELiteral :: AC.Literal -> SourcePos -> InferType ExprEnv
@@ -181,6 +182,14 @@ elabERecord fields pos = do
     pure (recordElab, recordTy)
   where toDef (annotated -> AC.FunctionDefinition name def) = (name, def)
         toDef _ = impossible "Record fields can only be function definitions"
+
+elabERecordAccess :: AC.Expr -> Located String -> SourcePos -> InferType ExprEnv
+elabERecordAccess record (annotated -> field) pos = do
+    tv <- fresh "$" pos
+    tu <- fresh "$" pos
+    (elabE, ty) <- elabExpr record
+    tell [ty :>~ (locate (TRecord (locate (TRow (Map.fromList [(field, tv)]) (Just tu)) pos)) pos)]
+    pure (RC.ERecordAccess elabE field, tv)
 
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
