@@ -46,7 +46,8 @@ struct VExpr_s
         CrETuple,
         CrETypeHole,
         CrEMatch,
-        CrELet
+        CrELet,
+        CrERecord
     } ctor;
 
     union
@@ -60,6 +61,7 @@ struct VExpr_s
         struct { unsigned long n; const const struct VExpr_s **v_vals; } eTuple;
         struct { const struct VExpr_s *v_expr; unsigned long n; const const struct VBranch_s **v_branches; } eMatch;
         struct { unsigned long n; const const struct VDecl_s **v_decls; const struct VExpr_s *v_expr; } eLet;
+        struct { unsigned long n; const const struct VDecl_s **v_fields; } eRecord;
     } value;
 };
 
