@@ -67,14 +67,14 @@ instance Substitutable Type' where
     free (TVar v)             = Set.singleton v
     free (TTuple ts)          = free ts
     free (TApplication t1 t2) = free [t1, t2]
-    free (TRow funs ty)       = fold (free <$> funs)
+    free (TRow funs ty)       = fold (free <$> funs) <> maybe mempty free ty
     free (TRecord row)        = free row
     free _                    = mempty
 
     apply (Subst sub) tv@(TVar v) = fromMaybe tv (Map.lookup v sub)
     apply s (TTuple ts)           = TTuple (apply s ts)
     apply s (TApplication t1 t2)  = TApplication (apply s t1) (apply s t2)
-    apply s (TRow ss r)           = TRow (apply s <$> ss) r
+    apply s (TRow ss r)           = TRow (apply s <$> ss) (apply s <$> r)
     apply s (TRecord row)         = TRecord (apply s row)
     apply _ t                     = t
 
