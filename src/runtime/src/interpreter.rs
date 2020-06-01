@@ -122,7 +122,7 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
         VExpr::ERecordAccess(box record, field) => match evaluate_inner(record, env)? {
             Value::VRecord(rec) => rec
                 .get(&field)
-                .ok_or(RuntimeError::NoSuchField(field))
+                .ok_or_else(|| RuntimeError::NoSuchField(field))
                 .map(|v| v.clone()),
             _ => Err(RuntimeError::IncorrectRecord),
         },
