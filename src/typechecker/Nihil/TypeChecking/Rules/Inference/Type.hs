@@ -295,6 +295,8 @@ relax = hoistAnnotated (first f)
   where f (TApplication t1 t2) = TApplication (relax t1) (relax t2)
         f (TTuple ts)          = TTuple (relax <$> ts)
         f (TRigid v)           = TVar v
+        f (TRecord row)        = TRecord (relax row)
+        f (TRow fields ext)    = TRow (relax <$> fields) (relax <$> ext)
         f t                    = t
 
 inEnvMany :: [(String, Scheme Type)] -> InferType a -> InferType a
