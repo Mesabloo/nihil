@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.TypeChecking.Rules.Unification.Type
 () where
@@ -52,8 +53,24 @@ unifyRows (f1, ext1) (f2, ext2) pos = do
         otherFields1 = dom1 List.\\ commonFields
         otherFields2 = dom2 List.\\ commonFields
     fieldSubst <- mconcat <$> forM commonFields \ k -> unify (f1 Map.! k) (f2 Map.! k)
+    -- ^ We unify all the common fields
 
-    pure fieldSubst
+    extSubst1 <- computeExtensionSubstitution otherFields1 ext2
+    -- ^ We unify the row extension with the remaining fields
+
+    extSubst2 <- computeExtensionSubstitution otherFields2 ext1
+    -- ^ We unify the row extension with the remaining fields
+
+    pure (fieldSubst <> extSubst1)
+  where computeExtensionSubstitution [] _ = pure mempty
+        computeExtensionSubstitution fs Nothing = throwError (missingFieldsInRecord fs pos)
+        computeExtensionSubstitution fs (Just (annotated -> ext)) =
+            case ext of
+                TVar name -> do
+                    let newFields = Map.fromList (((,) <*> (f1 Map.!)) <$> fs)
+                        newRec    = TRecord (locate (TRow newFields (Just (locate (TVar ("'" <> name)) pos))) pos)
+                    pure (Subst (Map.singleton name newRec))
+                _ -> impossible "Record extension must always be a type variable"
 
 -- | Unifies custom types and checks for well formed type applications.
 unifyCustom :: Type -> Type -> SolveType (Subst Type)
