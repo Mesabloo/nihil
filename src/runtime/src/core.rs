@@ -25,6 +25,7 @@ pub enum VExpr {
     ETypeHole,
     EMatch(Box<VExpr>, Vec<(VPattern, VExpr)>),
     ELet(Vec<(String, VExpr)>, Box<VExpr>),
+    ERecord(Vec<(String, VExpr)>),
 }
 
 #[derive(Clone)]
@@ -75,6 +76,7 @@ pub enum Value {
     VPrim(Rc<dyn Fn(Value, &mut Environment) -> Result<Value, RuntimeError>>),
     VConstructor(String, Vec<Value>),
     VUnevaluated(VExpr),
+    VRecord(BTreeMap<String, Value>),
 }
 
 impl Display for Value {

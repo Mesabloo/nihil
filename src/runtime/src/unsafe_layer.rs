@@ -79,6 +79,14 @@ pub fn coerce_to_vexpr(ex: *const VExpr_s) -> VExpr {
             VExpr::ELet(decls, box expr)
         }
         VExpr_s_VExpr_Cons_CrETypeHole => VExpr::ETypeHole,
+        VExpr_s_VExpr_Cons_CrERecord => {
+            let decls = vec_from_ptr(unsafe { ex.value.eLet.v_decls }, unsafe { ex.value.eLet.n }
+                as usize)
+            .into_iter()
+            .map(coerce_to_vdecl)
+            .collect();
+            VExpr::ERecord(decls)
+        }
         _ => unreachable!(),
     }
 }

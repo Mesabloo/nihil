@@ -113,6 +113,11 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
             env.with_bindings(new_decls, move |e| evaluate_inner(expr, e))
         }
         VExpr::ETypeHole => Err(RuntimeError::InvalidTypeHole),
+        VExpr::ERecord(decls) => {
+            Ok(Value::VRecord(decls.into_iter().map(|(name, ex)| {
+                (name, Value::VUnevaluated(ex))
+            }).collect()))
+        }
     }
 }
 
