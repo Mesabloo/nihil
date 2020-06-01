@@ -120,6 +120,7 @@ impl Display for Value {
 
                 write!(f, "{{ {} }}", comma_separated)
             }
+            Value::VUnevaluated(_) => write!(f, "???"),
             _ => Err(Error),
         }
     }
