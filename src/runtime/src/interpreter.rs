@@ -59,15 +59,17 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
         VExpr::ELambda(arg, box body) => Ok(Value::VLambda(arg, body, env.values.clone())),
         VExpr::EApplication(box fun, box arg) => {
             let arg = evaluate_inner(arg, env)?;
-            let arg = match arg {
-                Value::VUnevaluated(e) => evaluate_inner(e, env)?,
-                v => v,
-            };
             let fun = evaluate_inner(fun, env)?;
 
             // Our evaluated function MUST BE a function (either a primitive, or a constructor, or a lambda).
             match fun {
-                Value::VPrim(f) => f(arg, env),
+                Value::VPrim(f) => {
+                    let arg = match arg {
+                        Value::VUnevaluated(e) => evaluate_inner(e, env)?,
+                        v => v,
+                    };
+                    f(arg, env)
+                }
                 Value::VConstructor(name, mut es) => {
                     es.push(arg);
                     Ok(Value::VConstructor(name, es))
