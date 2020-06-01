@@ -169,6 +169,7 @@ data C_VExpr
     | C_EMatch (Ptr C_VExpr) CULong (Ptr (Ptr C_VBranch))
     | C_ELet CULong (Ptr (Ptr C_VDecl)) (Ptr C_VExpr)
     | C_ERecord CULong (Ptr (Ptr C_VDecl))
+    | C_ERecordAccess (Ptr C_VExpr) CString
 
 data VExpr
     = EId { v_name :: String }
@@ -182,6 +183,7 @@ data VExpr
     | EMatch { v_expr :: VExpr, v_branches :: [(VPattern, VExpr)] }
     | ELet { v_decls :: [(String, VExpr)], v_expr :: VExpr }
     | ERecord { v_fields :: [(String, VExpr)] }
+    | ERecordAccess { v_record :: VExpr, field :: String }
   deriving (Show, Eq, Ord)
 
 instance Storable C_VBranch where
@@ -243,6 +245,9 @@ instance Storable C_VExpr where
             CrERecord      -> C_ERecord
                 <$> {#get struct VExpr_s->value.eRecord.n#} ptr
                 <*> (castPtr <$> {#get struct VExpr_s->value.eRecord.v_fields#} ptr)
+            CrERecordAccess -> C_ERecordAccess
+                <$> (castPtr <$> {#get struct VExpr_s->value.eRecordAccess.v_record#} ptr)
+                <*> (castPtr <$> {#get struct VExpr_s->value.eRecordAccess.v_field#} ptr)
 
     poke ptr (C_EId name)             = do
         {#set struct VExpr_s->ctor#} ptr (genFromEnum CrEId)
@@ -284,6 +289,10 @@ instance Storable C_VExpr where
         {#set struct VExpr_s->ctor#} ptr (genFromEnum CrERecord)
         {#set struct VExpr_s->value.eRecord.n#} ptr n
         {#set struct VExpr_s->value.eRecord.v_fields#} ptr (castPtr fields)
+    poke ptr (C_ERecordAccess r f)    = do
+        {#set struct VExpr_s->ctor#} ptr (genFromEnum CrERecordAccess)
+        {#set struct VExpr_s->value.eRecordAccess.v_record#} ptr (castPtr r)
+        {#set struct VExpr_s->value.eRecordAccess.v_field#} ptr (castPtr f)
 
 peekExpr :: Ptr VExpr -> IO VExpr
 peekExpr ptr =
@@ -313,6 +322,9 @@ peekExpr ptr =
         C_ERecord n fields        -> do
             arr <- peekArray (fromIntegral n) fields
             ERecord <$> traverse (unDecl . castPtr) arr
+        C_ERecordAccess r field   -> ERecordAccess
+            <$> peekExpr (castPtr r)
+            <*> peekCString field
   where unBranch ptr =
             peek (castPtr ptr) >>= \ (C_VBranch pat ex) -> (,)
                 <$> peekPattern (castPtr pat)
@@ -351,6 +363,10 @@ newExpr ex = do
         ERecord fields       -> do
             arr <- newArray =<< traverse decl fields
             poke p $ C_ERecord (fromIntegral $ length fields) arr
+        ERecordAccess r f    -> do
+            poke p =<< C_ERecordAccess
+                <$> (castPtr <$> newExpr r)
+                <*> newCString f
     pure (castPtr p)
   where branch (pat, ex) = do
             p <- malloc
@@ -392,6 +408,9 @@ freeExpr ptr = do
             fs <- peekArray (fromIntegral n) fields
             mapM_ (freeDecl . castPtr) fs
             free fields
+        C_ERecordAccess r f    -> do
+            freeExpr (castPtr r)
+            free f
         _ -> pure ()
     free ptr
   where freeBranch ptr = do
