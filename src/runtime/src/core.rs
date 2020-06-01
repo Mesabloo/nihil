@@ -26,6 +26,7 @@ pub enum VExpr {
     EMatch(Box<VExpr>, Vec<(VPattern, VExpr)>),
     ELet(Vec<(String, VExpr)>, Box<VExpr>),
     ERecord(Vec<(String, VExpr)>),
+    ERecordAccess(Box<VExpr>, String),
 }
 
 #[derive(Clone)]
@@ -134,6 +135,8 @@ pub enum RuntimeError {
     IncorrectFunction,
     InvalidTypeHole,
     IncorrectArguments,
+    NoSuchField(String),
+    IncorrectRecord,
 }
 
 impl Display for RuntimeError {
@@ -154,6 +157,8 @@ impl Display for RuntimeError {
             IncorrectArguments => {
                 write!(f, "Incorrectly typed arguments given to primitive function")
             }
+            NoSuchField(field) => write!(f, "No such field {} in record", field),
+            IncorrectRecord => write!(f, "Cannot access field of a non-record value"),
         }
     }
 }

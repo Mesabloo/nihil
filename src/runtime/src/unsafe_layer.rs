@@ -87,6 +87,13 @@ pub fn coerce_to_vexpr(ex: *const VExpr_s) -> VExpr {
             .collect();
             VExpr::ERecord(decls)
         }
+        VExpr_s_VExpr_Cons_CrERecordAccess => VExpr::ERecordAccess(
+            box coerce_to_vexpr(unsafe { ex.value.eRecordAccess.v_record }),
+            unsafe { CStr::from_ptr(ex.value.eRecordAccess.v_field) }
+                .to_str()
+                .expect("Cannot decode UTF8 string")
+                .to_owned(),
+        ),
         _ => unreachable!(),
     }
 }

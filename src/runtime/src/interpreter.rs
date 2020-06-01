@@ -119,6 +119,13 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
                 .map(|(name, ex)| (name, Value::VUnevaluated(ex)))
                 .collect(),
         )),
+        VExpr::ERecordAccess(box record, field) => match evaluate_inner(record, env)? {
+            Value::VRecord(rec) => rec
+                .get(&field)
+                .ok_or(RuntimeError::NoSuchField(field))
+                .map(|v| v.clone()),
+            _ => Err(RuntimeError::IncorrectRecord),
+        },
     }
 }
 
