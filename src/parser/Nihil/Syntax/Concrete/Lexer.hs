@@ -129,6 +129,8 @@ symbolOrSpecial = Just <$> withSourceSpan do
               , TkBacktick   <$ MPC.char '`'
               , TkProd       <$ MPC.char '∏'
               , TkSum        <$ MPC.char '∑'
+              , TkLBrace     <$ MPC.char '{'
+              , TkRBrace     <$ MPC.char '}'
               , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfies (not . unusable))
               ]
   where f "|"     = TkBar
