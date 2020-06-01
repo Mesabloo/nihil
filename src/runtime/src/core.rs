@@ -109,6 +109,17 @@ impl Display for Value {
 
                 write!(f, "{}", pprint)
             }
+            Value::VRecord(fields) => {
+                let mut comma_separated = String::new();
+                for (name, value) in fields.iter().take(fields.len() - 1) {
+                    comma_separated += format!("{} = {} ; ", name, value).as_str();
+                }
+                if let Some((name, value)) = fields.iter().last() {
+                    comma_separated += format!("{} = {}", name, value).as_str();
+                }
+
+                write!(f, "{{ {} }}", comma_separated)
+            }
             _ => Err(Error),
         }
     }
