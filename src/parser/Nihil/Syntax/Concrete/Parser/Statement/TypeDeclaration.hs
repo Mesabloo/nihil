@@ -48,9 +48,8 @@ pGADT = debug "pGADT" $ withPosition do
         let ~constructor = lineFold \s -> lexeme do
                 (,) <$> (annotated <$> pIdentifier') <*> ((s *> pSymbol' ":") *> (s *> pType s)) MP.<?> "GADT constructor"
 
-        ctors <- indentBlock constructor
-
-        pure (TypeDefinition name tvs (locate (GADT (Map.fromList ctors)) NoSource))
+        TypeDefinition name tvs <$> withPosition do
+            GADT . Map.fromList <$> indentBlock constructor
 
 pTypeAlias :: Parser AStatement
 pTypeAlias = debug "pTypeAlias" $ withPosition do

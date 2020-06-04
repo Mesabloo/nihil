@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Nihil.Syntax.Concrete.Parser.Expression.Atom
 ( pAtom, pAtomNoApp ) where
@@ -15,6 +16,7 @@ import Nihil.Syntax.Concrete.Parser.Expression.Let
 import Nihil.Syntax.Concrete.Parser.Expression.Match
 import Nihil.Syntax.Concrete.Parser.Expression.Tuple
 import Nihil.Syntax.Concrete.Parser.Expression.TypeHole
+import Nihil.Syntax.Concrete.Parser.Expression.Record
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug
 import Nihil.Utils.Source
@@ -28,13 +30,18 @@ pAtom' :: Parser () -> Parser AAtom
 pAtom' s = MP.try (pApplication s) <|> pAtomNoApp s
 
 pAtomNoApp :: Parser () -> Parser AAtom
-pAtomNoApp s = withPosition (MP.choice atoms)
+pAtomNoApp s = do
+    a <- withPosition do
+        MP.choice atoms
+    access <- MP.optional (MP.try s *> pSymbol' "." *> s *> pIdentifier)
+    pure (maybe a ((`locate` location a) . ARecordAccess a) access)
   where atoms =
             [ pTypeHole MP.<?> "type hole"
             , pLambda s MP.<?> "lambda expression"
             , pMatch s MP.<?> "match expression"
             , MP.try (pTuple s) MP.<?> "tuple"
             , pLet s MP.<?> "let expression"
+            , pRecord s MP.<?> "record"
             , AId . annotated      <$> MP.choice
                 [ pIdentifier
                 , pIdentifier'

@@ -8,7 +8,7 @@ import Nihil.Syntax.Concrete.Core
 import Nihil.Syntax.Concrete.Parser
 import Nihil.Syntax.Concrete.Parser.Enclosed
 import Nihil.Syntax.Concrete.Parser.Identifier
-import Nihil.Syntax.Concrete.Parser.Type
+import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Type
 import qualified Nihil.Syntax.Concrete.Parser.Pattern.Atom as Pattern
 import {-# SOURCE #-} Nihil.Syntax.Concrete.Parser.Expression
 import Nihil.Syntax.Concrete.Debug

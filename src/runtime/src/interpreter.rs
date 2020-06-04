@@ -63,7 +63,13 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
 
             // Our evaluated function MUST BE a function (either a primitive, or a constructor, or a lambda).
             match fun {
-                Value::VPrim(f) => f(arg, env),
+                Value::VPrim(f) => {
+                    let arg = match arg {
+                        Value::VUnevaluated(e) => evaluate_inner(e, env)?,
+                        v => v,
+                    };
+                    f(arg, env)
+                }
                 Value::VConstructor(name, mut es) => {
                     es.push(arg);
                     Ok(Value::VConstructor(name, es))
@@ -113,6 +119,19 @@ fn evaluate_inner(ex: VExpr, env: &mut Environment) -> Result<Value, RuntimeErro
             env.with_bindings(new_decls, move |e| evaluate_inner(expr, e))
         }
         VExpr::ETypeHole => Err(RuntimeError::InvalidTypeHole),
+        VExpr::ERecord(decls) => Ok(Value::VRecord(
+            decls
+                .into_iter()
+                .map(|(name, ex)| (name, Value::VUnevaluated(ex)))
+                .collect(),
+        )),
+        VExpr::ERecordAccess(box record, field) => match evaluate_inner(record, env)? {
+            Value::VRecord(rec) => rec
+                .get(&field)
+                .ok_or_else(|| RuntimeError::NoSuchField(field))
+                .map(|v| v.clone()),
+            _ => Err(RuntimeError::IncorrectRecord),
+        },
     }
 }
 

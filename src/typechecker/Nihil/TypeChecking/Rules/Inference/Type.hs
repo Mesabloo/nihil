@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Nihil.TypeChecking.Rules.Inference.Type
 ( elabExpr
@@ -67,6 +68,8 @@ elabExpr e =
         AC.ELambda pat ex     -> elabELambda pat ex
         AC.EMatch ex branches -> elabEMatch ex branches
         AC.ELet stts ex       -> elabELet stts ex
+        AC.ERecord fields     -> elabERecord fields
+        AC.ERecordAccess r f  -> elabERecordAccess r f
 
 -- | Infers the type of an expression 'AC.Literal'.
 elabELiteral :: AC.Literal -> SourcePos -> InferType ExprEnv
@@ -166,6 +169,27 @@ elabELet stts ex pos = do
         toDecl _ = impossible "Let expressions cannot contain type definitions."
         toDef  (AC.FunctionDefinition name def)   = (name, def)
         toDef  _ = impossible "Let expressions cannot contain type definitions."
+
+elabERecord :: [AC.Statement] -> SourcePos -> InferType ExprEnv
+elabERecord fields pos = do
+    let fs = Map.fromList (toDef <$> fields)
+    inferedFields <- flip Map.traverseWithKey fs \ key val -> do
+        tv <- fresh "$" pos
+        inEnvMany [(key, Forall [] tv)] (elabExpr val)
+    let (elabs, tys) = (fst <$> inferedFields, snd <$> inferedFields)
+        recordTy = locate (TRecord (locate (TRow tys Nothing) pos)) pos
+        recordElab = RC.ERecord (Map.toList elabs)
+    pure (recordElab, recordTy)
+  where toDef (annotated -> AC.FunctionDefinition name def) = (name, def)
+        toDef _ = impossible "Record fields can only be function definitions"
+
+elabERecordAccess :: AC.Expr -> Located String -> SourcePos -> InferType ExprEnv
+elabERecordAccess record (annotated -> field) pos = do
+    tv <- fresh "$" pos
+    tu <- fresh "$" pos
+    (elabE, ty) <- elabExpr record
+    tell [ty :>~ (locate (TRecord (locate (TRow (Map.fromList [(field, tv)]) (Just tu)) pos)) pos)]
+    pure (RC.ERecordAccess elabE field, tv)
 
 tFun :: Type -> Type -> SourcePos -> Type
 tFun t1 t2 pos = locate (TApplication (locate tApp pos) t2) pos
@@ -271,6 +295,8 @@ relax = hoistAnnotated (first f)
   where f (TApplication t1 t2) = TApplication (relax t1) (relax t2)
         f (TTuple ts)          = TTuple (relax <$> ts)
         f (TRigid v)           = TVar v
+        f (TRecord row)        = TRecord (relax row)
+        f (TRow fields ext)    = TRow (relax <$> fields) (relax <$> ext)
         f t                    = t
 
 inEnvMany :: [(String, Scheme Type)] -> InferType a -> InferType a

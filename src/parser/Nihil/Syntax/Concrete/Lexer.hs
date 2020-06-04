@@ -106,7 +106,8 @@ uIdent :: Parser InterToken
 uIdent = Just <$> MP.label "upper identifier" do
     withSourceSpan do
         (f .) . (:) <$> MPC.upperChar <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'')
-  where f ident = TkUIdent ident
+  where f "Prod" = TkProd
+        f ident  = TkUIdent ident
 
 comment :: Parser InterToken
 comment = Just <$> (lineComment <|> multiLineComment)
@@ -127,7 +128,11 @@ symbolOrSpecial = Just <$> withSourceSpan do
               , TkUnderscore <$ MP.some (MPC.char '_')
               , TkBackslash  <$ MPC.char '\\'
               , TkBacktick   <$ MPC.char '`'
-              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfy notUnusable)
+              , TkProd       <$ MPC.char '∏'
+              , TkSum        <$ MPC.char '∑'
+              , TkLBrace     <$ MPC.char '{'
+              , TkRBrace     <$ MPC.char '}'
+              , f            <$> MP.some ((MPC.symbolChar <|> MPC.punctuationChar) >>= satisfies (not . unusable))
               ]
   where f "|"     = TkBar
         f "="     = TkEquals
@@ -135,14 +140,21 @@ symbolOrSpecial = Just <$> withSourceSpan do
         f "→"     = TkArrow
         f "=>"    = TkImplies
         f "⇒"     = TkImplies
+        f "."     = TkDot
         f symbol  = TkSym symbol
 
-        notUnusable '(' = True
-        notUnusable ')' = True
-        notUnusable ';' = True
-        notUnusable ':' = True
-        notUnusable '`' = True
-        notUnusable _   = False
+        satisfies f c
+            | f c       = pure c
+            | otherwise = fail ("Predicate not held for character " <> show c)
+
+        unusable '(' = True
+        unusable ')' = True
+        unusable ';' = True
+        unusable ':' = True
+        unusable '`' = True
+        unusable '{' = True
+        unusable '}' = True
+        unusable _   = False
 
 literal :: Parser InterToken
 literal = Just <$> MP.label "literal" do
