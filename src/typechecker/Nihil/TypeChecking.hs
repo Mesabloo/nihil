@@ -54,7 +54,8 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
             , ("List",    KStar `kArr` KStar)
             , ("()",      KStar)
             , ("->",      KStar `kArr` KStar `kArr` KStar)
-            , ("→",       KStar `kArr` KStar `kArr` KStar) ]
+            , ("→",       KStar `kArr` KStar `kArr` KStar)
+            ]
 
         defaultCustomTypes :: Map.Map String CustomType
         defaultCustomTypes = Map.fromList

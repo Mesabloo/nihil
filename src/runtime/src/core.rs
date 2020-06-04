@@ -25,6 +25,8 @@ pub enum VExpr {
     ETypeHole,
     EMatch(Box<VExpr>, Vec<(VPattern, VExpr)>),
     ELet(Vec<(String, VExpr)>, Box<VExpr>),
+    ERecord(Vec<(String, VExpr)>),
+    ERecordAccess(Box<VExpr>, String),
 }
 
 #[derive(Clone)]
@@ -75,6 +77,7 @@ pub enum Value {
     VPrim(Rc<dyn Fn(Value, &mut Environment) -> Result<Value, RuntimeError>>),
     VConstructor(String, Vec<Value>),
     VUnevaluated(VExpr),
+    VRecord(BTreeMap<String, Value>),
 }
 
 impl Display for Value {
@@ -107,6 +110,18 @@ impl Display for Value {
 
                 write!(f, "{}", pprint)
             }
+            Value::VRecord(fields) => {
+                let mut comma_separated = String::new();
+                for (name, value) in fields.iter().take(fields.len() - 1) {
+                    comma_separated += format!("{} = {} ; ", name, value).as_str();
+                }
+                if let Some((name, value)) = fields.iter().last() {
+                    comma_separated += format!("{} = {}", name, value).as_str();
+                }
+
+                write!(f, "{{ {} }}", comma_separated)
+            }
+            Value::VUnevaluated(_) => write!(f, "???"),
             _ => Err(Error),
         }
     }
@@ -120,6 +135,8 @@ pub enum RuntimeError {
     IncorrectFunction,
     InvalidTypeHole,
     IncorrectArguments,
+    NoSuchField(String),
+    IncorrectRecord,
 }
 
 impl Display for RuntimeError {
@@ -140,6 +157,8 @@ impl Display for RuntimeError {
             IncorrectArguments => {
                 write!(f, "Incorrectly typed arguments given to primitive function")
             }
+            NoSuchField(field) => write!(f, "No such field {} in record", field),
+            IncorrectRecord => write!(f, "Cannot access field of a non-record value"),
         }
     }
 }

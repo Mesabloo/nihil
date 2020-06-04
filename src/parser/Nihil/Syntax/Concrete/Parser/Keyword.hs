@@ -24,4 +24,5 @@ pKeyword kw = debug "pKeyword" $ lexeme do
         f "where"  TkWhere  = True
         f "infixl" TkInfixL = True
         f "infixr" TkInfixR = True
+        f "Prod"   TkProd   = True
         f _        _        = False

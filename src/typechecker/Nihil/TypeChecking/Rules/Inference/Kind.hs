@@ -15,7 +15,8 @@ import Control.Monad.Except (throwError)
 import Control.Monad.Writer (tell)
 import Control.Lens (use, (+=))
 import qualified Data.Map as Map
-import Control.Monad (forM)
+import Control.Monad (forM, (>=>))
+import Data.Foldable (traverse_)
 
 -- | Infers the 'Kind' of a 'CustomType'.
 inferCustomType :: SourcePos -> String -> Scheme CustomType -> InferKind Kind
@@ -46,6 +47,14 @@ inferKind = annotated >>> f
             tell [k1 :*~ kArr k2 kv]
             pure kv
         f (TPrim _) = pure KStar
+        f (TRecord row)        = KStar <$ inferKind row
+        f (TRow stts Nothing)  = do
+            traverse_ (inferKind >=> \k -> tell [KStar :*~ k]) stts
+            pure KRow
+        f (TRow stts (Just r)) = do
+            row <- f (TRow stts Nothing)
+            r <- inferKind r
+            row <$ tell [KRow :*~ r]
 
 -- | Infers the kind of a generalized 'Type'.
 inferScheme :: Scheme Type -> InferKind Kind

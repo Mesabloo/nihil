@@ -48,6 +48,8 @@ The ultimate goal is to provide these features:
   - [x] Kinds
   - [x] GADTs
   - [x] Equational pattern matching
+  - [x] Records
+  - [x] Row polymorphism
   - [ ] Type classes and instances
   - [ ] Quantitive types
   - [ ] Modules
@@ -57,7 +59,6 @@ The ultimate goal is to provide these features:
   - [ ] Type families (type-level functions)
   - [ ] Type applications
   - [ ] Laziness
-  - [ ] Row polymorphism
   - [ ] Dependent types
   - [ ] Algebraic effects ?
 
@@ -65,12 +66,13 @@ The ultimate goal is to provide these features:
 
 Nihil natively supports some unicode equivalents to ASCII characters:
 
-| ASCII | Unicode |
-|:-----:|:-------:|
-| `->`  |   `→`   |
-| `=>`  |   `⇒`   |
-| `\`   |   `λ`   |
-|`forall`|  `∀`   |
+| ASCII  | Unicode |
+|:------:|:-------:|
+| `->`   |   `→`   |
+| `=>`   |   `⇒`   |
+| `\`    |   `λ`   |
+| `Prod` |   `∏`   |
+<!-- |`forall`|  `∀`    | -->
 
 ## <a name='Examples'></a>Examples
 

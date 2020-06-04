@@ -72,6 +72,11 @@ pSymbol' s = debug "pSymbol'" $ lexeme do
         f ")"  TkRParen    = True
         f ","  TkComma     = True
         f "|"  TkBar       = True
+        f "∏"  TkProd      = True
+        f "∑"  TkSum       = True
+        f "{"  TkLBrace    = True
+        f "}"  TkRBrace    = True
+        f "."  TkDot       = True
         f s    (TkSym sy)  = Text.pack sy == s
         f s    _           = False
         f s    t           = impossible ("Cannot extract symbol " <> Text.unpack s <> " from " <> show t)
@@ -99,7 +104,7 @@ pAnySymbolᵗ = debug "pAnySymbolᵗ" $ MP.try (pSymbol >>= check)
             | otherwise                                = pure l
 
 reservedExpressionOperators :: [Text.Text]
-reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}" ]
+reservedExpressionOperators = [ "=", ":", "\\", "λ", "->", ",", "→", "`", "|", "(", ")", "{", ";", "}", "." ]
 
 reservedTypeOperators :: [Text.Text]
-reservedTypeOperators = [ ":", "=>", "⇒", "|", ",", "(", ")", ";" ]
+reservedTypeOperators = [ ":", "|", ",", "(", ")", ";", "{", "}", "∏", "∑", "=>", "⇒" ]

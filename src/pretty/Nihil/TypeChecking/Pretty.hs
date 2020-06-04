@@ -7,6 +7,7 @@ import Nihil.TypeChecking.Core
 import Nihil.Utils.Source (annotated)
 import Text.PrettyPrint.ANSI.Leijen
 import qualified Data.Char as Ch (isSymbol)
+import qualified Data.Map as Map
 
 instance Pretty Kind where
     pretty KStar                = text "*"
@@ -16,6 +17,7 @@ instance Pretty Kind where
       where prettyᵏ k@(KApplication KArrow k2) = prettyᵏ k2 <+> text "->"
             prettyᵏ k@KApplication{}           = parens (pretty k)
             prettyᵏ k                          = pretty k
+    pretty KRow                 = text "Row"
 
 instance Pretty Type' where
     pretty (TId i)              = text i -- if isOperator i then parens (text i) else text i
@@ -29,6 +31,11 @@ instance Pretty Type' where
                     _                    -> parens (pretty t)
             prettyᵗ t                = pretty t
     pretty (TPrim ty)           = text ty
+    pretty (TRecord row)        = text "×" <> pretty row
+    pretty (TRow ss ty)      =
+        braces (mconcat (punctuate semi (prettyStts ss)) <+> text "|" <+> maybe (text "{}") pretty ty)
+      where prettyStts = Map.elems . Map.mapWithKey prettyStt
+            prettyStt name ty = text name <+> colon <+> pretty ty
 
 instance Pretty t => Pretty (Scheme t) where
     pretty (Forall vars x) = text "forall" <+> sep (fmap text vars) <> dot <+> pretty x

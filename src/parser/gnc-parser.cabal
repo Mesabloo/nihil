@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 58d72da31b93fd3b2a7c545ee346312268ec0aacef8dd9da3d136a03f2fe3522
+-- hash: c5f0911c2f493f3dfdb9b33f5682388d03a5027a89f69e73d94a2bdbe3431375
 
 name:           gnc-parser
 version:        0.1.0.0
@@ -46,6 +46,7 @@ library
       Nihil.Syntax.Concrete.Parser.Expression.Let
       Nihil.Syntax.Concrete.Parser.Expression.Match
       Nihil.Syntax.Concrete.Parser.Expression.Operator
+      Nihil.Syntax.Concrete.Parser.Expression.Record
       Nihil.Syntax.Concrete.Parser.Expression.Tuple
       Nihil.Syntax.Concrete.Parser.Expression.TypeHole
       Nihil.Syntax.Concrete.Parser.Expression.Where
@@ -64,6 +65,8 @@ library
       Nihil.Syntax.Concrete.Parser.Type
       Nihil.Syntax.Concrete.Parser.Type.Atom
       Nihil.Syntax.Concrete.Parser.Type.Operator
+      Nihil.Syntax.Concrete.Parser.Type.Record
+      Nihil.Syntax.Concrete.Parser.Type.Row
       Nihil.Syntax.Concrete.Parser.Type.Tuple
   other-modules:
       Paths_gnc_parser
