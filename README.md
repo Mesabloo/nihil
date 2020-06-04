@@ -50,7 +50,7 @@ The ultimate goal is to provide these features:
   - [x] Equational pattern matching
   - [x] Type constraints
   - [x] Records
-  - [ ] Row polymorphism
+  - [x] Row polymorphism
   - [ ] Type classes and instances
   - [ ] Quantitive types
   - [ ] Modules
