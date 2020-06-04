@@ -106,7 +106,8 @@ uIdent :: Parser InterToken
 uIdent = Just <$> MP.label "upper identifier" do
     withSourceSpan do
         (f .) . (:) <$> MPC.upperChar <*> MP.many (MPC.alphaNumChar <|> MPC.char '\'')
-  where f ident = TkUIdent ident
+  where f "Prod" = TkProd
+        f ident  = TkUIdent ident
 
 comment :: Parser InterToken
 comment = Just <$> (lineComment <|> multiLineComment)

@@ -16,6 +16,6 @@ import Control.Applicative ((<|>))
 
 pRecord :: Parser () -> Parser Type
 pRecord s = debug "p[Type]Record" $ do
-    (pSymbol' "∏") <* s
+    (pSymbol' "∏" <|> () <$ pKeyword "Prod") <* s
     ext <- withPosition (pRow s)
     pure (TRecord ext)
