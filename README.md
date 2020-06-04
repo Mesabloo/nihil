@@ -71,8 +71,8 @@ Nihil natively supports some unicode equivalents to ASCII characters:
 |:------:|:-------:|
 | `->`   |   `→`   |
 | `=>`   |   `⇒`   |
-| `~`    |   `∼`   |
 | `\`    |   `λ`   |
+| `Prod` |   `∏`   |
 <!-- |`forall`|  `∀`    | -->
 
 ## <a name='Examples'></a>Examples
