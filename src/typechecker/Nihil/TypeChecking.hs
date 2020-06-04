@@ -12,7 +12,8 @@ import Nihil.TypeChecking.Rules.Solving.Kind (runKindSolver)
 import Nihil.TypeChecking.Rules.Inference (runInfer)
 import Nihil.Utils.Source (locate, SourcePos(NoSource))
 import qualified Nihil.TypeChecking.Rules.Program as RP (typecheck)
-import qualified Nihil.Syntax.Abstract.Core as AC (Program, Statement')
+import qualified Nihil.Syntax.Abstract.Core as AC (Program)
+import qualified Nihil.Runtime.Core as RC (VExpr)
 import Nihil.TypeChecking.Pretty
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import Control.Monad.Except (runExcept)
@@ -33,7 +34,7 @@ runKindChecker env ty = do
 --   to be @'GlobalEnv' 'mempty' 'mempty' 'mempty' 'mempty'@ if first run.
 --
 --   It returns the new 'GlobalEnv' issued after typechecking every definitions.
-runTypeChecker :: GlobalEnv -> AC.Program -> Either Doc ([AC.Statement'], GlobalEnv)
+runTypeChecker :: GlobalEnv -> AC.Program -> Either Doc (([(String, RC.VExpr)], [String]), GlobalEnv)
 runTypeChecker env prog = runExcept (runStateT (RP.typecheck prog) env)
 
 -- | The minimal default environment for typechecking (contains built-in types and functions).
@@ -53,7 +54,8 @@ defaultGlobalEnv = GlobalEnv (Env defaultTypeCtx) (Env defaultCustomTypes) (Env 
             , ("List",    KStar `kArr` KStar)
             , ("()",      KStar)
             , ("->",      KStar `kArr` KStar `kArr` KStar)
-            , ("→",       KStar `kArr` KStar `kArr` KStar) ]
+            , ("→",       KStar `kArr` KStar `kArr` KStar)
+            ]
 
         defaultCustomTypes :: Map.Map String CustomType
         defaultCustomTypes = Map.fromList

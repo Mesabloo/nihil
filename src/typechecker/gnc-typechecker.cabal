@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 89a05c6454fd30c0f73a5877bbc9b070f838c449f4ac05cff3e595d900f7c01c
+-- hash: e8accb6f4173c2b2c731569a416f9562f8963169d3ebeab084b6ce67a4281aee
 
 name:           gnc-typechecker
 version:        0.1.0.0
@@ -23,7 +23,6 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Map.Unordered
       Nihil.TypeChecking
       Nihil.TypeChecking.Common
       Nihil.TypeChecking.Constraint
@@ -32,6 +31,8 @@ library
       Nihil.TypeChecking.Errors.GADTWrongReturnType
       Nihil.TypeChecking.Errors.Infinite
       Nihil.TypeChecking.Errors.MissingArgument
+      Nihil.TypeChecking.Errors.MissingFieldsInRecord
+      Nihil.TypeChecking.Errors.RecordDomainSubset
       Nihil.TypeChecking.Errors.RedeclaredFunction
       Nihil.TypeChecking.Errors.Redefined
       Nihil.TypeChecking.Errors.TypeHole

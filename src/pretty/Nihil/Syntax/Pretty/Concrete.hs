@@ -7,6 +7,7 @@ module Nihil.Syntax.Pretty.Concrete
 
 import Nihil.Syntax.Concrete.Core
 import Nihil.Utils.Source (annotated)
+import Nihil.Syntax.Concrete.Core (TokenClass(..))
 import Text.PrettyPrint.ANSI.Leijen
 import Prelude hiding ((<$>))
 import Control.Arrow ((>>>))
@@ -54,6 +55,11 @@ instance Pretty TokenClass where
     pretty (TkMultilineComment c) = text "{- " <> text c <> text "-}"
     pretty TkEOF                  = text "<EOF>"
     pretty TkEOL                  = text "<newline>"
+    pretty TkLBrace               = text "symbol '{'"
+    pretty TkRBrace               = text "symbol '}'"
+    pretty TkProd                 = text "symbol '∏'"
+    pretty TkSum                  = text "symbol '∑'"
+    pretty TkDot                  = text "symbol '.'"
 
 instance Show TokenClass where
     show = show . pretty
@@ -85,6 +91,7 @@ instance Pretty Statement where
           where prettyCtor :: String -> [AType] -> Doc
                 prettyCtor name ts = text name <+> colon <+> pretty ts
 
+
 instance {-# OVERLAPPING #-} Pretty [AType] where
     pretty = sep . fmap pretty
 
@@ -95,6 +102,8 @@ instance Pretty Type where
     pretty (TParens p)       = parens (pretty p)
     pretty (TTuple t)        = tupled (fmap pretty t)
     pretty (TApplication ts) = sep (fmap pretty ts)
+    pretty (TRow stts r)     = braces (mconcat (punctuate semi (fmap pretty stts)) <+> maybe empty (\t -> text "|" <+> pretty t) r)
+    pretty (TRecord row)     = text "*" <> pretty row
 
 instance {-# OVERLAPPING #-} Pretty [AAtom] where
     pretty = sep . fmap pretty
@@ -124,6 +133,8 @@ instance Pretty Atom where
     pretty (AMatch e1 branches) = nest indent' (text "match" <+> pretty e1 <+> text "with" <$> prettyBranches branches)
       where prettyBranches  = foldl1 ($$) . fmap f
             f (pat, ex)     = sep (fmap pretty pat) <+> text "->" <+> pretty ex
+    pretty (ARecord stts)       = semiBraces (fmap pretty stts)
+    pretty (ARecordAccess e n)  = pretty e <> dot <> text (annotated n)
 
 instance Pretty Literal where
     pretty (LString s)    = text (show s)

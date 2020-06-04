@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0495f214c1bd7ff00665e301c7f690b0d3a7432b672dc77b8827fdeb61a28f4
+-- hash: d7ff6add8a4fd30f4ca1c242738b783b5108d0029fd0de7cf1798fdd2debf3fd
 
 name:           gnc-runtime
 version:        0.1.0.0
@@ -24,14 +24,14 @@ source-repository head
 library
   exposed-modules:
       Nihil.Runtime
-      Nihil.Runtime.Errors.Developer
-      Nihil.Runtime.Errors.NonExhaustivePatternMatching
       Nihil.Runtime.Interpreter
   other-modules:
       Paths_gnc_runtime
   hs-source-dirs:
       ./.
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -fenable-rewrite-rules
+  extra-libraries:
+      runtime
   build-depends:
       ansi-wl-pprint
     , base

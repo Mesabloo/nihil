@@ -25,8 +25,9 @@ import Nihil.TypeChecking.Rules.Solving.Type
 import Nihil.TypeChecking.Errors.GADTWrongReturnType
 import Nihil.TypeChecking.Errors.BindLack
 import Nihil.TypeChecking.Rules.Inference.Type
+import qualified Nihil.Runtime.Core as RC
 import Data.Align (align)
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import Control.Monad.Except (throwError, liftEither)
 import Data.Bitraversable (bitraverse, Bitraversable)
 import Control.Monad (void, when, replicateM)
@@ -41,21 +42,23 @@ import qualified Prelude (lookup)
 import Control.Arrow ((>>>))
 import qualified Data.Set as Set
 import Data.List (nub)
+import Text.PrettyPrint.ANSI.Leijen (pretty)
 
 -- | Type checks a whole 'AC.Program'.
-typecheck :: AC.Program -> TypeCheck [AC.Statement']
+typecheck :: AC.Program -> TypeCheck ([(String, RC.VExpr)], [String])
 typecheck (AC.Program stts) = do
-    defsAndDecls <- separateTypeDefs stts
+    (defsAndDecls, cons) <- separateTypeDefs stts
     statements   <- organizeStatements defsAndDecls
 
     let toHandle = uncurry align statements
 
     void (Map.traverseWithKey prehandleStatement toHandle)
-    stts <- Map.traverseWithKey handleStatement toHandle
-    pure (uncurry AC.FunctionDefinition <$> Map.toList stts)
+    stts <- Map.toList <$> Map.traverseWithKey handleStatement toHandle
+
+    pure (stts, cons)
 
 -- | Type checks a custom type definition.
-typecheckTypeDef :: String -> Scheme CustomType -> TypeCheck ()
+typecheckTypeDef :: String -> Scheme CustomType -> TypeCheck [String]
 typecheckTypeDef name sc@(Forall tvs cty) = do
     env        <- use typeCtx
 
@@ -82,18 +85,19 @@ typecheckTypeDef name sc@(Forall tvs cty) = do
         Forall _ (TypeAlias _)  -> pure mempty
 
     constructorCtx %= union (Env schemes)
+    pure (Map.keys schemes)
 
 -------------------------------------------------------------------------------------------------------------------
 
-separateTypeDefs :: [AC.Statement] -> TypeCheck [AC.Statement]
-separateTypeDefs []     = pure []
+separateTypeDefs :: [AC.Statement] -> TypeCheck ([AC.Statement], [String])
+separateTypeDefs []     = pure ([], [])
 separateTypeDefs (d:ss) = case annotated d of
     AC.TypeDefinition name tvs cty -> do
         let dummy = Forall tvs ()
-        typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
-        separateTypeDefs ss
+        cons <- typecheckTypeDef name (Forall tvs (coerceCustomType dummy cty))
+        second (mappend cons) <$> separateTypeDefs ss
     _                              ->
-        (d :) <$> separateTypeDefs ss
+        first (d :) <$> separateTypeDefs ss
 
 organizeStatements :: [AC.Statement] -> TypeCheck (Map.Map String AC.Expr, Map.Map String AC.Type)
 organizeStatements = go (mempty, mempty)
@@ -117,7 +121,7 @@ organizeStatements = go (mempty, mempty)
             _                              ->
                 impossible "Type definitions are already filtered!"
 
-handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck AC.Expr
+handleStatement :: String -> These AC.Expr AC.Type -> TypeCheck RC.VExpr
 handleStatement name (That ty)        = throwError (lacksBind (locate name (location ty)))
 handleStatement name (This def)       = check name def
 handleStatement name (These def decl) = check name def
@@ -136,7 +140,7 @@ prehandleStatement name (These def decl) = do
     funDefCtx %= (`extend` (name, ty))
 
 -- | Type checks a function definition.
-check :: String -> AC.Expr -> TypeCheck AC.Expr
+check :: String -> AC.Expr -> TypeCheck RC.VExpr
 check name def = do
     let pos = location def
     env      <- get
@@ -154,10 +158,12 @@ extractRigids :: Type -> Scheme Type
 extractRigids ty = Forall tvs ty
     where tvs = fold ty
 
-          fold (annotated -> t) = case t of
+          fold ty@(annotated -> t) = case t of
               TRigid n -> [n]
               TApplication t1 t2 -> fold t1 <> fold t2
               TTuple ts -> concatMap fold ts
+              TRecord row -> fold row
+              TRow ts r -> concatMap fold ts <> maybe mempty fold r
               _ -> []
 
 -------------------------------------------------------------------------------------------------------------------
@@ -196,4 +202,6 @@ normalize (Forall _ t) = Forall (snd <$> ord) (rigidify t)
           where f (TApplication t1 t2) = TApplication (rigidify t1) (rigidify t2)
                 f (TTuple ts)          = TTuple (rigidify <$> ts)
                 f (TVar x)             = TRigid (fromJust (Prelude.lookup x ord))
+                f (TRecord row)        = TRecord (rigidify row)
+                f (TRow ts ext)        = TRow (rigidify <$> ts) ext
                 f t                    = t
