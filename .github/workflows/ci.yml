@@ -110,7 +110,7 @@ jobs:
       
       - name: Build Nihil
         run: |
-          stack build --ghc-options=-fforce-recomp --ghc-options=-split-sections
+          stack build --test --ghc-options=-fforce-recomp --ghc-options=-split-sections
 
       - name: Copy libs to executable folder
         run: |
@@ -118,8 +118,8 @@ jobs:
           
       - name: Run tests
         run: |
-          stack test
           cd src/runtime && cargo test
+          stack test
           
       - name: Test doc generation
         run: |
