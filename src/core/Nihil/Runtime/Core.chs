@@ -70,7 +70,7 @@ instance Storable C_VPattern where
 
     poke ptr (C_PInteger i)               = do
         {#set struct VPattern_s->ctor#} ptr (genFromEnum CrPInteger)
-        {#set struct VPattern_s->value.pInteger.p_i#} ptr (CLong i)
+        {#set struct VPattern_s->value.pInteger.p_i#} ptr (fromIntegral i)
     poke ptr (C_PDouble d)                = do
         {#set struct VPattern_s->ctor#} ptr (genFromEnum CrPDouble)
         {#set struct VPattern_s->value.pDouble.p_d#} ptr (CDouble d)
@@ -254,7 +254,7 @@ instance Storable C_VExpr where
         {#set struct VExpr_s->value.eId.v_name#} ptr (castPtr name)
     poke ptr (C_EInteger i)           = do
         {#set struct VExpr_s->ctor#} ptr (genFromEnum CrEInteger)
-        {#set struct VExpr_s->value.eInteger.v_i#} ptr (CLong i)
+        {#set struct VExpr_s->value.eInteger.v_i#} ptr (fromIntegral i)
     poke ptr (C_EDouble d)            = do
         {#set struct VExpr_s->ctor#} ptr (genFromEnum CrEDouble)
         {#set struct VExpr_s->value.eDouble.v_d#} ptr (CDouble d)
