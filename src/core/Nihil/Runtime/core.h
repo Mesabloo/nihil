@@ -2,7 +2,7 @@
 #ifndef NIHIL_RUNTIME_CORE_H
 #define NIHIL_RUNTIME_CORE_H
 
-#include <stddef.h>
+// #include <stddef.h>
 
 struct VPattern_s;
 struct VExpr_s;
