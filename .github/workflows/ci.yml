@@ -105,6 +105,7 @@ jobs:
           
       - name: Build Haskell dependencies
         run: |
+          stack install c2hs
           stack build --only-dependencies --no-terminal
       
       - name: Build Nihil
