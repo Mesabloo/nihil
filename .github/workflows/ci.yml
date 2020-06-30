@@ -1,0 +1,122 @@
+on: [push]
+name: Nihil CI
+
+env:
+  RUSTUP_TOOLCHAIN: nightly
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Nihil on MacOS
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        
+    # Setup cache
+      - name: Cache stack global package database
+        id: stack-global-package-db
+        uses: actions/cache@v2
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-global-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-global
+            ${{ runner.os }}-stack
+            
+      - name: Cache stack-installed programs in ~/.local/bin
+        id:   stack-programs
+        uses: actions/cache@v2
+        with:
+          path: ~/.local/bin
+          key: ${{ runner.os }}-stack-programs-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-programs
+            ${{ runner.os }}-local-bin
+            
+      - name: Cache .stack-work
+        uses: actions/cache@v2
+        with:
+          path: .stack-work
+          key: ${{ runner.os }}-stack-work-${{ hashFiles('**.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-work
+      
+      - name: Cache src/utils/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/utils/.stack-work
+          key: ${{ runner.os }}-utils-stack-work-${{ hashFiles('src/utils/package.yaml') }}
+          restore-keys: ${{ runner.os }}-utils-stack-work
+      
+      - name: Cache src/core/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/core/.stack-work
+          key: ${{ runner.os }}-core-stack-work-${{ hashFiles('src/core/package.yaml') }}
+          restore-keys: ${{ runner.os }}-core-stack-work
+      
+      - name: Cache src/pretty/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/pretty/.stack-work
+          key: ${{ runner.os }}-pretty-stack-work-${{ hashFiles('src/pretty/package.yaml') }}
+          restore-keys: $ {{ runner.os }}-pretty-stack-work
+      
+      - name: Cache src/parser/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/parser/.stack-work
+          key: ${{ runner.os }}-pretty-stack-work-${{ hashFiles('src/parser/package.yaml') }}
+          restore-keys: $ {{ runner.os }}-parser-stack-work
+      
+      - name: Cache src/typechecker/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/typechecker/.stack-work
+          key: ${{ runner.os }}-typechecker-stack-work-${{ hashFiles('src/typechecker/package.yaml') }}
+          restore-keys: $ {{ runner.os }}-typechecker-stack-work
+      
+      - name: Cache src/runtime/target
+        uses: actions/cache@v2
+        with:
+          path: src/runtime/target
+          key: ${{ runner.os }}-runtime-target-${{ hashFiles('src/runtime/Cargo.toml') }}
+          restore-keys: $ {{ runner.os }}-runtime-target
+      
+      - name: Cache src/runtime/.stack-work
+        uses: actions/cache@v2
+        with:
+          path: src/runtime/.stack-work
+          key: ${{ runner.os }}-runtime-stack-work-${{ hashFiles('src/runtime/package.yaml') }}
+          restore-keys: $ {{ runner.os }}-runtime-stack-work
+      
+      - name: Install Stack
+        run: |
+          stack --version
+      - name: Install Cargo
+        run: |
+          cargo --version
+      - name: Install GHC
+        run: |
+          stack setup --install-ghc
+        
+      - name: Build Rust
+        run: |
+          cd src/runtime && cargo build --verbose --release
+          
+      - name: Build Haskell dependencies
+        run: |
+          stack build --only-dependencies --no-terminal
+      
+      - name: Build Nihil
+        run: |
+          stack build --ghc-options=-fforce-recomp --ghc-options=-split-sections
+          
+      - name: Run tests
+        run: |
+          stack test
+          cd src/runtime && cargo test --verbose
+          
+      - name: Test doc generation
+        run: |
+          stack build --haddock --no-haddock-deps --no-haddock-hyperlink-source --haddock-arguments="--no-print-missing-docs"
+        
