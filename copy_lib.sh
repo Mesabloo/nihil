@@ -1,0 +1,1 @@
+cp ./src/runtime/target/release/runtime.so ./.stack-work/install/*/bin
