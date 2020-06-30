@@ -7,7 +7,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build Nihil on MacOS
+    name: Build Nihil
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -101,7 +101,7 @@ jobs:
         
       - name: Build Rust
         run: |
-          cd src/runtime && cargo build --verbose --release
+          cd src/runtime && cargo build --release
           
       - name: Build Haskell dependencies
         run: |
@@ -115,7 +115,7 @@ jobs:
       - name: Run tests
         run: |
           stack test
-          cd src/runtime && cargo test --verbose
+          cd src/runtime && cargo test
           
       - name: Test doc generation
         run: |
