@@ -1,9 +1,20 @@
 @echo off
 
-set in=%cd%\src\runtime\target\release\runtime.dll
+setlocal enabledelayedexpansion
 
-for /D %%a in ("%cd%\.stack-work\install\*") do (
-    echo Copying runtime DLL located at '%in%' to '%%a\bin'...
+for /F "delims=;" %%e in ("dll;so;dylib") do (
+    set l=%cd%\src\runtime\target\release\runtime.%%~e
+    if exist !l! (
+        echo Found library at '!l!'.
+        echo.
 
-    copy /y /d "%in%" "%%a\bin"
+        for /D %%a in ("%cd%\.stack-work\install\*") do (
+            echo Copying library located at '!l!'
+            echo                         to '%%~a\bin'
+
+            copy /y /d "!l!" "%%~a\bin"
+
+            echo.
+        )
+    )
 )
