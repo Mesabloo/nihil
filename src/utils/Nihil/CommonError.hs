@@ -176,7 +176,7 @@ showLabels content padding labels
             (toShow, rem)        = Set.spanAntitone divide labels
 
             lineToShow           = content !! (lineNumber - 1)
-                                        -- ^^ Very unsafe here but we shouldn't be able to under/overflow
+                                      -- - ^^ Very unsafe here but we shouldn't be able to under/overflow
             !rpadding            = text (drop (length (show lineNumber)) (show (padding ' ')))
 
             item                 =

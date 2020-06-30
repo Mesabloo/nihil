@@ -53,13 +53,13 @@ unifyRows (f1, ext1) (f2, ext2) pos = do
         otherFields1 = dom1 List.\\ commonFields
         otherFields2 = dom2 List.\\ commonFields
     fieldSubst <- mconcat <$> forM commonFields \ k -> unify (f1 Map.! k) (f2 Map.! k)
-    -- ^ We unify all the common fields
+    -- - ^ We unify all the common fields
 
     extSubst1 <- computeExtensionSubstitution otherFields1 ext2
-    -- ^ We unify the row extension with the remaining fields
+    --   ^ We unify the row extension with the remaining fields
 
     extSubst2 <- computeExtensionSubstitution otherFields2 ext1
-    -- ^ We unify the row extension with the remaining fields
+    -- - ^ We unify the row extension with the remaining fields
 
     pure (fieldSubst <> extSubst1)
   where computeExtensionSubstitution [] _ = pure mempty
