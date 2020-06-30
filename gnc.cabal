@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7cde6152da08406d7c387a7307072d4a59c65ff0cb38d4b089edb310c54010c2
+-- hash: bbbf7a2625acf954e970ea82254ebb65a6798a02149b206bf558e98c6d93406f
 
 name:           gnc
 version:        0.1.0.0
@@ -87,6 +87,7 @@ test-suite compiler
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Wno-name-shadowing -Wno-unused-matches -O2 -optc-O3 -O0 -optc-O0 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
+    , containers
     , gnc
     , gnc-core
     , gnc-parser
@@ -95,6 +96,7 @@ test-suite compiler
     , gnc-typechecker
     , gnc-utils
     , hspec
+    , text
   if flag(profile)
     ghc-options: -prof -auto-all -with-rtsopts=-p,-s
   default-language: Haskell2010
