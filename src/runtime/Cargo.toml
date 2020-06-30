@@ -9,7 +9,7 @@ build = "build.rs"
 
 [lib]
 name = "runtime"
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 libc = "0.2.0"
