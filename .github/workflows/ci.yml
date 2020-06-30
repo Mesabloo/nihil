@@ -111,6 +111,10 @@ jobs:
       - name: Build Nihil
         run: |
           stack build --ghc-options=-fforce-recomp --ghc-options=-split-sections
+
+      - name: Copy libs to executable folder
+        run: |
+          bash copy_lib.sh
           
       - name: Run tests
         run: |
