@@ -74,6 +74,8 @@ tests:
     dependencies:
     - gnc
     - hspec
+    - text
+    - containers
   utils:
     main:        Spec.hs
     source-dirs: tests/utils
