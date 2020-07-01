@@ -70,6 +70,12 @@ extra-include-dirs:
 
 extra-lib-dirs:
 - src/runtime/target/release
+# This only works on Linux.
+# On Windows, we'd rather get the path:
+- src/runtime/target/x86_64-pc-windows-gnu/release
+# However there are no conditionals allowed here.
+# So we will just keep both for now, until we can figure it out.
+# This should not error out if the path does not exist (for example on Linux or MacOS).
 
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
