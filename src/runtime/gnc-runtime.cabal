@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d7ff6add8a4fd30f4ca1c242738b783b5108d0029fd0de7cf1798fdd2debf3fd
+-- hash: 5abcc583e1e54c1dbda634366cedf8ebfba6b3c3730f267eb1f753f9928a2af1
 
 name:           gnc-runtime
 version:        0.1.0.0
@@ -42,4 +42,8 @@ library
     , lens
     , mtl
     , text
+  if os(windows)
+    extra-libraries:
+        ws2_32
+        userenv
   default-language: Haskell2010

@@ -20,6 +20,12 @@ description: Please see the README on GitHub at <https://github.com/mesabloo/nih
 extra-libraries:
 - runtime
 
+when:
+- condition: os(windows)
+  extra-libraries:
+  - ws2_32
+  - userenv
+
 dependencies:
 - base
 - gnc-utils
