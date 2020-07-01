@@ -22,6 +22,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-global
             ${{ runner.os }}-stack
+
+      - name: Cache cargo global package database
+        id: cargo-global-package-db
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-global-${{ hashFiles('**.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-global
+            ${{ runner.os }}-cargo
             
       - name: Cache stack-installed programs in ~/.local/bin
         id:   stack-programs
@@ -112,7 +122,7 @@ jobs:
       - name: Build Nihil
         run: |
           stack build --test --no-run-tests --ghc-options=-fforce-recomp --ghc-options=-split-sections
-          
+
           
       - name: Run tests
         run: |
