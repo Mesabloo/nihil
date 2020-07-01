@@ -24,3 +24,5 @@ fn main() {
         .write_to_file(out.join("gnc-core.rs"))
         .expect("Unable to write bidings to file");
 }
+
+// Compile with target <arch>-pc-windows-gnu on Windows, or else it will fail.
