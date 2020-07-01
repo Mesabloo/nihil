@@ -88,6 +88,7 @@ jobs:
           path: src/runtime/.stack-work
           key: ${{ runner.os }}-runtime-stack-work-${{ hashFiles('src/runtime/package.yaml') }}
           restore-keys: $ {{ runner.os }}-runtime-stack-work
+
       
       - name: Install Stack
         run: |
@@ -110,11 +111,13 @@ jobs:
       
       - name: Build Nihil
         run: |
-          stack build --test --ghc-options=-fforce-recomp --ghc-options=-split-sections
+          stack build --test --no-run-tests --ghc-options=-fforce-recomp --ghc-options=-split-sections
+          
           
       - name: Run tests
         run: |
           cd src/runtime && cargo test
+          # This rebuilds the package, but it is okay, it's not too long in fact.
           stack test
           
       - name: Test doc generation
