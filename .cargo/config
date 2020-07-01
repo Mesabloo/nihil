@@ -1,8 +1,0 @@
-[target.x86_64-pc-windows-msvc]
-linker = "gcc"
-
-[target.i686-pc-windows-msvc]
-linker = "gcc"
-
-[target.i586-pc-windows-msvc]
-linker = "gcc"
