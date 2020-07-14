@@ -1,6 +1,0 @@
-module Fibonacci{fibs}
-
-fibs: ∀ a. Num a ⇒ a[1] → a
-fibs 0 = 1
-fibs 1 = 1
-fibs n = fibs (n - 2) + fibs (n - 1)

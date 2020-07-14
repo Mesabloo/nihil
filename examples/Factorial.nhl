@@ -1,7 +1,0 @@
-module Factorial{fact}
-
-fact: ∀ (n: Natural) a. Num a ⇒ a[n] → a
-fact = go 1
-  where go: ∀ (n: Natural) a. Num a ⇒ a[1] → a[n] → a
-        go acc 0 = acc
-        go acc n = go (acc * n) (n - 1)
