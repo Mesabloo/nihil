@@ -1,5 +1,5 @@
 name:                gnc-lib
-version:             0.1.0.0
+version:             !include "version.txt"
 github:              "mesabloo/nihil"
 license:             BSD3
 author:              "Mesabloo"
@@ -21,6 +21,8 @@ dependencies:
 - base >= 4.7 && < 5
 - megaparsec
 
+default-extensions: !include "default-extensions.txt"
+
 library:
   source-dirs: src
 
@@ -34,6 +36,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - gnc-lib
+    - gnc-flags
+    - optparse-applicative
 
 tests:
   gnc-test:
