@@ -13,15 +13,16 @@ import Options.Flags.Parser
 import Options.Flags.Typechecker
 import Options.Flags.Optimisation
 import Options.Flags.Codegen
+import Options.Flags.Flag
 
 import Data.Bits
 import Options.Applicative
 
-pFlags :: Parser Integer
-pFlags = foldl (.|.) 0 <$> sequenceA all
+pFlags :: Parser Flag
+pFlags = foldl (.|.) nullFlag <$> sequenceA all
   where
     all = [ pCommonFlags ]
 
 -- | Tests whether a set of flags (all concatenated) contains a given flag.
-isFlagOn :: Integer -> Integer -> Bool
+isFlagOn :: FlagSet -> Flag -> Bool
 isFlagOn flagSet flag = (flagSet .&. flag) `xor` zeroBits /= zeroBits

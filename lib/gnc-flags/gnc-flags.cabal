@@ -24,6 +24,7 @@ library
       Options.Flags.Codegen
       Options.Flags.Common
       Options.Flags.Common.Warnings
+      Options.Flags.Flag
       Options.Flags.Optimisation
       Options.Flags.Parser
       Options.Flags.Typechecker

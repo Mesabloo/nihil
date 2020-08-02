@@ -5,9 +5,10 @@ module Options.Flags.Common
 
 import Data.Bits
 import Options.Flags.Common.Warnings
+import Options.Flags.Flag
 import Options.Applicative
 
-pCommonFlags :: Parser Integer
-pCommonFlags = foldl (.|.) 0 <$> sequenceA allParsers
+pCommonFlags :: Parser Flag
+pCommonFlags = foldl (.|.) nullFlag <$> sequenceA allParsers
   where
     allParsers = [ pFlag_Wall ]
