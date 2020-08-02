@@ -7,7 +7,7 @@ import Data.Bits
 import Options.Flags.Common.Warnings
 import Options.Applicative
 
-pCommonFlags :: Parser Int
+pCommonFlags :: Parser Integer
 pCommonFlags = foldl (.|.) 0 <$> sequenceA allParsers
   where
     allParsers = [ pFlag_Wall ]
