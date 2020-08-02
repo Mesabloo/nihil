@@ -17,15 +17,11 @@ import Options.Flags.Codegen
 import Data.Bits
 import Options.Applicative
 
-pFlags :: Parser Integer
+pFlags :: Parser Int
 pFlags = foldl (.|.) 0 <$> sequenceA all
   where
     all = [ pCommonFlags ]
 
--- | Tests whether  set of flags (all concatenated) contains a given flag.
---
--- The implementation is merely just
---
--- > isFlagOn flagSet flag = testBit flagSet flag
-isFlagOn :: Integer -> Int -> Bool
-isFlagOn = testBit
+-- | Tests whether a set of flags (all concatenated) contains a given flag.
+isFlagOn :: Int -> Int -> Bool
+isFlagOn flagSet flag = (flagSet .&. flag) `xor` zeroBits /= 0
