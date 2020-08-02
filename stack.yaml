@@ -2,6 +2,7 @@ resolver: lts-16.5
 
 packages:
 - .
+- ./lib/gnc-flags
 
 extra-deps: []
 
