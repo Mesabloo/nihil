@@ -10,6 +10,7 @@ import Data.Functor ((<&>))
 flag_Wall :: Int
 flag_Wall =
   0
+{-# INLINE flag_Wall #-}
 
      -- We do not have any flag yet, so we keep this as 0. Later on, we will just
      -- concatenate all the warning flags with (.|.).
