@@ -4,11 +4,13 @@ module Text.Diagnose.Position where
 
 import Text.PrettyPrint.ANSI.Leijen
 
+-- | Offset in a stream used to determine where to put markers.
 data Position
   = Position
-  { beginning :: (Integer, Integer)
-  , end       :: (Integer, Integer)
-  , file      :: String             }
+  { beginning :: (Integer, Integer) -- ^ The beginning line and column
+  , end       :: (Integer, Integer) -- ^ The end line and column
+  , file      :: String             -- ^ The name of the file (does not need to be an absolute path)
+  }
   deriving (Show, Eq)
 
 instance Pretty Position where
