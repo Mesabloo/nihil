@@ -50,6 +50,7 @@ data Marker m
   = (:^^^^:) m
   | (:----:) m
   | (:~~~~:) m
+  | (:++++:)
 
 
 diagnostic :: Diagnostic s m a
@@ -118,14 +119,20 @@ prettyCodeWithMarkers files markers color margin =
 
                 underlineLen   = fromIntegral $ (if eLine == bLine then eCol else fromIntegral (length code)) - bCol
 
+                pretty'        = fillSep . fmap text . words . show . pretty
                 marker m       = case m of
-                  (:^^^^:) msg -> color $ text (replicate underlineLen '^') <+> pretty msg
-                  (:----:) msg -> magenta $ text (replicate underlineLen '-') <+> pretty msg
-                  (:~~~~:) msg -> dullgreen $ text (replicate underlineLen '~') <+> pretty msg
+                  (:^^^^:) msg -> [color $ text (replicate underlineLen '^') <+> align (pretty' msg)]
+                  (:----:) msg -> [magenta $ text (replicate underlineLen '-') <+> align (pretty' msg)]
+                  (:~~~~:) msg -> [dullgreen $ text (replicate underlineLen '~') <+> align (pretty' msg)]
+                  (:++++:)     -> []
                 renderMarker m =
-                  mconcat (replicate (maxLineMarkLen + 2) space <> replicate (fromIntegral bCol) space) <> marker m
-            in white $ bold (showLine bLine) <+> pretty code <$>
-               mconcat (punctuate line (List.toList $ fmap renderMarker markers))
+                  case marker m of
+                    []  -> []
+                    x:_ -> [mconcat (replicate (maxLineMarkLen + 2 + fromIntegral bCol) space) <> x]
+
+                renderedMarkers = List.toList markers >>= renderMarker
+            in white $ bold (showLine bLine) <+> pretty code <>
+               mconcat ((if null renderedMarkers then id else (line :)) $ punctuate line renderedMarkers)
       in showFile (text file) <$>
          empty <$>
          mconcat (punctuate line showMarkers)

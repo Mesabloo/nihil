@@ -21,6 +21,11 @@ main = do
       p2 = Position (3, 9) (3, 12) "./hello.nhl"
       p3 = Position (10, 11) (10, 12) "./hello.nhl"
       p4 = Position (3, 1) (3, 2) "./hello.nhl"
+
+      p5 = Position (5, 1) (5, 5) "./hello.nhl"
+      p6 = Position (6, 1) (6, 5) "./hello.nhl"
+      p7 = Position (7, 1) (7, 5) "./hello.nhl"
+      p8 = Position (8, 1) (8, 5) "./hello.nhl"
   printDiagnostic stderr $
     diagnostic
     <++> reportError "Mismatched types. Expected `Integer`, found `String`."
@@ -36,7 +41,13 @@ main = do
                        [(p4, (:----:) "g :: Integer")
                        ,(p3, (:^^^^:) "Should have been a `Char`")]
                        [hint "Same hint as above, I'm just lazy."]
-    <~< ("./hello.nhl", ["f = 1 + 2 + 3 + \"hello\"", "", "g = 1 - 'c'", "", "", "", "", "", "", "h = 'c' + g"])
+    <++> reportError "Function `test` was expected to have 2 arguments, but only got 1."
+                       [(p5, (:++++:))
+                       ,(p6, (:++++:))
+                       ,(p7, (:++++:))
+                       ,(p8, (:^^^^:) "Definition has 1 argument, whereas all others have 2 arguments. What's funny is that when the text becomes too long, it automatically correctly goes to a new line.")]
+                       []
+    <~< ("./hello.nhl", ["f = 1 + 2 + 3 + \"hello\"", "", "g = 1 - 'c'", "", "test 1 2 = 3", "test 3 4 = 5", "test 4 5 = 6", "test _   = 0", "", "h = 'c' + g"])
 
 
 
