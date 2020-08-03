@@ -23,7 +23,7 @@ import Data.Functor ((<&>))
 import Data.Bifunctor (second)
 import Data.Function (on)
 import Data.List (sortBy)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, maybeToList)
 
 type Files s a = Map FilePath [s a]
 type Markers m = Map Position (NonEmpty (Marker m))
@@ -64,27 +64,26 @@ prettyReport :: (Foldable s, Pretty (s a), Pretty m) => Files s a -> Report m ->
 prettyReport files (Report kind msg markers hints) =
   let (color, margin, sev) = prettyKind kind
   in color (bold sev) <> colon <+> pretty msg <$>
-     prettyCodeWithMarkers files markers color margin <$> line <>
+     mconcat (replicate (margin - 2) space) <> text "In" <> colon <+>
+     prettyCodeWithMarkers files markers color <$> line <>
      prettyHints hints
 
 prettyKind :: Kind -> (Doc -> Doc, Int, Doc)
 prettyKind Error   = (red, 7, brackets $ text "error")
 prettyKind Warning = (yellow, 9, brackets $ text "warning")
 
-prettyCodeWithMarkers :: (Foldable s, Pretty m, Pretty (s a)) => Files s a -> Markers m -> (Doc -> Doc) -> Int -> Doc
-prettyCodeWithMarkers files markers color margin =
+prettyCodeWithMarkers :: (Foldable s, Pretty m, Pretty (s a)) => Files s a -> Markers m -> (Doc -> Doc) -> Doc
+prettyCodeWithMarkers files markers color =
   let sortedMarkers = sortBy (compare `on` fst) (Map.toList markers)
-      showFile f = mconcat (replicate (margin - 2) space) <> text "In" <> colon <+> green f
   in case sortedMarkers of
-    []                                   -> showFile (text "???")
+    []                                   -> green (text "???")
     (Position{beginning=begin, ..}, _):_ ->
       let (bLine, bCol)  = begin
           ((p, _):_)     = reverse sortedMarkers
           maxLineMarkLen = length (show (fst (beginning p)))
 
           showLine l     =
-            let lineMarkLen = length (show l)
-            in space <> text (replicate (maxLineMarkLen - lineMarkLen) ' ') <> integer l <> text "|"
+            space <> text (replicate (maxLineMarkLen - length (show l)) ' ') <> integer l <> text "|"
 
           fileContent    = fromJust (Map.lookup file files)
 
@@ -96,27 +95,33 @@ prettyCodeWithMarkers files markers color margin =
 
                 underlineLen   = fromIntegral $ (if eLine == bLine then eCol else fromIntegral (length code)) - bCol
 
-                pretty'        = fillSep . fmap text . words . show . pretty
-                marker m       = case m of
-                  This msg  -> [color $ text (replicate underlineLen '^') <+> align (pretty' msg)]
-                  Where msg -> [magenta $ text (replicate underlineLen '-') <+> align (pretty' msg)]
-                  Maybe msg -> [dullgreen $ text (replicate underlineLen '~') <+> align (pretty' msg)]
-                  Empty     -> []
+                marker m       = prettyMarker underlineLen m color magenta dullgreen
                 renderMarker m =
-                  case marker m of
-                    []  -> []
-                    x:_ -> [mconcat (replicate (maxLineMarkLen + 2 + fromIntegral bCol) space) <> x]
+                  marker m <&> \ x -> mconcat (replicate (maxLineMarkLen + 2 + fromIntegral bCol) space) <> x
 
-                renderedMarkers = List.toList markers >>= renderMarker
+                renderedMarkers = List.toList markers >>= maybeToList . renderMarker
             in white $ bold (showLine bLine) <+> pretty code <>
-               mconcat ((if null renderedMarkers then id else (line :)) $ punctuate line renderedMarkers)
-      in showFile (text file) <$>
+               mconcat (applyIfNotNull (line :) $ punctuate line renderedMarkers)
+      in green (text file) <$>
          empty <$>
          mconcat (punctuate line showMarkers)
 
 prettyHints :: (Pretty m) => [Hint m] -> Doc
 prettyHints [] = line
 prettyHints hs = blue (fillSep $ punctuate line (fmap render hs)) <> line
-  where render (Hint msg) = fillSep (fmap text (words (show (pretty msg))))
+  where render (Hint msg) = smartPretty msg
 
+prettyMarker :: (Pretty m) => Int -> Marker m -> (Doc -> Doc) -> (Doc -> Doc) -> (Doc -> Doc) -> Maybe Doc
+prettyMarker underlineLen marker colorThis colorWhere colorMaybe = case marker of
+  Empty     -> Nothing
+  This msg  -> Just (colorThis $ under '^' <+> align (smartPretty msg))
+  Where msg -> Just (colorWhere $ under '-' <+> align (smartPretty msg))
+  Maybe msg -> Just (colorMaybe $ under '~' <+> align (smartPretty msg))
+ where under   = text . replicate underlineLen
 
+smartPretty :: (Pretty d) => d -> Doc
+smartPretty = fillSep . fmap text . words . show . pretty
+
+applyIfNotNull :: ([a] -> [a]) -> [a] -> [a]
+applyIfNotNull _ [] = []
+applyIfNotNull f l = f l
