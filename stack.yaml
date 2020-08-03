@@ -3,6 +3,7 @@ resolver: lts-16.5
 packages:
 - .
 - ./lib/gnc-flags
+- ./lib/diagnose
 
 extra-deps: []
 
