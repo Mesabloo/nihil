@@ -29,23 +29,23 @@ main = do
   printDiagnostic stderr $
     diagnostic
     <++> reportError "Mismatched types. Expected `Integer`, found `String`."
-                       [(p1, (:^^^^:) "Found to be a `String`")
-                       ,(p1, (:----:) "Some important information")
-                       ,(p1, (:~~~~:) "The function `read` might be relevant here")]
+                       [(p1, This "Found to be a `String`")
+                       ,(p1, Where "Some important information")
+                       ,(p1, Maybe "The function `read` might be relevant here")]
                        [hint "This most likely happen because you tried to give a type `a` to something that expected a type `b`. This is rejected by the type system because there is no possible implicit coercion between any types. Learn more about the error at <https://github.com/mesabloo/nihil/doc/hints/mismatched-types.md>."]
     <++> reportWarning "Implicit conversion from type `Char` to type `Integer`."
-                       [(p2, (:^^^^:) "Found to be a `Char`")
-                       ,(p2, (:~~~~:) "This conversion can be made explicit with `ord`")]
+                       [(p2, This "Found to be a `Char`")
+                       ,(p2, Maybe "This conversion can be made explicit with `ord`")]
                        [hint "Implicit conversions are rare, but do happen. You can learn more about them at <https://github.com/mesabloo/nihil/doc/hints/implicit-cast.md>."]
     <++> reportWarning "Implicit conversion from type `Integer` to type `Char`."
-                       [(p4, (:----:) "g :: Integer")
-                       ,(p3, (:^^^^:) "Should have been a `Char`")]
+                       [(p4, Where "g :: Integer")
+                       ,(p3, This "Should have been a `Char`")]
                        [hint "Same hint as above, I'm just lazy."]
     <++> reportError "Function `test` was expected to have 2 arguments, but only got 1."
-                       [(p5, (:++++:))
-                       ,(p6, (:++++:))
-                       ,(p7, (:++++:))
-                       ,(p8, (:^^^^:) "Definition has 1 argument, whereas all others have 2 arguments. What's funny is that when the text becomes too long, it automatically correctly goes to a new line.")]
+                       [(p5, Empty)
+                       ,(p6, Empty)
+                       ,(p7, Empty)
+                       ,(p8, This "Definition has 1 argument, whereas all others have 2 arguments. What's funny is that when the text becomes too long, it automatically correctly goes to a new line.")]
                        []
     <~< ("./hello.nhl", ["f = 1 + 2 + 3 + \"hello\"", "", "g = 1 - 'c'", "", "test 1 2 = 3", "test 3 4 = 5", "test 4 5 = 6", "test _   = 0", "", "h = 'c' + g"])
 
