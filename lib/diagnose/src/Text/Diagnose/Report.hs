@@ -1,16 +1,12 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Text.Diagnose.Report
-( Diagnostic, Report, Marker(..)
-, diagnostic, (<~<), (<++>)
+( Report, Marker(..), Files
 , reportError, reportWarning
 , hint
 
-, printDiagnostic, pretty
+, prettyReport
 ) where
 
 import Text.Diagnose.Position
@@ -30,10 +26,6 @@ import Data.List (sortBy)
 import Data.Maybe (fromJust)
 
 type Files s a = Map FilePath [s a]
-
-data Diagnostic s m a
-  = Diagnostic (Files s a) [Report m]
-
 type Markers m = Map Position (NonEmpty (Marker m))
 
 data Report m
@@ -47,24 +39,11 @@ data Hint m
   = Hint m
 
 data Marker m
-  = (:^^^^:) m
-  | (:----:) m
-  | (:~~~~:) m
-  | (:++++:)
+  = This m
+  | Where m
+  | Maybe m
+  | Empty
 
-
-diagnostic :: Diagnostic s m a
-diagnostic = Diagnostic mempty mempty
-
-(<~<) :: Diagnostic s m a -> (FilePath, [s a]) -> Diagnostic s m a
-Diagnostic files reports <~< (path, content) = Diagnostic (Map.insert path content files) reports
-
-(<++>) :: Diagnostic s m a -> Report m -> Diagnostic s m a
-Diagnostic files reports <++> report = Diagnostic files (reports ++ [report])
-
-
-infixl 5 <++>
-infixr 4 <~<
 
 reportError, reportWarning :: m -> [(Position, Marker m)] -> [Hint m] -> Report m
 reportError = newReport Error
@@ -80,8 +59,6 @@ hint :: m -> Hint m
 hint = Hint
 
 
-instance (Foldable s, Pretty (s a), Pretty m) => Pretty (Diagnostic s m a) where
-  pretty (Diagnostic files reports) = indent 1 (sep (fmap (prettyReport files) reports)) <> line
 
 prettyReport :: (Foldable s, Pretty (s a), Pretty m) => Files s a -> Report m -> Doc
 prettyReport files (Report kind msg markers hints) =
@@ -121,10 +98,10 @@ prettyCodeWithMarkers files markers color margin =
 
                 pretty'        = fillSep . fmap text . words . show . pretty
                 marker m       = case m of
-                  (:^^^^:) msg -> [color $ text (replicate underlineLen '^') <+> align (pretty' msg)]
-                  (:----:) msg -> [magenta $ text (replicate underlineLen '-') <+> align (pretty' msg)]
-                  (:~~~~:) msg -> [dullgreen $ text (replicate underlineLen '~') <+> align (pretty' msg)]
-                  (:++++:)     -> []
+                  This msg  -> [color $ text (replicate underlineLen '^') <+> align (pretty' msg)]
+                  Where msg -> [magenta $ text (replicate underlineLen '-') <+> align (pretty' msg)]
+                  Maybe msg -> [dullgreen $ text (replicate underlineLen '~') <+> align (pretty' msg)]
+                  Empty     -> []
                 renderMarker m =
                   case marker m of
                     []  -> []
@@ -143,4 +120,3 @@ prettyHints hs = blue (fillSep $ punctuate line (fmap render hs)) <> line
   where render (Hint msg) = fillSep (fmap text (words (show (pretty msg))))
 
 
-printDiagnostic handle diag = displayIO handle (renderPretty 0.9 80 $ pretty diag)
