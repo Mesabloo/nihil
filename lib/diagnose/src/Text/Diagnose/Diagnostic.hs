@@ -5,6 +5,7 @@ module Text.Diagnose.Diagnostic
 ) where
 
 import Text.Diagnose.Report
+import Text.Diagnose.Format
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.PrettyPrint.ANSI.Leijen
@@ -31,10 +32,10 @@ infixl 5 <++>
 infixr 4 <~<
 
 
-instance (Foldable s, Pretty (s a), Pretty m) => Pretty (Diagnostic s m a) where
-  pretty (Diagnostic files reports) = indent 1 (sep (fmap (prettyReport files) reports)) <> line
+instance (Foldable s, PrettyText (s a), PrettyText m) => PrettyText (Diagnostic s m a) where
+  prettyText (Diagnostic files reports) = indent 1 (sep (fmap (prettyReport files) reports)) <> line
 
 
 -- | Prints a @'Diagnostic' s m a@ To the given @'Handle'@
-printDiagnostic :: (Foldable s, Pretty (s a), Pretty m) => Handle -> Diagnostic s m a -> IO ()
-printDiagnostic handle diag = displayIO handle (renderPretty 0.9 80 $ pretty diag)
+printDiagnostic :: (Foldable s, PrettyText (s a), PrettyText m) => Handle -> Diagnostic s m a -> IO ()
+printDiagnostic handle diag = displayIO handle (renderPretty 0.9 80 $ prettyText diag)

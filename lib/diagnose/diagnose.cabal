@@ -22,6 +22,9 @@ library
   exposed-modules:
       Text.Diagnose
       Text.Diagnose.Diagnostic
+      Text.Diagnose.Format
+      Text.Diagnose.Format.JSON
+      Text.Diagnose.Format.Text
       Text.Diagnose.Position
       Text.Diagnose.Report
   other-modules:

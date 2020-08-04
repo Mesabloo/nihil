@@ -10,6 +10,7 @@ module Text.Diagnose.Report
 ) where
 
 import Text.Diagnose.Position
+import Text.Diagnose.Format
 import Text.PrettyPrint.ANSI.Leijen
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -72,10 +73,10 @@ hint = Hint
 
 
 -- | Prettifies a report, when given the files it may want to used.
-prettyReport :: (Foldable s, Pretty (s a), Pretty m) => Files s a -> Report m -> Doc
+prettyReport :: (Foldable s, PrettyText (s a), PrettyText m) => Files s a -> Report m -> Doc
 prettyReport files (Report kind msg markers hints) =
   let (color, margin, sev) = prettyKind kind
-  in color (bold sev) <> colon <+> pretty msg <$>
+  in color (bold sev) <> colon <+> prettyText msg <$>
      mconcat (replicate (margin - 2) space) <> text "In" <> colon <+>
      prettyCodeWithMarkers files markers color <$> line <>
      prettyHints hints
@@ -87,7 +88,7 @@ prettyKind Error   = (red, 7, brackets $ text "error")
 prettyKind Warning = (yellow, 9, brackets $ text "warning")
 
 -- | Prettifies the code along with the useful markers.
-prettyCodeWithMarkers :: (Foldable s, Pretty m, Pretty (s a))
+prettyCodeWithMarkers :: (Foldable s, PrettyText m, PrettyText (s a))
                       => Files s a    -- ^ The potential input files to use to show the code
                       -> Markers m    -- ^ The markers to show
                       -> (Doc -> Doc) -- ^ The color for "this" markers
@@ -119,20 +120,20 @@ prettyCodeWithMarkers files markers color =
                   marker m <&> \ x -> mconcat (replicate (maxLineMarkLen + 2 + fromIntegral bCol) space) <> x
 
                 renderedMarkers = List.toList markers >>= maybeToList . renderMarker
-            in white $ bold (showLine bLine) <+> pretty code <>
+            in white $ bold (showLine bLine) <+> prettyText code <>
                mconcat (applyIfNotNull (line :) $ punctuate line renderedMarkers)
       in green (text file) <$>
          empty <$>
          mconcat (punctuate line showMarkers)
 
 -- | Prettifies a list of 'Hint's into a single 'Doc'ument. All 'Hint's are prettified and concatenated with a 'line' in between.
-prettyHints :: (Pretty m) => [Hint m] -> Doc
+prettyHints :: (PrettyText m) => [Hint m] -> Doc
 prettyHints [] = line
 prettyHints hs = blue (fillSep $ punctuate line (fmap render hs)) <> line
   where render (Hint msg) = smartPretty msg
 
 -- | Prettifies a marker.
-prettyMarker :: (Pretty m)
+prettyMarker :: (PrettyText m)
              => Int          -- ^ The length of the marker
              -> Marker m     -- ^ The marker to show
              -> (Doc -> Doc) -- ^ The color if a "this" marker
@@ -147,8 +148,8 @@ prettyMarker underlineLen marker colorThis colorWhere colorMaybe = case marker o
  where under   = text . replicate underlineLen
 
 -- | A smarter pretty to keep long texts in between the bounds and correctly align them.
-smartPretty :: (Pretty d) => d -> Doc
-smartPretty = fillSep . fmap text . words . show . pretty
+smartPretty :: (PrettyText d) => d -> Doc
+smartPretty = fillSep . fmap text . words . show . prettyText
 
 
 -- | Applies a function to the list if it isn't '[]', else returns it.
