@@ -29,7 +29,7 @@ Diagnostic files reports <~< (path, content) = Diagnostic (Map.insert path conte
 Diagnostic files reports <++> report = Diagnostic files (reports ++ [report])
 
 infixl 5 <++>
-infixr 4 <~<
+infixl 4 <~<
 
 
 instance (Foldable s, PrettyText (s a), PrettyText m) => PrettyText (Diagnostic s m a) where
