@@ -3,9 +3,10 @@ resolver: lts-16.5
 packages:
 - .
 - ./lib/gnc-flags
-- ./lib/diagnose
 
-extra-deps: []
+extra-deps:
+- git: https://github.com/mesabloo/diagnose.git
+  commit: caa37da06519711d8831df34c577be3c897bc111
 
 nix:
     shell-file: shell.nix
