@@ -1,52 +1,90 @@
-name:                gnc-lib
-version:             !include "version.txt"
-github:              "mesabloo/nihil"
-license:             BSD3
-author:              "Mesabloo"
-copyright:           "2020 Mesabloo"
-
-extra-source-files:
-- README.md
-
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/mesabloo/gnc#readme>
-
-dependencies:
-- base >= 4.7 && < 5
-- megaparsec
-- diagnose
-
-default-extensions: !include "default-extensions.txt"
-
 library:
   source-dirs: src
 
+when:
+- condition: flag(profile)
+  ghc-options:
+  - -prof
+  - -auto-all
+  - -with-rtsopts=-p,-s
+
+ghc-options:
+- -Wall
+- -Wno-unused-do-bind
+- -Wno-orphans
+- -Wno-name-shadowing
+- -Wno-unused-matches
+- -O2
+- -optc-O3
+
+author: Ghilain Bergeron (Mesabloo)
+github: mesabloo/nihil
+license: BSD3
+copyright: 2019 Ghilain Bergeron (Mesabloo)
+description: Please see the README on GitHub at <https://github.com/mesabloo/nihil#readme>
+
+dependencies:
+- base
+- gnc-utils
+- gnc-core
+- gnc-parser
+- gnc-typechecker
+- gnc-runtime
+- gnc-pretty
+
+name: gnc
+version: 0.1.0.0
+extra-source-files:
+- README.md
+
 executables:
-  gnc:
-    main:                Main.hs
-    source-dirs:         app
+  nihilin:
+    source-dirs: app/nihilin
+    main:        Main.hs
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wno-type-defaults
     dependencies:
-    - gnc-lib
-    - gnc-flags
-    - optparse-applicative
+    - gnc
+    - containers
+    - lens
+    - megaparsec
+    - mtl
+    - ansi-wl-pprint
+    - text
+
+flags:
+  profile:
+    description: "Enable/disable compiler profiling."
+    manual: true
+    default: false
 
 tests:
-  gnc-test:
-    main:                Spec.hs
-    source-dirs:         test
+  compiler:
+    main:        Spec.hs
+    source-dirs: tests/compiler
     ghc-options:
+    - -O0
+    - -optc-O0
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - gnc-lib
+    - gnc
+    - hspec
+    - text
+    - containers
+  utils:
+    main:        Spec.hs
+    source-dirs: tests/utils
+    ghc-options:
+    - -O0
+    - -optc-O0
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - gnc
+    - hspec

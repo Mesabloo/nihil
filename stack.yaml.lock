@@ -3,21 +3,10 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages:
-- completed:
-    name: diagnose
-    version: 1.0.0
-    git: https://github.com/mesabloo/diagnose.git
-    pantry-tree:
-      size: 737
-      sha256: fc4182c69711fe6eb3996def67fcab11c41d43e4cdf6d6d229454fe28a5f5081
-    commit: caa37da06519711d8831df34c577be3c897bc111
-  original:
-    git: https://github.com/mesabloo/diagnose.git
-    commit: caa37da06519711d8831df34c577be3c897bc111
+packages: []
 snapshots:
 - completed:
-    size: 531707
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/5.yaml
-    sha256: 9751e25e0af5713a53ddcfcc79564b082c71b1b357fadef0d85672a5b5ba3703
-  original: lts-16.5
+    size: 491163
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/15/4.yaml
+    sha256: bc60043a06b58902b533baa80fb566c0ec495c41e428bc0f8c1e8c15b2a4c468
+  original: lts-15.4

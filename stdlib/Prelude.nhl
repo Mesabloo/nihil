@@ -1,0 +1,18 @@
+-- module Prelude where
+{- This will be enabled later, when we'll have some modules implemented -}
+
+data Maybe a
+    = Just a   -- Just    : a|1] -> Maybe a
+    | Nothing  -- Nothing : Maybe a
+
+data Either a b
+    = Left a   -- Left  : a|1| -> Either a b
+    | Right b  -- Right : b|1| -> Either a b
+
+type String = [Char]
+
+id : a -> a
+id x = x
+
+const : a -> b -> a
+const a _ = a
